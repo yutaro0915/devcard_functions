@@ -52,9 +52,7 @@ describe("SaveGitHubTokenUseCase", () => {
     mockUserRepository.findById.mockResolvedValue(null);
 
     const useCase = new SaveGitHubTokenUseCase(mockUserRepository);
-    await expect(useCase.execute(input)).rejects.toThrow(
-      "User nonexistent-user not found"
-    );
+    await expect(useCase.execute(input)).rejects.toThrow("User nonexistent-user not found");
 
     expect(mockUserRepository.update).not.toHaveBeenCalled();
   });

@@ -35,6 +35,10 @@ describe("UpdateProfileUseCase", () => {
         displayName: "New Name",
         bio: "New bio",
         photoURL: "https://example.com/new.jpg",
+      },
+      {
+        displayName: "New Name",
+        photoURL: "https://example.com/new.jpg",
       }
     );
   });
@@ -52,6 +56,9 @@ describe("UpdateProfileUseCase", () => {
 
     expect(mockTransaction.execute).toHaveBeenCalledWith(
       "user-123",
+      {
+        displayName: "New Name Only",
+      },
       {
         displayName: "New Name Only",
       },
@@ -77,7 +84,8 @@ describe("UpdateProfileUseCase", () => {
       {},
       {
         bio: "New bio only",
-      }
+      },
+      undefined
     );
   });
 
@@ -99,6 +107,9 @@ describe("UpdateProfileUseCase", () => {
       },
       {
         photoURL: "https://example.com/new-photo.jpg",
+      },
+      {
+        photoURL: "https://example.com/new-photo.jpg",
       }
     );
   });
@@ -114,7 +125,7 @@ describe("UpdateProfileUseCase", () => {
     await useCase.execute(input);
 
     // Empty updates should still call transaction with empty objects
-    expect(mockTransaction.execute).toHaveBeenCalledWith("user-123", {}, {});
+    expect(mockTransaction.execute).toHaveBeenCalledWith("user-123", {}, {}, undefined);
   });
 
   it("should throw error if user not found", async () => {
@@ -123,14 +134,10 @@ describe("UpdateProfileUseCase", () => {
       displayName: "New Name",
     };
 
-    mockTransaction.execute.mockRejectedValue(
-      new Error("User with ID nonexistent-user not found")
-    );
+    mockTransaction.execute.mockRejectedValue(new Error("User with ID nonexistent-user not found"));
 
     const useCase = new UpdateProfileUseCase(mockTransaction);
-    await expect(useCase.execute(input)).rejects.toThrow(
-      "User with ID nonexistent-user not found"
-    );
+    await expect(useCase.execute(input)).rejects.toThrow("User with ID nonexistent-user not found");
   });
 
   it("should throw error if public card not found", async () => {
@@ -139,14 +146,10 @@ describe("UpdateProfileUseCase", () => {
       displayName: "New Name",
     };
 
-    mockTransaction.execute.mockRejectedValue(
-      new Error("PublicCard for user user-123 not found")
-    );
+    mockTransaction.execute.mockRejectedValue(new Error("PublicCard for user user-123 not found"));
 
     const useCase = new UpdateProfileUseCase(mockTransaction);
-    await expect(useCase.execute(input)).rejects.toThrow(
-      "PublicCard for user user-123 not found"
-    );
+    await expect(useCase.execute(input)).rejects.toThrow("PublicCard for user user-123 not found");
   });
 
   it("should allow empty string for bio", async () => {
@@ -165,7 +168,8 @@ describe("UpdateProfileUseCase", () => {
       {},
       {
         bio: "",
-      }
+      },
+      undefined
     );
   });
 });

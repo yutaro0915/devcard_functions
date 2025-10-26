@@ -1,4 +1,4 @@
-# API Contract v0.1.0
+# API Contract v0.2.0
 
 **このファイルがバックエンドAPIの唯一の真実です。**
 
@@ -81,7 +81,7 @@
 
 **認証**: 必須
 
-**説明**: 他のユーザーの公開名刺を自分のコレクションに保存します。
+**説明**: 他のユーザーの公開名刺を自分のコレクションに保存します。同じユーザーの名刺を複数回保存可能（イベント別など）。
 
 **リクエスト**:
 ```typescript
@@ -98,9 +98,13 @@
 ```typescript
 {
   success: true;
+  savedCardId: string;   // ランダム生成されたID
   savedCard: {
+    savedCardId: string;
     cardUserId: string;
+    cardType: "public";
     savedAt: Timestamp;
+    lastKnownUpdatedAt: Timestamp;  // 保存時の相手のupdatedAt
     memo?: string;
     tags?: string[];
     eventId?: string;
@@ -113,10 +117,16 @@
 - `unauthenticated`: 認証されていない場合
 - `invalid-argument`: `cardUserId` が不正な場合
 - `not-found`: 指定された公開名刺が存在しない場合
-- `already-exists`: すでに保存済みの場合
 - `internal`: サーバー内部エラー
 
-**保存先**: `/users/{userId}/saved_cards/{cardUserId}`
+**保存先**: `/users/{userId}/saved_cards/{randomId}` (ランダムID使用)
+
+**変更点 (v0.2.0)**:
+- ドキュメントIDがランダムIDに変更（同じユーザーを複数回保存可能）
+- `savedCardId` フィールド追加
+- `cardType: "public"` 固定値追加
+- `lastKnownUpdatedAt` 追加（更新検知用）
+- `already-exists` エラーを削除（同じユーザーを複数回保存可能に）
 
 ---
 
@@ -126,7 +136,7 @@
 
 **認証**: 必須（自分のプロフィールのみ更新可能）
 
-**説明**: ユーザーが自分のプロフィール情報を更新します。`/users/{userId}`（非公開プロフィール）と `/public_cards/{userId}`（公開名刺）の両方が更新されます。
+**説明**: ユーザーが自分のプロフィール情報を更新します。`/users/{userId}`、`/public_cards/{userId}`、および `/private_cards/{userId}`（存在する場合）の3箇所がトランザクションで同期更新されます。
 
 **リクエスト**:
 ```typescript
@@ -163,11 +173,17 @@
 **更新対象**:
 - `/users/{userId}`: `displayName`, `photoURL`, `updatedAt`
 - `/public_cards/{userId}`: `displayName`, `bio`, `photoURL`, `updatedAt`
+- `/private_cards/{userId}`: `displayName`, `photoURL`, `updatedAt` (存在する場合のみ)
 
 **注意事項**:
 - 少なくとも1つのフィールド（`displayName`、`bio`、または `photoURL`）を指定する必要があります
 - 未指定のフィールドは更新されません
-- 両方のコレクションが自動的に同期されます
+- 3箇所がFirestoreトランザクションで原子的に更新されます（失敗時は全てロールバック）
+- PrivateCardが存在しない場合は、User/PublicCardのみ更新されます
+
+**変更点 (v0.2.0)**:
+- PrivateCardの同期更新を追加（displayName, photoURL）
+- トランザクション処理で原子性を担保
 
 ---
 
@@ -226,37 +242,85 @@
 
 **認証**: 必須
 
-**説明**: 保存した名刺の一覧を、公開名刺の詳細情報と共に取得します。
+**説明**: 保存した名刺の一覧を、最新のマスターカード情報と共に取得します。PublicCardとPrivateCardの両方に対応し、統一された更新検知ロジック（hasUpdate）を提供します。
 
-**リクエスト**: なし
+**⚠️ 破壊的変更 (v0.2.0)**: レスポンス構造が大幅に変更されました。
+
+**リクエスト**:
+```typescript
+{
+  cardType?: "public" | "private";  // フィルター (任意)
+  eventId?: string;                 // イベントIDでフィルター (任意)
+  limit?: number;                   // 取得件数 (任意、1-500、デフォルト100)
+}
+```
 
 **レスポンス**:
 ```typescript
 {
   success: true;
   savedCards: Array<{
-    // SavedCard metadata
+    // SavedCard metadata (全cardTypeで共通)
+    savedCardId: string;               // ランダム生成されたID
     cardUserId: string;
-    savedAt: Timestamp;
+    cardType: "public" | "private";    // カードタイプ
+    savedAt: string;                   // ISO 8601形式
+    lastKnownUpdatedAt?: string;       // 最後に知っている相手のupdatedAt
+    lastViewedAt?: string;             // 最後に表示した時刻
+    hasUpdate: boolean;                // 更新検知: lastKnownUpdatedAt < master.updatedAt
     memo?: string;
     tags?: string[];
     eventId?: string;
     badge?: string;
 
-    // PublicCard details (joined)
+    // Master card details (cardTypeによって異なる)
     displayName: string;
     photoURL?: string;
+    updatedAt: string;                 // マスターカードのupdatedAt
+    isDeleted?: boolean;               // マスターが削除済みの場合true
+
+    // Public card specific fields (cardType='public'の場合のみ)
     bio?: string;
-    connectedServices: Record<string, ConnectedService>;
-    theme: string;
+    connectedServices?: Record<string, ConnectedService>;
+    theme?: string;
     customCss?: string;
+
+    // Private card specific fields (cardType='private'の場合のみ)
+    email?: string;
+    phoneNumber?: string;
+    lineId?: string;
+    discordId?: string;
+    twitterHandle?: string;
+    otherContacts?: string;
   }>
 }
 ```
 
+**更新検知ロジック**:
+```typescript
+hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt < master.updatedAt
+```
+
 **エラー**:
 - `unauthenticated`: 認証されていない場合
+- `invalid-argument`: 以下の場合
+  - `cardType` が "public" または "private" 以外
+  - `limit` が1未満または500超
 - `internal`: サーバー内部エラー
+
+**注意事項**:
+- SavedCardはスナップショットではなく、**常に最新のマスターカードを参照**します
+- 相手がGitHub同期やプロフィール変更をすると、即座に反映されます
+- `hasUpdate=true` の場合、「最新版があります！」バッジを表示することを推奨
+- 名刺詳細を表示したら `markAsViewed` を呼び出して `hasUpdate` をfalseにしてください
+- `isDeleted=true` の場合、マスターカードが削除済みです（「この名刺は削除されました」と表示を推奨）
+
+**変更点 (v0.2.0)**:
+- リクエストに `cardType`, `eventId`, `limit` フィルター追加
+- `savedCardId`, `cardType`, `hasUpdate`, `lastViewedAt`, `lastKnownUpdatedAt` フィールド追加
+- 条件付きフィールド: cardTypeによって返却される情報が異なる
+- PublicとPrivate両方をサポート
+- 統一された更新検知ロジック
 
 ---
 
@@ -334,6 +398,238 @@ connectedServices: {
 - 部分成功: 一部のサービス同期が失敗しても、成功したものは反映される
 - 既存サービス保持: 同期対象外のサービス情報は保持される
 - トークン保護: アクセストークンはログに出力されない
+
+**変更点 (v0.2.0)**:
+- **同期成功時のみ `PublicCard.updatedAt` を更新**（エラー時は更新しない）
+- これにより、保存済み名刺の更新検知（`hasUpdate`）が正しく機能します
+- 例: GitHub同期でリポジトリ追加 → `PublicCard.updatedAt`更新 → 保存している人に「最新版があります！」通知
+
+---
+
+### 8. Callable Function: `updatePrivateCard`
+
+**エンドポイント**: `updatePrivateCard` (Callable Function)
+
+**認証**: 必須（自分のPrivateCardのみ編集可能）
+
+**説明**: 個人連絡先情報（PrivateCard）を作成・更新します。初回呼び出し時に `/private_cards/{userId}` が作成され、2回目以降は部分更新されます。
+
+**リクエスト**:
+```typescript
+{
+  email?: string;           // メールアドレス (任意、最大255文字、email形式)
+  phoneNumber?: string;     // 電話番号 (任意、最大50文字)
+  lineId?: string;          // LINE ID (任意、最大100文字)
+  discordId?: string;       // Discord ID (任意、最大100文字)
+  twitterHandle?: string;   // Twitterハンドル (任意、最大15文字)
+  otherContacts?: string;   // その他連絡先 (任意、最大500文字)
+}
+```
+
+**バリデーション**:
+- 少なくとも1つのフィールドが必須
+- `email`: 有効なメールアドレス形式、255文字以下
+- `phoneNumber`: 50文字以下
+- `lineId`, `discordId`: 100文字以下
+- `twitterHandle`: 15文字以下
+- `otherContacts`: 500文字以下
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: 以下の場合
+  - 全フィールドが未指定
+  - フィールドの型が不正
+  - `email` が無効な形式
+  - 文字列長制限超過
+- `internal`: サーバー内部エラー
+
+**保存先**: `/private_cards/{userId}`
+
+**注意事項**:
+- 初回呼び出し時: ドキュメントを新規作成（displayName, photoURLは現在のUserから自動コピー）
+- 2回目以降: 指定されたフィールドのみ部分更新（未指定フィールドは保持）
+- `displayName`, `photoURL` は `updateProfile` で更新されると自動同期されます
+- 何か一つでも変更されたら `updatedAt` が必ず更新されます
+
+---
+
+### 9. Callable Function: `getPrivateCard`
+
+**エンドポイント**: `getPrivateCard` (Callable Function)
+
+**認証**: 必須（自分のPrivateCardのみ取得可能）
+
+**説明**: 自分の個人連絡先情報（PrivateCard）を取得します。他人のPrivateCardは取得できません。
+
+**リクエスト**: なし
+
+**レスポンス**:
+```typescript
+{
+  userId: string;
+  displayName: string;
+  photoURL?: string;
+  email?: string;
+  phoneNumber?: string;
+  lineId?: string;
+  discordId?: string;
+  twitterHandle?: string;
+  otherContacts?: string;
+  updatedAt: string;  // ISO 8601形式
+} | null  // PrivateCardが未作成の場合null
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `internal`: サーバー内部エラー
+
+**注意事項**:
+- PrivateCardが未作成の場合は `null` を返します
+- セキュリティ: 他人のPrivateCardは絶対に取得できません（認証済みユーザーIDのみ使用）
+
+---
+
+### 10. Callable Function: `savePrivateCard`
+
+**エンドポイント**: `savePrivateCard` (Callable Function)
+
+**認証**: 必須
+
+**説明**: トークンを使用して、他のユーザーのPrivateCardを保存します。トークンは1分間有効で、1回のみ使用可能です。
+
+**リクエスト**:
+```typescript
+{
+  tokenId: string;  // 交換トークンID (必須)
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  savedCardId: string;  // 保存されたsavedCardのID
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: 以下の場合
+  - `tokenId` が未指定
+  - トークンの所有者が自分自身（自分のトークンは使用不可）
+  - トークンが期限切れ（作成から1分超過）
+  - トークンが使用済み
+- `not-found`: トークンが存在しない、またはPrivateCardが存在しない
+- `internal`: サーバー内部エラー
+
+**トークン検証**:
+1. **所有者チェック**: トークンの所有者が自分自身の場合エラー
+2. **有効期限チェック**: トークン作成から1分以内であることを確認
+3. **使用状況チェック**: トークンが未使用であることを確認
+
+**保存先**: `/users/{userId}/saved_cards/{randomId}`
+
+**保存内容**:
+```typescript
+{
+  savedCardId: string;
+  cardUserId: string;           // トークン所有者のuserId
+  cardType: "private";
+  savedAt: Timestamp;
+  lastKnownUpdatedAt: Timestamp; // 相手のPrivateCard.updatedAt
+}
+```
+
+**注意事項**:
+- トークンは `/exchange_tokens/{tokenId}` に保存されています（将来的にQRコード/AirDropでの交換を想定）
+- 使用後、トークンは `usedBy`, `usedAt` フィールドでマークされ、再利用不可になります
+- セキュリティ: 自分のトークンは使用できません
+
+---
+
+### 11. Callable Function: `markAsViewed`
+
+**エンドポイント**: `markAsViewed` (Callable Function)
+
+**認証**: 必須
+
+**説明**: 保存済み名刺を「閲覧済み」としてマークします。`lastViewedAt` と `lastKnownUpdatedAt` を更新し、次回の `getSavedCards` で `hasUpdate=false` になります。
+
+**リクエスト**:
+```typescript
+{
+  savedCardId: string;  // 保存済み名刺のID (必須)
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: `savedCardId` が未指定
+- `not-found`: 指定されたsavedCardが存在しない、または他人のsavedCard
+- `internal`: サーバー内部エラー
+
+**更新内容**:
+```typescript
+{
+  lastViewedAt: Timestamp;          // 現在時刻
+  lastKnownUpdatedAt: Timestamp;    // マスターカードの最新updatedAt
+}
+```
+
+**注意事項**:
+- PublicCard/PrivateCard両方に対応（cardTypeを問わず同じ動作）
+- 名刺詳細画面を表示した際に呼び出すことを推奨
+- これにより「最新版があります！」バッジが消えます
+
+---
+
+### 12. Callable Function: `deleteSavedCard`
+
+**エンドポイント**: `deleteSavedCard` (Callable Function)
+
+**認証**: 必須
+
+**説明**: 保存済み名刺を削除します。PublicCard/PrivateCard両方に対応。
+
+**リクエスト**:
+```typescript
+{
+  savedCardId: string;  // 保存済み名刺のID (必須)
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: `savedCardId` が未指定
+- `not-found`: 指定されたsavedCardが存在しない、または他人のsavedCard
+- `internal`: サーバー内部エラー
+
+**削除対象**: `/users/{userId}/saved_cards/{savedCardId}`
+
+**注意事項**:
+- 自分の保存済み名刺のみ削除可能（他人の名刺は削除できない）
+- 削除されるのはSavedCardのみ（マスターのPublicCard/PrivateCardは削除されません）
 
 ---
 
@@ -454,7 +750,7 @@ interface ConnectedService {
 
 ## 備考
 
-- バージョン: **v0.1.0** (初回リリース)
+- バージョン: **v0.2.0** (PrivateCard機能とSavedCard統合)
 - この契約は段階的に拡張されます
 - 変更履歴は `CHANGELOG.md` を参照してください
 - 機械可読な仕様は `openapi.yaml` に記載されます（将来的に）

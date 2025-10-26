@@ -10,7 +10,14 @@ setGlobalOptions({maxInstances: 10});
 // Export handlers
 export {onUserCreate} from "./handlers/authHandlers";
 export {saveGitHubToken} from "./handlers/serviceTokenHandlers";
-export {saveCard, getSavedCards} from "./handlers/savedCardHandlers";
+export {
+  saveCard,
+  getSavedCards,
+  savePrivateCard,
+  markAsViewed,
+  deleteSavedCard,
+} from "./handlers/savedCardHandlers";
 export {updateProfile} from "./handlers/profileHandlers";
+export {updatePrivateCard, getPrivateCard} from "./handlers/privateCardHandlers";
 export {getPublicCard} from "./handlers/publicCardHandlers";
 export {manualSync} from "./handlers/syncHandlers";

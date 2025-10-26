@@ -1,4 +1,4 @@
-import {Firestore, FieldValue} from "firebase-admin/firestore";
+import {Firestore, FieldValue, DocumentData} from "firebase-admin/firestore";
 import {IUserRepository} from "../domain/IUserRepository";
 import {User, CreateUserData} from "../domain/User";
 
@@ -53,7 +53,7 @@ export class UserRepository implements IUserRepository {
   /**
    * Convert Firestore data to User entity
    */
-  private toUser(data: any): User {
+  private toUser(data: DocumentData): User {
     return {
       userId: data.userId,
       email: data.email,

@@ -7,9 +7,12 @@ import {PublicCard} from "../../../domain/PublicCard";
 const mockSavedCardRepository: jest.Mocked<ISavedCardRepository> = {
   save: jest.fn(),
   findByUserId: jest.fn(),
+  findById: jest.fn(),
   exists: jest.fn(),
   delete: jest.fn(),
+  deleteById: jest.fn(),
   update: jest.fn(),
+  updateById: jest.fn(),
 };
 
 const mockPublicCardRepository: jest.Mocked<IPublicCardRepository> = {
@@ -43,8 +46,11 @@ describe("SaveCardUseCase", () => {
     };
 
     const savedCard: SavedCard = {
+      savedCardId: "random-id-1",
       cardUserId: input.cardUserId,
+      cardType: "public",
       savedAt: new Date(),
+      lastKnownUpdatedAt: publicCard.updatedAt,
       memo: input.memo,
       tags: input.tags,
       eventId: input.eventId,
@@ -52,7 +58,6 @@ describe("SaveCardUseCase", () => {
     };
 
     mockPublicCardRepository.findByUserId.mockResolvedValue(publicCard);
-    mockSavedCardRepository.exists.mockResolvedValue(false);
     mockSavedCardRepository.save.mockResolvedValue(savedCard);
 
     const useCase = new SaveCardUseCase(mockSavedCardRepository, mockPublicCardRepository);
@@ -60,10 +65,11 @@ describe("SaveCardUseCase", () => {
 
     expect(result).toEqual(savedCard);
     expect(mockPublicCardRepository.findByUserId).toHaveBeenCalledWith(input.cardUserId);
-    expect(mockSavedCardRepository.exists).toHaveBeenCalledWith(input.userId, input.cardUserId);
     expect(mockSavedCardRepository.save).toHaveBeenCalledWith({
       userId: input.userId,
       cardUserId: input.cardUserId,
+      cardType: "public",
+      lastKnownUpdatedAt: publicCard.updatedAt,
       memo: input.memo,
       tags: input.tags,
       eventId: input.eventId,
@@ -80,34 +86,7 @@ describe("SaveCardUseCase", () => {
     mockPublicCardRepository.findByUserId.mockResolvedValue(null);
 
     const useCase = new SaveCardUseCase(mockSavedCardRepository, mockPublicCardRepository);
-    await expect(useCase.execute(input)).rejects.toThrow(
-      "PublicCard nonexistent-card not found"
-    );
-
-    expect(mockSavedCardRepository.save).not.toHaveBeenCalled();
-  });
-
-  it("should throw error if card already saved", async () => {
-    const input = {
-      userId: "user-123",
-      cardUserId: "card-user-456",
-    };
-
-    const publicCard: PublicCard = {
-      userId: input.cardUserId,
-      displayName: "Card User",
-      connectedServices: {},
-      theme: "default",
-      updatedAt: new Date(),
-    };
-
-    mockPublicCardRepository.findByUserId.mockResolvedValue(publicCard);
-    mockSavedCardRepository.exists.mockResolvedValue(true);
-
-    const useCase = new SaveCardUseCase(mockSavedCardRepository, mockPublicCardRepository);
-    await expect(useCase.execute(input)).rejects.toThrow(
-      "Card card-user-456 is already saved"
-    );
+    await expect(useCase.execute(input)).rejects.toThrow("PublicCard nonexistent-card not found");
 
     expect(mockSavedCardRepository.save).not.toHaveBeenCalled();
   });

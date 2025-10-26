@@ -56,10 +56,7 @@ describe("getPublicCard Integration Test", () => {
    * @param {TestPublicCardData} data - Optional public card data
    * @return {Promise<void>}
    */
-  async function createPublicCard(
-    userId: string,
-    data: TestPublicCardData = {}
-  ) {
+  async function createPublicCard(userId: string, data: TestPublicCardData = {}) {
     const adminFirestore = adminApp.firestore();
     const now = new Date();
 
@@ -149,9 +146,7 @@ describe("getPublicCard Integration Test", () => {
 
       // Verify: updatedAt is a string in ISO 8601 format
       expect(typeof publicCard.updatedAt).toBe("string");
-      expect(publicCard.updatedAt).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
-      );
+      expect(publicCard.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 
       // Verify: Can be parsed as a valid date
       const date = new Date(publicCard.updatedAt);
@@ -169,9 +164,7 @@ describe("getPublicCard Integration Test", () => {
         await getPublicCard({userId: ""});
         fail("Should have thrown an error");
       } catch (error) {
-        expect((error as {code: string}).code).toBe(
-          "functions/invalid-argument"
-        );
+        expect((error as {code: string}).code).toBe("functions/invalid-argument");
       }
     });
 
@@ -183,9 +176,7 @@ describe("getPublicCard Integration Test", () => {
         await getPublicCard({userId: null});
         fail("Should have thrown an error");
       } catch (error) {
-        expect((error as {code: string}).code).toBe(
-          "functions/invalid-argument"
-        );
+        expect((error as {code: string}).code).toBe("functions/invalid-argument");
       }
     });
 
@@ -197,9 +188,7 @@ describe("getPublicCard Integration Test", () => {
         await getPublicCard({});
         fail("Should have thrown an error");
       } catch (error) {
-        expect((error as {code: string}).code).toBe(
-          "functions/invalid-argument"
-        );
+        expect((error as {code: string}).code).toBe("functions/invalid-argument");
       }
     });
 

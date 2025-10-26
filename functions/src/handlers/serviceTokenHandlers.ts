@@ -51,9 +51,7 @@ export const saveGitHubToken = onCall(async (request) => {
   const userRepository = new UserRepository(firestore);
   const saveGitHubTokenUseCase = new SaveGitHubTokenUseCase(userRepository);
 
-  return await saveServiceToken(
-    request,
-    "GitHub",
-    (userId, token) => saveGitHubTokenUseCase.execute({userId, accessToken: token})
+  return await saveServiceToken(request, "GitHub", (userId, token) =>
+    saveGitHubTokenUseCase.execute({userId, accessToken: token})
   );
 });

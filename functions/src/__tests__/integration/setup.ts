@@ -85,8 +85,17 @@ export async function cleanupTestData(): Promise<void> {
 
   const adminFirestore = adminApp.firestore();
 
-  // Clear all collections using Admin SDK
-  const collections = ["users", "public_cards"];
+  // Clear subcollections FIRST (before deleting parent documents)
+  const usersSnapshot = await adminFirestore.collection("users").get();
+  for (const userDoc of usersSnapshot.docs) {
+    const savedCardsSnapshot = await adminFirestore
+      .collection(`users/${userDoc.id}/saved_cards`)
+      .get();
+    await Promise.all(savedCardsSnapshot.docs.map((d) => d.ref.delete()));
+  }
+
+  // Then clear all top-level collections using Admin SDK
+  const collections = ["users", "public_cards", "private_cards", "exchange_tokens"];
   for (const collectionName of collections) {
     const snapshot = await adminFirestore.collection(collectionName).get();
     await Promise.all(snapshot.docs.map((d) => d.ref.delete()));
@@ -118,10 +127,7 @@ export async function teardownTestEnvironment(): Promise<void> {
 /**
  * Create a test user with authenticated context
  */
-export async function createTestUser(
-  userId: string,
-  email: string
-): Promise<User> {
+export async function createTestUser(userId: string, email: string): Promise<User> {
   if (!auth || !firestore || !adminApp) {
     throw new Error("Auth/Firestore/Admin not initialized");
   }

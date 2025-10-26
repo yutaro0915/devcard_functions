@@ -3,7 +3,7 @@ import {IProfileUpdateTransaction} from "../application/UpdateProfileUseCase";
 
 /**
  * Firestore implementation of profile update transaction
- * Executes atomic updates across /users and /public_cards collections
+ * Executes atomic updates across /users, /public_cards, and optionally /private_cards collections
  */
 export class ProfileUpdateTransaction implements IProfileUpdateTransaction {
   constructor(private firestore: Firestore) {}
@@ -11,17 +11,20 @@ export class ProfileUpdateTransaction implements IProfileUpdateTransaction {
   async execute(
     userId: string,
     userUpdate: {displayName?: string; photoURL?: string},
-    publicCardUpdate: {displayName?: string; bio?: string; photoURL?: string}
+    publicCardUpdate: {displayName?: string; bio?: string; photoURL?: string},
+    privateCardUpdate?: {displayName?: string; photoURL?: string}
   ): Promise<void> {
     await this.firestore.runTransaction(async (transaction) => {
-      // Get references to both documents
+      // Get references to documents
       const userRef = this.firestore.collection("users").doc(userId);
       const publicCardRef = this.firestore.collection("public_cards").doc(userId);
+      const privateCardRef = this.firestore.collection("private_cards").doc(userId);
 
-      // Read both documents to verify they exist
-      const [userDoc, publicCardDoc] = await Promise.all([
+      // Read documents to verify they exist
+      const [userDoc, publicCardDoc, privateCardDoc] = await Promise.all([
         transaction.get(userRef),
         transaction.get(publicCardRef),
+        transaction.get(privateCardRef),
       ]);
 
       if (!userDoc.exists) {
@@ -39,9 +42,18 @@ export class ProfileUpdateTransaction implements IProfileUpdateTransaction {
         updatedAt: timestamp,
       };
 
-      // Execute both updates in the transaction
+      // Execute updates in the transaction
       transaction.update(userRef, userUpdateWithTimestamp);
       transaction.update(publicCardRef, publicCardUpdateWithTimestamp);
+
+      // Update PrivateCard if it exists and updates are provided
+      if (privateCardDoc.exists && privateCardUpdate && Object.keys(privateCardUpdate).length > 0) {
+        const privateCardUpdateWithTimestamp = {
+          ...privateCardUpdate,
+          updatedAt: timestamp,
+        };
+        transaction.update(privateCardRef, privateCardUpdateWithTimestamp);
+      }
     });
   }
 }

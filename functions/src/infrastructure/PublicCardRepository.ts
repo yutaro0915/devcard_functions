@@ -1,4 +1,4 @@
-import {Firestore, FieldValue} from "firebase-admin/firestore";
+import {Firestore, FieldValue, DocumentData} from "firebase-admin/firestore";
 import {IPublicCardRepository} from "../domain/IPublicCardRepository";
 import {PublicCard, CreatePublicCardData} from "../domain/PublicCard";
 
@@ -55,7 +55,7 @@ export class PublicCardRepository implements IPublicCardRepository {
   /**
    * Convert Firestore data to PublicCard entity
    */
-  private toPublicCard(data: any): PublicCard {
+  private toPublicCard(data: DocumentData): PublicCard {
     return {
       userId: data.userId,
       displayName: data.displayName,
