@@ -5,6 +5,7 @@ import {ManualSyncUseCase} from "../application/ManualSyncUseCase";
 import {UserRepository} from "../infrastructure/UserRepository";
 import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
 import {GitHubApiClient} from "../infrastructure/GitHubApiClient";
+import {UserNotFoundError, PublicCardNotFoundError} from "../domain/errors/DomainErrors";
 
 const firestore = getFirestore();
 
@@ -29,17 +30,11 @@ export const manualSync = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "services must be an array");
   }
   if (services.length === 0) {
-    throw new HttpsError(
-      "invalid-argument",
-      "services array must not be empty"
-    );
+    throw new HttpsError("invalid-argument", "services array must not be empty");
   }
   // Validate array elements are strings
   if (!services.every((s) => typeof s === "string")) {
-    throw new HttpsError(
-      "invalid-argument",
-      "services array must contain only strings"
-    );
+    throw new HttpsError("invalid-argument", "services array must contain only strings");
   }
 
   try {
@@ -80,10 +75,9 @@ export const manualSync = onCall(async (request) => {
       throw error;
     }
 
-    // Convert specific errors to appropriate HttpsError
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("not found")) {
-      throw new HttpsError("not-found", errorMessage);
+    // Issue #17: Use instanceof checks instead of string matching
+    if (error instanceof UserNotFoundError || error instanceof PublicCardNotFoundError) {
+      throw new HttpsError("not-found", error.message);
     }
 
     throw new HttpsError("internal", "Failed to sync services");

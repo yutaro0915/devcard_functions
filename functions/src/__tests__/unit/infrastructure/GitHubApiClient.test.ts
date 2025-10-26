@@ -38,15 +38,12 @@ describe("GitHubApiClient", () => {
       });
       expect(result.error).toBeUndefined();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith(
-        "https://api.github.com/user",
-        {
-          headers: {
-            Authorization: "Bearer valid_token_123",
-            Accept: "application/vnd.github.v3+json",
-          },
-        }
-      );
+      expect(mockedAxios.get).toHaveBeenCalledWith("https://api.github.com/user", {
+        headers: {
+          Authorization: "Bearer valid_token_123",
+          Accept: "application/vnd.github.v3+json",
+        },
+      });
     });
 
     it("should handle GitHub user with missing optional fields", async () => {
@@ -70,6 +67,60 @@ describe("GitHubApiClient", () => {
         profileUrl: "https://github.com/testuser",
         // name and bio should be undefined
       });
+    });
+
+    // Issue #18: Test null values are converted to undefined
+    it("should convert null name and bio to undefined", async () => {
+      const mockResponse = {
+        data: {
+          login: "testuser",
+          name: null, // GitHub returns null
+          avatar_url: "https://avatars.githubusercontent.com/u/123",
+          bio: null, // GitHub returns null
+          html_url: "https://github.com/testuser",
+        },
+      };
+
+      mockedAxios.get.mockResolvedValue(mockResponse);
+
+      const result = await client.fetchUserInfo("valid_token_123");
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({
+        username: "testuser",
+        avatarUrl: "https://avatars.githubusercontent.com/u/123",
+        profileUrl: "https://github.com/testuser",
+        // name and bio should be undefined, not null
+      });
+      expect(result.data?.name).toBeUndefined();
+      expect(result.data?.bio).toBeUndefined();
+    });
+
+    // Issue #18: Test empty strings are converted to undefined
+    it("should convert empty string name and bio to undefined", async () => {
+      const mockResponse = {
+        data: {
+          login: "testuser",
+          name: "", // GitHub returns empty string
+          avatar_url: "https://avatars.githubusercontent.com/u/123",
+          bio: "", // GitHub returns empty string
+          html_url: "https://github.com/testuser",
+        },
+      };
+
+      mockedAxios.get.mockResolvedValue(mockResponse);
+
+      const result = await client.fetchUserInfo("valid_token_123");
+
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({
+        username: "testuser",
+        avatarUrl: "https://avatars.githubusercontent.com/u/123",
+        profileUrl: "https://github.com/testuser",
+        // name and bio should be undefined, not empty string
+      });
+      expect(result.data?.name).toBeUndefined();
+      expect(result.data?.bio).toBeUndefined();
     });
 
     it("should return token-expired error when GitHub returns 401", async () => {

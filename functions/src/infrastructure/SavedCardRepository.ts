@@ -1,6 +1,7 @@
 import {Firestore, DocumentData, Query, QueryDocumentSnapshot} from "firebase-admin/firestore";
 import {ISavedCardRepository, FindSavedCardsOptions} from "../domain/ISavedCardRepository";
 import {SavedCard, SaveCardData} from "../domain/SavedCard";
+import {SavedCardIdCollisionError} from "../domain/errors/DomainErrors";
 
 /**
  * Firestore implementation of ISavedCardRepository
@@ -16,11 +17,29 @@ export class SavedCardRepository implements ISavedCardRepository {
   async save(data: SaveCardData): Promise<SavedCard> {
     const now = new Date();
 
-    // Generate savedCardId if not provided
-    const savedCardId = data.savedCardId || this.firestore.collection("_").doc().id;
+    // Issue #21: Generate savedCardId with duplicate check
+    let savedCardId = data.savedCardId;
+    if (!savedCardId) {
+      // Retry up to 3 times to generate a unique savedCardId
+      const maxRetries = 3;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const candidateId = this.firestore.collection("_").doc().id;
+        const existingDoc = await this.getCollection(data.userId).doc(candidateId).get();
+
+        if (!existingDoc.exists) {
+          savedCardId = candidateId;
+          break;
+        }
+
+        // If this was the last attempt, throw error
+        if (attempt === maxRetries - 1) {
+          throw new SavedCardIdCollisionError();
+        }
+      }
+    }
 
     const savedCardData = {
-      savedCardId,
+      savedCardId: savedCardId!,
       cardUserId: data.cardUserId,
       cardType: data.cardType,
       savedAt: now,
@@ -32,7 +51,8 @@ export class SavedCardRepository implements ISavedCardRepository {
       badge: data.badge || null,
     };
 
-    await this.getCollection(data.userId).doc(savedCardId).set(savedCardData);
+    // Issue #21: Use create() instead of set() to prevent overwriting existing data
+    await this.getCollection(data.userId).doc(savedCardId!).create(savedCardData);
 
     return this.toSavedCard(savedCardData);
   }
@@ -47,9 +67,18 @@ export class SavedCardRepository implements ISavedCardRepository {
     if (options?.eventId) {
       query = query.where("eventId", "==", options.eventId);
     }
-    if (options?.limit) {
-      query = query.limit(options.limit);
+
+    // Issue #25: Implement pagination with startAfter
+    if (options?.startAfter) {
+      const lastDoc = await this.getCollection(userId).doc(options.startAfter).get();
+      if (lastDoc.exists) {
+        query = query.startAfter(lastDoc);
+      }
     }
+
+    // Issue #25: Default limit changed from 100 to 20
+    const limit = options?.limit ?? 20;
+    query = query.limit(limit);
 
     const snapshot = await query.get();
 
@@ -113,7 +142,8 @@ export class SavedCardRepository implements ISavedCardRepository {
     return {
       savedCardId: data.savedCardId,
       cardUserId: data.cardUserId,
-      cardType: data.cardType,
+      // Issue #24: Default to "public" for existing data without cardType
+      cardType: data.cardType || "public",
       savedAt: data.savedAt instanceof Date ? data.savedAt : data.savedAt.toDate(),
       lastKnownUpdatedAt: data.lastKnownUpdatedAt
         ? data.lastKnownUpdatedAt instanceof Date

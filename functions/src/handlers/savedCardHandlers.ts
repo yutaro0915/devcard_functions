@@ -82,7 +82,7 @@ export const saveCard = onCall(async (request) => {
 
 /**
  * Callable function to get all saved cards with details
- * Supports filtering by cardType, eventId, and limit
+ * Issue #25: Supports filtering by cardType, eventId, limit, and pagination with startAfter
  */
 export const getSavedCards = onCall(async (request) => {
   // Check authentication
@@ -91,11 +91,16 @@ export const getSavedCards = onCall(async (request) => {
   }
 
   const userId = request.auth.uid;
-  const {cardType, eventId, limit} = request.data || {};
+  const {cardType, eventId, limit, startAfter} = request.data || {};
 
   // Validate cardType
   if (cardType !== undefined && cardType !== "public" && cardType !== "private") {
     throw new HttpsError("invalid-argument", "cardType must be 'public' or 'private'");
+  }
+
+  // Issue #25: Validate startAfter
+  if (startAfter !== undefined && typeof startAfter !== "string") {
+    throw new HttpsError("invalid-argument", "startAfter must be a string (savedCardId)");
   }
 
   // Validate limit
@@ -113,7 +118,7 @@ export const getSavedCards = onCall(async (request) => {
   }
 
   try {
-    logger.info("Getting saved cards", {userId, cardType, eventId, limit});
+    logger.info("Getting saved cards", {userId, cardType, eventId, limit, startAfter});
 
     // Initialize dependencies
     const savedCardRepository = new SavedCardRepository(firestore);
@@ -125,11 +130,12 @@ export const getSavedCards = onCall(async (request) => {
       privateCardRepository
     );
 
-    // Execute use case with options
+    // Issue #25: Execute use case with options including startAfter
     const savedCards = await getSavedCardsUseCase.execute(userId, {
       cardType,
       eventId,
       limit,
+      startAfter,
     });
 
     // Serialize dates

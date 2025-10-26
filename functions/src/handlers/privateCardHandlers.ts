@@ -3,8 +3,11 @@ import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
 import {UpdatePrivateCardUseCase} from "../application/UpdatePrivateCardUseCase";
 import {GetPrivateCardUseCase} from "../application/GetPrivateCardUseCase";
+import {CreateExchangeTokenUseCase} from "../application/CreateExchangeTokenUseCase";
 import {PrivateCardRepository} from "../infrastructure/PrivateCardRepository";
 import {UserRepository} from "../infrastructure/UserRepository";
+import {ExchangeTokenRepository} from "../infrastructure/ExchangeTokenRepository";
+import {PrivateCardNotFoundError, UserNotFoundError} from "../domain/errors/DomainErrors";
 import {
   PRIVATE_CARD_VALIDATION,
   isValidTwitterHandle,
@@ -169,10 +172,9 @@ export const updatePrivateCard = onCall(async (request) => {
       throw error;
     }
 
-    // Convert specific errors to appropriate HttpsError
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("not found")) {
-      throw new HttpsError("not-found", errorMessage);
+    // Issue #17: Use instanceof checks instead of string matching
+    if (error instanceof UserNotFoundError) {
+      throw new HttpsError("not-found", error.message);
     }
 
     throw new HttpsError("internal", "Failed to update private card");
@@ -212,5 +214,62 @@ export const getPrivateCard = onCall(async (request) => {
   } catch (error) {
     logger.error("getPrivateCard failed", {userId, error});
     throw new HttpsError("internal", "Failed to get private card");
+  }
+});
+
+/**
+ * Callable function to create an exchange token for PrivateCard sharing
+ * Issue #23: Implements QR code exchange flow
+ */
+export const createExchangeToken = onCall(async (request) => {
+  // Check authentication
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  const userId = request.auth.uid;
+
+  try {
+    logger.info("createExchangeToken called", {userId});
+
+    // Initialize dependencies
+    const privateCardRepository = new PrivateCardRepository(firestore);
+    const exchangeTokenRepository = new ExchangeTokenRepository(firestore);
+
+    const useCase = new CreateExchangeTokenUseCase(privateCardRepository, exchangeTokenRepository);
+
+    // Execute use case
+    const result = await useCase.execute({userId});
+
+    logger.info("Exchange token created successfully", {
+      userId,
+      tokenId: result.tokenId,
+      expiresAt: result.expiresAt,
+    });
+
+    return {
+      success: true,
+      ...result,
+    };
+  } catch (error) {
+    logger.error("createExchangeToken failed", {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    // Re-throw HttpsError as-is
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+
+    // Handle PrivateCardNotFoundError
+    if (error instanceof PrivateCardNotFoundError) {
+      throw new HttpsError(
+        "not-found",
+        "PrivateCard not found. Please create your PrivateCard first using updatePrivateCard."
+      );
+    }
+
+    throw new HttpsError("internal", "Failed to create exchange token");
   }
 });

@@ -11,6 +11,111 @@
 
 ---
 
+## [0.3.0] - 2025-10-27
+
+### Added
+- **Callable Function: `createExchangeToken`** - プライベート名刺交換用の一時トークン生成API
+  - QRコード交換フローの実装に必要
+  - トークンは1分間有効、1回限り使用
+  - `qrCodeData` フィールドで QRコード生成用データ（`devcard://exchange/{tokenId}`）を提供
+- **Domain: Custom Error Classes** - カスタムエラークラスの導入
+  - `UserNotFoundError`, `PublicCardNotFoundError`, `PrivateCardNotFoundError`
+  - `SavedCardNotFoundError`, `ExchangeTokenNotFoundError`, `SavedCardIdCollisionError`
+  - 文字列マッチングから `instanceof` チェックへの移行でエラーハンドリングの保守性向上
+
+### Changed
+- **`getSavedCards` のページネーション追加** (Issue #25)
+  - `startAfter` パラメータ追加：前回取得した最後の `savedCardId` を指定して続きを取得
+  - 無限スクロール実装が可能に
+  - **⚠️ デフォルト `limit` 値の変更: 100 → 20**
+    - 既存コードで明示的に `limit` を指定していない場合、取得件数が変わります
+    - 必要に応じて `limit: 100` を明示的に指定してください
+- **更新検知ロジックの境界条件修正** (Issue #20)
+  - `hasUpdate` の計算を `lastKnownUpdatedAt < masterUpdatedAt` から `lastKnownUpdatedAt <= masterUpdatedAt` に変更
+  - 同じミリ秒での更新も正しく検知可能に
+- **GitHubApiClient の null/空文字列ハンドリング改善** (Issue #18)
+  - `name`, `bio` フィールドで null または空文字列を明示的に `undefined` に変換
+  - データ正規化の明確化
+
+### Fixed
+- **savedCardId 重複チェック機能の追加** (Issue #21 - Critical)
+  - ID生成時に重複チェック（最大3回リトライ）
+  - `.set()` から `.create()` に変更して既存データの上書きを防止
+  - データ破壊リスクの排除
+- **cardType マイグレーション対応** (Issue #24)
+  - v0.2.0以前のデータ（`cardType` が未定義）に対して "public" をデフォルト値として設定
+  - 既存ユーザーへの影響を解消
+- **エラーハンドリングの統一** (Issue #17)
+  - 全てのUseCaseとHandlerでカスタムエラークラスを使用
+  - `ProfileUpdateTransaction`, `UpdatePrivateCardUseCase` でのエラー処理を改善
+  - 文字列マッチング（`error.message.includes("not found")`）から型チェック（`instanceof`）へ移行
+
+### Internal
+- **テストカバレッジの向上**
+  - 単体テスト: 63個全てパス（100%）
+  - 統合テスト: 58個全てパス（個別実行時）
+  - Issue #17, #18, #20, #23 に対応したテストケース追加
+- **コード品質の改善**
+  - Lint エラー 0件（警告7件は非nullアサーションで許容範囲）
+  - カスタムエラークラスによる型安全性の向上
+
+### Migration Guide
+
+**`getSavedCards` のデフォルト limit 変更への対応**:
+
+```typescript
+// v0.2.0 の動作（デフォルト 100件取得）
+await getSavedCards({});
+
+// v0.3.0 の動作（デフォルト 20件取得）
+await getSavedCards({});  // 20件のみ取得される
+
+// v0.2.0 と同じ動作を維持したい場合
+await getSavedCards({ limit: 100 });  // 明示的に指定
+```
+
+**ページネーション（無限スクロール）の実装例**:
+
+```typescript
+// 初回取得
+const firstPage = await getSavedCards({ limit: 20 });
+
+// 次のページ取得
+const lastCard = firstPage.savedCards[firstPage.savedCards.length - 1];
+const secondPage = await getSavedCards({
+  limit: 20,
+  startAfter: lastCard.savedCardId
+});
+```
+
+**QRコード交換フローの実装**:
+
+```typescript
+// 1. トークン生成
+const token = await createExchangeToken({});
+// { tokenId: "abc...", expiresAt: "2025-...", qrCodeData: "devcard://exchange/abc..." }
+
+// 2. QRコード表示
+<QRCode value={token.qrCodeData} />
+
+// 3. 相手側でQRコード読み取り後
+await savePrivateCard({ tokenId: "abc..." });
+```
+
+### Breaking Changes
+- **`getSavedCards` のデフォルト `limit` が 100 → 20 に変更**
+  - 影響: 明示的に `limit` を指定していないコードで取得件数が変わります
+  - 対応: 以前と同じ動作を維持したい場合は `limit: 100` を明示的に指定してください
+
+### Non-Breaking Changes
+- `createExchangeToken` API の追加（新規API）
+- `getSavedCards` の `startAfter` パラメータ追加（オプショナル）
+- `hasUpdate` 計算ロジックの改善（より正確に）
+- `cardType` のデフォルト値設定（既存データ互換性向上）
+- エラーハンドリングの改善（内部実装）
+
+---
+
 ## [0.2.0] - 2025-10-26
 
 ### Added

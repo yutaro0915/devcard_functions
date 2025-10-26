@@ -1,5 +1,6 @@
 import {IPrivateCardRepository} from "../domain/IPrivateCardRepository";
 import {IUserRepository} from "../domain/IUserRepository";
+import {UserNotFoundError} from "../domain/errors/DomainErrors";
 
 /**
  * Input data for updating private card
@@ -30,7 +31,7 @@ export class UpdatePrivateCardUseCase {
     // Get user info for displayName and photoURL
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new UserNotFoundError(userId);
     }
 
     // Filter out undefined values from contactFields

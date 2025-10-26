@@ -188,7 +188,7 @@ describe("PrivateCard Integration Test", () => {
           phoneNumber: "+81-90-1234-5678",
           lineId: "test_line",
           discordId: "test_discord",
-          twitterHandle: "@test",
+          twitterHandle: "test", // Note: @ prefix is removed by normalization
           otherContacts: "Slack: test_slack",
         });
         expect(result.data).toHaveProperty("updatedAt");

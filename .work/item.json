@@ -1,37 +1,68 @@
 {
-  "feature_name": "onUserCreate: メールアドレスから displayName を自動生成",
-  "status": "in-progress",
+  "feature_name": "developer-feedback-fixes-and-api-completion",
+  "status": "draft",
   "api_changes": [
     {
-      "path": "onUserCreate",
-      "method": "Auth Trigger",
+      "path": "getSavedCards",
+      "method": "Callable Function",
+      "change_type": "enhancement",
+      "breaking": false,
+      "details": "startAfter パラメータ追加（ページネーション）、limit デフォルト値変更（100 → 20）、cardType マイグレーション修正（undefined → 'public'）、hasUpdate 境界条件修正（< → <=）",
+      "reason": "Issue #24, #25, #20 対応。無限スクロール実現、既存データ互換性確保、更新検知の正確性向上"
+    },
+    {
+      "path": "createExchangeToken",
+      "method": "Callable Function",
+      "change_type": "new-endpoint",
+      "breaking": false,
+      "details": "PrivateCard交換用トークン生成API。パラメータなし、レスポンス: {tokenId, expiresAt, qrCodeData}。1分間有効、1回限り使用",
+      "reason": "Issue #23 対応。QRコード交換フローの完成、savePrivateCard API との連携"
+    },
+    {
+      "path": "SavedCardRepository.save()",
+      "method": "Infrastructure",
       "change_type": "fix-bug",
       "breaking": false,
-      "details": "user.displayName が null の場合、user.email の @ 前を抽出しサニタイズ処理を実行。特殊文字（+, ., - 等）を削除し英数字のみ保持。既存の user.displayName がある場合（Google/Apple認証）はそれを優先。最終フォールバックは 'Anonymous'。",
-      "reason": "現在は常に 'Anonymous' が保存されるバグを修正。API Contract の期待動作（メールアドレスから自動生成）に合致させる。特殊文字を含む displayName は Firestore のセキュリティルールやクライアント側の表示で問題を引き起こす可能性があるため、サニタイズ処理を追加。"
+      "details": "savedCardId 重複チェック追加（最大3回リトライ）、.set() → .create() で既存データ保護",
+      "reason": "Issue #21 (Critical) 対応。データ破壊リスクの排除"
+    },
+    {
+      "path": "ManualSyncUseCase / GitHubApiClient",
+      "method": "Application/Infrastructure",
+      "change_type": "refactor",
+      "breaking": false,
+      "details": "カスタムエラークラス導入（UserNotFoundError, PublicCardNotFoundError等）、null/空文字列の明示的ハンドリング",
+      "reason": "Issue #17, #18 対応。エラーハンドリングの保守性向上、データ正規化の明確化"
     }
   ],
   "security_notes": [
-    "displayName はメールアドレスの @ 前を使用するが、サニタイズ処理により英数字のみに制限",
-    "特殊文字（+, ., - 等）を削除することで、Firestore セキュリティルールやクライアント側の表示問題を防止",
-    "Firebase Auth で検証済みのメールアドレスを使用するため、インジェクション攻撃の危険性なし",
-    "既存のエラーハンドリング（try-catch）で保護されており、失敗してもユーザー作成はブロックされない"
+    "createExchangeToken: 認証必須、自分のPrivateCardからのみトークン生成可能",
+    "トークンは1分間有効、1回限り使用（セキュリティ境界の明確化）",
+    "savedCardId重複チェックによるデータ破壊防止（Critical対応）",
+    "カスタムエラークラスによるエラー情報の漏洩防止"
   ],
   "tests_required": [
-    "成功系: メール認証ユーザー作成時、メールアドレスから displayName が生成される（例: test@example.com → test）",
-    "成功系: Google/Apple認証で displayName が既に存在する場合、それを優先する",
-    "成功系: メールアドレスが null の場合、'Anonymous' にフォールバックする",
-    "成功系: 複雑なメールアドレス（user.name+tag@example.co.jp）で特殊文字が削除される（→ usernametag）",
-    "成功系: /users/{userId} と /public_cards/{userId} の両方に同じ displayName が保存される",
-    "成功系: SanitizeService.sanitizeDisplayName() が特殊文字を削除する",
-    "成功系: SanitizeService.sanitizeDisplayName() がすべての文字が削除された場合に 'user' にフォールバックする",
-    "成功系: SanitizeService.sanitizeDisplayName() が100文字制限を適用する"
+    "Issue #24: cardType未定義の既存データが 'public' にフォールバックする",
+    "Issue #23: createExchangeToken が正しくトークンを生成する",
+    "Issue #23: PrivateCard未作成の場合、not-foundエラーになる",
+    "Issue #25: startAfter なしで先頭から取得",
+    "Issue #25: startAfter ありで指定位置から取得",
+    "Issue #25: 存在しない startAfter で invalid-argument",
+    "Issue #21: savedCardId が重複しない場合、正常保存",
+    "Issue #21: savedCardId が重複した場合、リトライして保存",
+    "Issue #21: 3回リトライしても重複する場合、エラー",
+    "Issue #20: lastKnownUpdatedAt === masterUpdatedAt で hasUpdate=true",
+    "Issue #17: UserNotFoundError / PublicCardNotFoundError の型判定",
+    "Issue #18: GitHub API の null/空文字列が undefined に変換される"
   ],
   "client_work_items": [
-    "任意: displayName が 'Anonymous' の既存ユーザーに対して、プロフィール編集を促す UI を表示",
-    "任意: サインアップ後のプロフィール表示が正しく動作することを確認"
+    "getSavedCards の limit デフォルト値変更（100 → 20）に対応。必要に応じて limit: 100 を明示",
+    "createExchangeToken を使用して QRコード交換フローを実装",
+    "startAfter を使用して無限スクロールを実装（オプショナル）",
+    "cardType が常に定義されることを前提にUI実装（undefined チェック不要に）",
+    "hasUpdate の更新検知がより正確になったことを確認"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "この修正により、メール認証で新規登録したユーザーの displayName が自動的に「メールアドレスの @ の前」から生成されます（例: test@example.com → test）。Google/Apple認証の場合は既存の displayName が優先されます。\n\n既に 'Anonymous' で登録されているユーザーは自動修正されないため、フロントエンドで「プロフィールを編集してください」と促す UI を表示することを推奨します（任意）。\n\nこの変更は破壊的変更ではなく、既存のAPIやデータ構造に影響しません。",
+  "notes_for_frontend": "この変更はすべて後方互換性があります。\n\n主な改善点:\n1. createExchangeToken API が追加され、PrivateCard交換フローが完成します\n2. getSavedCards にページネーション（startAfter）が追加され、無限スクロールが可能になります\n3. limit のデフォルト値が 100 → 20 に変更されますが、明示的に limit: 100 を指定すれば既存動作を維持できます\n4. cardType が常に定義されるようになり、undefined チェックが不要になります\n5. 内部品質が向上し、エラーハンドリングとデータ整合性が改善されます\n\n注意事項:\n- QRコード交換フローの実装には createExchangeToken → QRコード表示 → savePrivateCard の流れが必要です\n- 無限スクロールを実装する場合は startAfter パラメータを使用してください\n- デフォルト取得件数が変わるため、一覧画面での表示確認を推奨します",
   "backend_commit_sha": null
 }

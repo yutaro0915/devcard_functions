@@ -2,11 +2,13 @@ import {SavedCard, SaveCardData} from "./SavedCard";
 
 /**
  * Options for filtering saved cards
+ * Issue #25: Added startAfter for pagination
  */
 export interface FindSavedCardsOptions {
   cardType?: "public" | "private";
   eventId?: string;
   limit?: number;
+  startAfter?: string; // savedCardId to start after (for pagination)
 }
 
 /**
