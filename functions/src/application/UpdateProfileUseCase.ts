@@ -1,6 +1,3 @@
-import {IUserRepository} from "../domain/IUserRepository";
-import {IPublicCardRepository} from "../domain/IPublicCardRepository";
-
 /**
  * Input data for updating user profile
  */
@@ -12,19 +9,30 @@ export interface UpdateProfileInput {
 }
 
 /**
+ * Interface for executing profile update transactions
+ * Infrastructure layer will implement this interface
+ */
+export interface IProfileUpdateTransaction {
+  /**
+   * Execute atomic update of both /users and /public_cards
+   */
+  execute(
+    userId: string,
+    userUpdate: {displayName?: string; photoURL?: string},
+    publicCardUpdate: {displayName?: string; bio?: string; photoURL?: string}
+  ): Promise<void>;
+}
+
+/**
  * Use case for updating user profile
  * Updates both /users and /public_cards collections
  */
 export class UpdateProfileUseCase {
   /**
    * Constructor
-   * @param {IUserRepository} userRepository - User repository
-   * @param {IPublicCardRepository} publicCardRepository - PublicCard repo
+   * @param {IProfileUpdateTransaction} transaction - Transaction executor
    */
-  constructor(
-    private userRepository: IUserRepository,
-    private publicCardRepository: IPublicCardRepository
-  ) {}
+  constructor(private transaction: IProfileUpdateTransaction) {}
 
   /**
    * Execute the use case
@@ -37,18 +45,6 @@ export class UpdateProfileUseCase {
     // Validate that at least one field is provided
     if (displayName === undefined && bio === undefined && photoURL === undefined) {
       throw new Error("At least one field must be provided for update");
-    }
-
-    // Check if user exists
-    const user = await this.userRepository.findById(userId);
-    if (!user) {
-      throw new Error(`User with ID ${userId} not found`);
-    }
-
-    // Check if public card exists
-    const publicCard = await this.publicCardRepository.findByUserId(userId);
-    if (!publicCard) {
-      throw new Error(`PublicCard for user ${userId} not found`);
     }
 
     // Prepare update data for User
@@ -76,21 +72,7 @@ export class UpdateProfileUseCase {
       publicCardUpdateData.photoURL = photoURL;
     }
 
-    // Update both collections sequentially to maintain consistency
-    // Always update both to ensure updatedAt is refreshed in both collections
-    try {
-      await this.userRepository.update(userId, userUpdateData);
-      await this.publicCardRepository.update(userId, publicCardUpdateData);
-    } catch (error) {
-      // If either update fails, throw a descriptive error
-      // Note: Firestore updates are atomic per document, so partial failure
-      // will leave one collection updated. Consider using Firestore transactions
-      // for true atomicity across multiple documents in future iterations.
-      throw new Error(
-        `Failed to update profile: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+    // Execute atomic update via transaction interface
+    await this.transaction.execute(userId, userUpdateData, publicCardUpdateData);
   }
 }

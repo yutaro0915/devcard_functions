@@ -1,9 +1,8 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
-import {UserRepository} from "../infrastructure/UserRepository";
-import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
 import {UpdateProfileUseCase} from "../application/UpdateProfileUseCase";
+import {ProfileUpdateTransaction} from "../infrastructure/ProfileUpdateTransaction";
 import {PROFILE_VALIDATION} from "../constants/validation";
 
 const firestore = getFirestore();
@@ -80,12 +79,8 @@ export const updateProfile = onCall(async (request) => {
     logger.info("Updating user profile", {userId});
 
     // Initialize dependencies
-    const userRepository = new UserRepository(firestore);
-    const publicCardRepository = new PublicCardRepository(firestore);
-    const updateProfileUseCase = new UpdateProfileUseCase(
-      userRepository,
-      publicCardRepository
-    );
+    const transaction = new ProfileUpdateTransaction(firestore);
+    const updateProfileUseCase = new UpdateProfileUseCase(transaction);
 
     // Execute use case
     await updateProfileUseCase.execute({
