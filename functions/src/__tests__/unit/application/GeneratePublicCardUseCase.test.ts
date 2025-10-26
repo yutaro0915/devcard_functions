@@ -1,6 +1,6 @@
-import {GeneratePublicCardUseCase} from "../../application/GeneratePublicCardUseCase";
-import {IPublicCardRepository} from "../../domain/IPublicCardRepository";
-import {PublicCard} from "../../domain/PublicCard";
+import {GeneratePublicCardUseCase} from "../../../application/GeneratePublicCardUseCase";
+import {IPublicCardRepository} from "../../../domain/IPublicCardRepository";
+import {PublicCard} from "../../../domain/PublicCard";
 
 const mockPublicCardRepository: jest.Mocked<IPublicCardRepository> = {
   create: jest.fn(),
