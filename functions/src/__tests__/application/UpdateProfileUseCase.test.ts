@@ -125,7 +125,11 @@ describe("UpdateProfileUseCase", () => {
     );
     await useCase.execute(input);
 
-    expect(mockUserRepository.update).not.toHaveBeenCalled();
+    // Both collections are updated to ensure updatedAt is refreshed
+    expect(mockUserRepository.update).toHaveBeenCalledWith(
+      "user-123",
+      {}
+    );
     expect(mockPublicCardRepository.update).toHaveBeenCalledWith(
       "user-123",
       {

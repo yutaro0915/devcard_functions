@@ -35,7 +35,7 @@ export class UpdateProfileUseCase {
     const {userId, displayName, bio, photoURL} = input;
 
     // Validate that at least one field is provided
-    if (!displayName && !bio && photoURL === undefined) {
+    if (displayName === undefined && bio === undefined && photoURL === undefined) {
       throw new Error("At least one field must be provided for update");
     }
 
@@ -77,18 +77,10 @@ export class UpdateProfileUseCase {
     }
 
     // Update both collections
-    const updates: Promise<void>[] = [];
-
-    if (Object.keys(userUpdateData).length > 0) {
-      updates.push(this.userRepository.update(userId, userUpdateData));
-    }
-
-    if (Object.keys(publicCardUpdateData).length > 0) {
-      updates.push(
-        this.publicCardRepository.update(userId, publicCardUpdateData)
-      );
-    }
-
-    await Promise.all(updates);
+    // Always update both to ensure updatedAt is refreshed in both collections
+    await Promise.all([
+      this.userRepository.update(userId, userUpdateData),
+      this.publicCardRepository.update(userId, publicCardUpdateData),
+    ]);
   }
 }

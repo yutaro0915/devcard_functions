@@ -32,7 +32,7 @@ export const updateProfile = onCall(async (request) => {
   }
 
   // Validate that at least one field is provided
-  if (!displayName && !bio && photoURL === undefined) {
+  if (displayName === undefined && bio === undefined && photoURL === undefined) {
     throw new HttpsError(
       "invalid-argument",
       "At least one field (displayName, bio, or photoURL) must be provided"
