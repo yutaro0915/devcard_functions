@@ -120,7 +120,48 @@
 
 ---
 
-### 4. Callable Function: `getSavedCards`
+### 4. Callable Function: `updateProfile`
+
+**エンドポイント**: `updateProfile` (Callable Function)
+
+**認証**: 必須（自分のプロフィールのみ更新可能）
+
+**説明**: ユーザーが自分のプロフィール情報を更新します。`/users/{userId}`（非公開プロフィール）と `/public_cards/{userId}`（公開名刺）の両方が更新されます。
+
+**リクエスト**:
+```typescript
+{
+  displayName?: string;  // 表示名（任意）
+  bio?: string;          // 自己紹介文（任意）
+  photoURL?: string;     // プロフィール写真URL（任意）
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: フィールドの型が不正、または全フィールドが未指定の場合
+- `not-found`: ユーザーまたは公開名刺が存在しない場合
+- `internal`: サーバー内部エラー
+
+**更新対象**:
+- `/users/{userId}`: `displayName`, `photoURL`, `updatedAt`
+- `/public_cards/{userId}`: `displayName`, `bio`, `photoURL`, `updatedAt`
+
+**注意事項**:
+- 少なくとも1つのフィールド（`displayName`、`bio`、または `photoURL`）を指定する必要があります
+- 未指定のフィールドは更新されません
+- 両方のコレクションが自動的に同期されます
+
+---
+
+### 5. Callable Function: `getSavedCards`
 
 **エンドポイント**: `getSavedCards` (Callable Function)
 

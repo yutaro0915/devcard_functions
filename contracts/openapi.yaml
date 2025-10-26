@@ -138,6 +138,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /updateProfile:
+    post:
+      summary: プロフィール更新
+      description: ユーザーが自分のプロフィール情報を更新します。/users と /public_cards の両方が更新されます
+      operationId: updateProfile
+      security:
+        - firebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type: string
+                  description: 表示名（任意）
+                bio:
+                  type: string
+                  description: 自己紹介文（任意）
+                photoURL:
+                  type: string
+                  format: uri
+                  description: プロフィール写真URL（任意）
+              minProperties: 1
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 不正なリクエスト（全フィールド未指定、型エラー）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: ユーザーまたは公開名刺が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /getSavedCards:
     post:
       summary: 保存した名刺一覧を取得
