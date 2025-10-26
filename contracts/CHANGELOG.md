@@ -10,6 +10,7 @@
 ## [Unreleased]
 
 ### Added
+- **Callable Function: `getPublicCard`** - 公開名刺を取得（認証不要、Webでの名刺共有を実現）
 - **Callable Function: `updateProfile`** - ユーザーが自分のプロフィール情報（displayName, bio, photoURL）を更新
 
 ---

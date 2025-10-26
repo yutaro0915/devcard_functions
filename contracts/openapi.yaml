@@ -199,6 +199,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /getPublicCard:
+    post:
+      summary: 公開名刺を取得
+      description: 公開名刺（PublicCard）を取得します。認証不要で誰でも閲覧可能。
+      operationId: getPublicCard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+                  description: 取得したい名刺の持ち主のuserId
+                  minLength: 1
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  publicCard:
+                    $ref: '#/components/schemas/PublicCard'
+        '400':
+          description: 不正なリクエスト（userId が空文字列、null、undefined等）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 公開名刺が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /getSavedCards:
     post:
       summary: 保存した名刺一覧を取得

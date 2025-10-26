@@ -1,46 +1,36 @@
 {
-  "feature_name": "Firebase Emulator Integration Testing Infrastructure",
-  "backend_commit_sha": null,
-  "status": "in-progress",
+  "feature_name": "getPublicCard: 公開名刺取得API",
+  "status": "ready-for-review",
   "api_changes": [
     {
-      "path": "N/A",
-      "method": "N/A",
-      "change_type": "infrastructure",
+      "path": "getPublicCard",
+      "method": "Callable Function",
+      "change_type": "add-endpoint",
       "breaking": false,
-      "details": "Firebase Emulatorを使用した結合テストインフラを構築。Handler層からInfrastructure層までの統合的なテストを可能にする。",
-      "reason": "既存の単体テスト（UseCase層）では、Handler層のバリデーション、Firebase Auth認証、Firestore transaction動作が未検証であり、実行時エラーを検出できない。"
+      "details": "公開名刺（PublicCard）を取得する新規エンドポイント。認証不要で誰でも閲覧可能。",
+      "reason": "Webでの名刺共有を実現するための最重要コア機能"
     }
   ],
   "security_notes": [
-    "Emulatorのみで実行されるため本番環境への影響なし",
-    "Firebase Auth Emulatorで認証フローを実際にテスト",
-    "各テストケースで独立したFirestoreデータを使用",
-    "認証・認可ロジックの実動作を検証可能"
+    "認証不要：公開情報のため未ログインでも閲覧可能",
+    "認可不要：/public_cards は全員に公開されている前提",
+    "入力バリデーション：userId の形式検証のみ"
   ],
   "tests_required": [
-    "成功系: 認証済みユーザーがプロフィール全フィールド更新",
-    "成功系: displayNameのみ更新",
-    "成功系: bioのみ更新",
-    "成功系: photoURLのみ更新（HTTPS）",
-    "成功系: bioに空文字列を指定",
-    "成功系: /users と /public_cards 両方が更新される",
-    "成功系: updatedAt が更新される",
-    "失敗系: 未認証リクエスト（unauthenticated）",
-    "失敗系: 全フィールド未指定（invalid-argument）",
-    "失敗系: displayName非文字列（invalid-argument）",
-    "失敗系: displayName 1文字未満（invalid-argument）",
-    "失敗系: displayName 100文字超（invalid-argument）",
-    "失敗系: bio 500文字超（invalid-argument）",
-    "失敗系: photoURL非HTTPS（invalid-argument）",
-    "失敗系: photoURL無効URL形式（invalid-argument）",
-    "失敗系: ユーザー未存在（transaction失敗）",
-    "失敗系: PublicCard未存在（transaction失敗）",
-    "トランザクション: アトミック更新の検証（一方が失敗→両方ロールバック）"
+    "成功系：存在するuserIdでPublicCardが返される",
+    "成功系：レスポンスに必須フィールドが含まれる（userId, displayName等）",
+    "成功系：updatedAtがISO 8601形式である",
+    "失敗系：userIdが空文字列で invalid-argument エラー",
+    "失敗系：userIdがnull/undefinedで invalid-argument エラー",
+    "失敗系：存在しないuserIdで not-found エラー"
   ],
   "client_work_items": [
-    "影響なし: テストインフラの変更のみ"
+    "Web: /[userId] ページでgetPublicCardを呼び出し、名刺を表示",
+    "Web: PublicCard型定義の追加",
+    "Web: エラーハンドリング（not-found時に404ページ表示）",
+    "iOS: （オプション）アプリ内で他人の名刺を表示する場合に利用"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "フロントエンドへの影響はありません。バックエンドのテストインフラ改善のみです。結合テストにより、API仕様の正確性とバリデーションルールの実動作が保証されます。"
+  "notes_for_frontend": "新規エンドポイント追加のため、既存機能への影響はありません。Webの公開名刺ページ（/[userId]）でこのAPIを呼び出してください。認証不要です。",
+  "backend_commit_sha": null
 }
