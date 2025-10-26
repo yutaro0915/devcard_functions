@@ -101,7 +101,9 @@ describe("ManualSync Integration Test - updatedAt更新", () => {
 
       const getSavedCards = httpsCallable(functions, "getSavedCards");
       const cardsResult = await getSavedCards({});
-      const cards = cardsResult.data as any[];
+      expect(cardsResult.data).toHaveProperty("success", true);
+      expect(cardsResult.data).toHaveProperty("savedCards");
+      const cards = (cardsResult.data as any).savedCards as any[];
 
       const savedCard = cards.find((c: any) => c.cardUserId === TEST_USER_ID);
       expect(savedCard).toBeDefined();

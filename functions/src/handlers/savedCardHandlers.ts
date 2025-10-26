@@ -49,13 +49,24 @@ export const saveCard = onCall(async (request) => {
       badge,
     });
 
+    // Serialize dates
+    const serializedSavedCard = {
+      ...savedCard,
+      savedAt: savedCard.savedAt.toISOString(),
+      lastKnownUpdatedAt: savedCard.lastKnownUpdatedAt?.toISOString(),
+    };
+
     logger.info("Card saved successfully", {
       userId,
       cardUserId,
       savedCardId: savedCard.savedCardId,
     });
 
-    return {success: true, savedCardId: savedCard.savedCardId};
+    return {
+      success: true,
+      savedCardId: savedCard.savedCardId,
+      savedCard: serializedSavedCard,
+    };
   } catch (error) {
     logger.error("Failed to save card", {
       userId,
@@ -135,7 +146,7 @@ export const getSavedCards = onCall(async (request) => {
       count: serializedCards.length,
     });
 
-    return serializedCards;
+    return {success: true, savedCards: serializedCards};
   } catch (error) {
     logger.error("Failed to get saved cards", {
       userId,

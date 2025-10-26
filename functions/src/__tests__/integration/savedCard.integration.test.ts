@@ -133,7 +133,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Check getSavedCards
         const result = await getSavedCards({});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBeGreaterThan(0);
         const savedCard = cards.find((c: any) => c.cardUserId === TEST_USER2_ID);
@@ -265,7 +267,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Get all saved cards
         const result = await getSavedCards({});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBe(2);
 
@@ -300,7 +304,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Filter by cardType='public'
         const result = await getSavedCards({cardType: "public"});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBe(1);
         expect(cards[0].cardType).toBe("public");
@@ -327,7 +333,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Filter by cardType='private'
         const result = await getSavedCards({cardType: "private"});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBe(1);
         expect(cards[0].cardType).toBe("private");
@@ -346,7 +354,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Filter by eventId
         const result = await getSavedCards({eventId: "event-123"});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBe(1);
         expect(cards[0].eventId).toBe("event-123");
@@ -376,7 +386,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Get with limit=2
         const result = await getSavedCards({limit: 2});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBe(2);
       });
@@ -403,7 +415,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Get saved cards
         const result = await getSavedCards({});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBeGreaterThan(0);
         const savedCard = cards[0];
@@ -432,7 +446,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Get updated state
         const updatedResult = await getSavedCards({});
-        const updatedCards = updatedResult.data as any[];
+        expect(updatedResult.data).toHaveProperty("success", true);
+        expect(updatedResult.data).toHaveProperty("savedCards");
+        const updatedCards = (updatedResult.data as any).savedCards as any[];
         const updatedCard = updatedCards[0];
 
         expect(updatedCard.hasUpdate).toBe(true);
@@ -464,7 +480,9 @@ describe("SavedCard Operations Integration Test", () => {
         const getSavedCards = httpsCallable(functions, "getSavedCards");
 
         const result = await getSavedCards({});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBeGreaterThan(0);
         expect(cards[0].hasUpdate).toBe(true);
@@ -488,7 +506,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Get cards
         const result = await getSavedCards({});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         const card = cards.find((c: any) => c.savedCardId === savedCardId);
         expect(card.hasUpdate).toBe(false);
@@ -528,7 +548,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Get cards
         const result = await getSavedCards({});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         expect(cards.length).toBe(2);
         cards.forEach((card: any) => {
@@ -619,7 +641,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Get cards
         const result = await getSavedCards({});
-        const cards = result.data as any[];
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
 
         const card = cards.find((c: any) => c.savedCardId === savedCardId);
         expect(card.hasUpdate).toBe(false);
@@ -705,7 +729,9 @@ describe("SavedCard Operations Integration Test", () => {
 
         // Verify it's deleted
         const cardsResult = await getSavedCards({});
-        const cards = cardsResult.data as any[];
+        expect(cardsResult.data).toHaveProperty("success", true);
+        expect(cardsResult.data).toHaveProperty("savedCards");
+        const cards = (cardsResult.data as any).savedCards as any[];
 
         expect(cards.length).toBe(0);
       });
