@@ -15,10 +15,7 @@ export const getPublicCard = onCall(async (request) => {
 
   // Validate input
   if (!userId || typeof userId !== "string" || userId.trim() === "") {
-    throw new HttpsError(
-      "invalid-argument",
-      "userId is required and must be a non-empty string"
-    );
+    throw new HttpsError("invalid-argument", "userId is required and must be a non-empty string");
   }
 
   try {

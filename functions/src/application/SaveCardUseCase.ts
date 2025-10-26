@@ -30,16 +30,15 @@ export class SaveCardUseCase {
       throw new Error(`PublicCard ${input.cardUserId} not found`);
     }
 
-    // Check if already saved
-    const alreadySaved = await this.savedCardRepository.exists(input.userId, input.cardUserId);
-    if (alreadySaved) {
-      throw new Error(`Card ${input.cardUserId} is already saved`);
-    }
+    // Check if already saved (deprecated check - now allows multiple saves with different IDs)
+    // Note: We no longer prevent duplicate saves since savedCardId is now random
 
     // Save the card
     const savedCard = await this.savedCardRepository.save({
       userId: input.userId,
       cardUserId: input.cardUserId,
+      cardType: "public",
+      lastKnownUpdatedAt: publicCard.updatedAt,
       memo: input.memo,
       tags: input.tags,
       eventId: input.eventId,

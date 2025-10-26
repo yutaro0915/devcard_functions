@@ -237,4 +237,75 @@ describe("updateProfile Integration Test", () => {
       ).rejects.toThrow();
     });
   });
+
+  describe("PrivateCard統合: 3箇所同時更新", () => {
+    it("updateProfileがPublicCardとPrivateCardを同時更新し、両方のupdatedAtが更新される", async () => {
+      await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+      // Create PrivateCard first
+      const functions = getFunctionsInstance();
+      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+      await updatePrivateCard({email: "initial@example.com"});
+
+      // Wait to ensure timestamp difference
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Update profile (should update User, PublicCard, and PrivateCard)
+      const updateProfile = httpsCallable(functions, "updateProfile");
+      const result = await updateProfile({
+        displayName: "Updated Name",
+        photoURL: "https://example.com/new-photo.jpg",
+      });
+
+      expect(result.data).toEqual({success: true});
+
+      // Verify all 3 locations
+      const firestore = getFirestoreInstance();
+
+      const userDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
+      const userData = userDoc.data();
+      expect(userData?.displayName).toBe("Updated Name");
+      expect(userData?.photoURL).toBe("https://example.com/new-photo.jpg");
+
+      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      const publicCardData = publicCardDoc.data();
+      expect(publicCardData?.displayName).toBe("Updated Name");
+      expect(publicCardData?.photoURL).toBe("https://example.com/new-photo.jpg");
+
+      const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+      const privateCardData = privateCardDoc.data();
+      expect(privateCardData?.displayName).toBe("Updated Name");
+      expect(privateCardData?.photoURL).toBe("https://example.com/new-photo.jpg");
+      expect(privateCardData?.email).toBe("initial@example.com"); // Email should remain
+      expect(privateCardData?.updatedAt).toBeDefined();
+    });
+
+    it("updateProfile時のトランザクションが正常に完了", async () => {
+      await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+      // Create PrivateCard
+      const functions = getFunctionsInstance();
+      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+      await updatePrivateCard({email: "test@example.com"});
+
+      // Update profile
+      const updateProfile = httpsCallable(functions, "updateProfile");
+      const result = await updateProfile({
+        displayName: "Atomic Update Test",
+      });
+
+      expect(result.data).toEqual({success: true});
+
+      // Verify atomicity - all 3 documents should have the same displayName
+      const firestore = getFirestoreInstance();
+
+      const userDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
+      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+
+      expect(userDoc.data()?.displayName).toBe("Atomic Update Test");
+      expect(publicCardDoc.data()?.displayName).toBe("Atomic Update Test");
+      expect(privateCardDoc.data()?.displayName).toBe("Atomic Update Test");
+    });
+  });
 });

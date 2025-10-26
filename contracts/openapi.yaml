@@ -2,7 +2,7 @@ openapi: 3.0.3
 
 info:
   title: DevCard API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     DevCard バックエンドAPI仕様
 
@@ -64,7 +64,13 @@ paths:
   /saveCard:
     post:
       summary: 名刺を保存
-      description: 他ユーザーの公開名刺を自分のコレクションに保存します
+      description: |
+        他ユーザーの公開名刺を自分のコレクションに保存します。
+
+        **v0.2.0での変更点**:
+        - savedCardIdをランダムID生成（以前はcardUserId固定）
+        - lastKnownUpdatedAtを保存（更新検知用）
+        - すでに保存済みの名刺でもエラーにならず新規作成
       operationId: saveCard
       security:
         - firebaseAuth: []
@@ -105,6 +111,9 @@ paths:
                   success:
                     type: boolean
                     example: true
+                  savedCardId:
+                    type: string
+                    description: 生成されたランダムID
                   savedCard:
                     $ref: '#/components/schemas/SavedCard'
         '400':
@@ -125,12 +134,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: すでに保存済み
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: サーバーエラー
           content:
@@ -141,7 +144,13 @@ paths:
   /updateProfile:
     post:
       summary: プロフィール更新
-      description: ユーザーが自分のプロフィール情報を更新します。/users と /public_cards の両方が更新されます
+      description: |
+        ユーザーが自分のプロフィール情報を更新します。
+        /users、/public_cards、/private_cards（存在する場合）の3箇所がトランザクションで同期更新されます。
+
+        **v0.2.0での変更点**:
+        - PrivateCardの同期更新を追加（displayName, photoURL）
+        - Firestoreトランザクションで原子性を担保
       operationId: updateProfile
       security:
         - firebaseAuth: []
@@ -252,10 +261,38 @@ paths:
   /getSavedCards:
     post:
       summary: 保存した名刺一覧を取得
-      description: 保存した名刺の一覧を、公開名刺の詳細情報と共に取得します
+      description: |
+        保存した名刺の一覧を、公開名刺/プライベート名刺の詳細情報と共に取得します。
+
+        **⚠️ v0.2.0での破壊的変更**:
+        - レスポンス構造が大幅に変更されました
+        - savedCardId（ランダムID）、cardType、hasUpdate、lastKnownUpdatedAt、lastViewedAtを追加
+        - cardTypeに応じた条件付きフィールド（Public/Private）
+        - フィルタリングオプション追加（cardType, eventId, limit）
       operationId: getSavedCards
       security:
         - firebaseAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cardType:
+                  type: string
+                  enum:
+                    - public
+                    - private
+                  description: 名刺タイプでフィルタリング（任意）
+                eventId:
+                  type: string
+                  description: イベントIDでフィルタリング（任意）
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 500
+                  description: 取得件数の上限（任意、デフォルト100）
       responses:
         '200':
           description: 成功
@@ -271,6 +308,12 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/SavedCardWithDetails'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: 認証エラー
           content:
@@ -290,6 +333,10 @@ paths:
       description: |
         保存済みの外部サービストークンを使用して、サービスの最新情報を公開名刺に手動で同期します。
         現在はGitHub基本情報（username, name, avatarUrl, bio, profileUrl）のみ対応。
+
+        **v0.2.0での変更点**:
+        - 同期成功時のみ PublicCard.updatedAt を更新（エラー時は更新しない）
+        - これにより保存済み名刺の更新検知（hasUpdate）が正しく機能します
       operationId: manualSync
       security:
         - firebaseAuth: []
@@ -369,6 +416,305 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: ユーザーまたは公開名刺が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /updatePrivateCard:
+    post:
+      summary: プライベート名刺を更新
+      description: |
+        ユーザーが自分のプライベート連絡先情報を更新します。
+        プライベート名刺が存在しない場合は自動的に作成されます。
+      operationId: updatePrivateCard
+      security:
+        - firebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                  maxLength: 255
+                  description: メールアドレス（任意）
+                phoneNumber:
+                  type: string
+                  maxLength: 50
+                  description: 電話番号（任意）
+                lineId:
+                  type: string
+                  maxLength: 100
+                  description: LINE ID（任意）
+                discordId:
+                  type: string
+                  maxLength: 100
+                  description: Discord ID（任意）
+                twitterHandle:
+                  type: string
+                  maxLength: 15
+                  pattern: '^@?[A-Za-z0-9_]{1,15}$'
+                  description: |
+                    X (Twitter) ハンドル（任意、@付きでも可）
+                    - 入力: @付きでも可（例: @username または username）
+                    - 保存: @なしで正規化（Twitter公式仕様に準拠）
+                    - 1-15文字、英数字とアンダースコアのみ
+                  example: 'username'
+                otherContacts:
+                  type: string
+                  maxLength: 500
+                  description: その他の連絡先（任意）
+              minProperties: 1
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /getPrivateCard:
+    post:
+      summary: プライベート名刺を取得
+      description: |
+        ユーザーが自分のプライベート名刺を取得します。
+        プライベート名刺が存在しない場合はnullを返します。
+      operationId: getPrivateCard
+      security:
+        - firebaseAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  privateCard:
+                    oneOf:
+                      - $ref: '#/components/schemas/PrivateCard'
+                      - type: 'null'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /savePrivateCard:
+    post:
+      summary: プライベート名刺を保存
+      description: |
+        トークンを使用して他ユーザーのプライベート名刺を保存します。
+        トークンは1分間有効で、1回限り使用可能です。
+      operationId: savePrivateCard
+      security:
+        - firebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tokenId
+              properties:
+                tokenId:
+                  type: string
+                  description: プライベート名刺交換用トークンID
+                memo:
+                  type: string
+                  description: メモ（任意）
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: タグ（任意）
+                eventId:
+                  type: string
+                  description: イベントID（任意）
+                badge:
+                  type: string
+                  description: バッジ（任意）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  savedCardId:
+                    type: string
+                    description: 生成されたランダムID
+                  savedCard:
+                    $ref: '#/components/schemas/SavedCard'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: トークンエラー（invalid-token, expired-token, token-already-used, own-token）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: プライベート名刺が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /markAsViewed:
+    post:
+      summary: 名刺を閲覧済みにマーク
+      description: |
+        保存済み名刺を閲覧済みにマークし、更新通知をクリアします。
+        lastViewedAtとlastKnownUpdatedAtが更新され、hasUpdateがfalseになります。
+      operationId: markAsViewed
+      security:
+        - firebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - savedCardId
+              properties:
+                savedCardId:
+                  type: string
+                  description: 保存済み名刺のID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 保存済み名刺が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deleteSavedCard:
+    post:
+      summary: 保存済み名刺を削除
+      description: |
+        保存済み名刺を削除します。
+        マスターデータ（PublicCard/PrivateCard）は削除されず、保存済みリストからのみ削除されます。
+      operationId: deleteSavedCard
+      security:
+        - firebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - savedCardId
+              properties:
+                savedCardId:
+                  type: string
+                  description: 削除する保存済み名刺のID
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 保存済み名刺が見つからない
           content:
             application/json:
               schema:
@@ -490,16 +836,35 @@ components:
     SavedCard:
       type: object
       required:
+        - savedCardId
         - cardUserId
+        - cardType
         - savedAt
       properties:
+        savedCardId:
+          type: string
+          description: 保存済み名刺のランダムID
         cardUserId:
           type: string
           description: 保存した名刺の持ち主のuserId
+        cardType:
+          type: string
+          enum:
+            - public
+            - private
+          description: 名刺タイプ
         savedAt:
           type: string
           format: date-time
           description: 保存日時
+        lastKnownUpdatedAt:
+          type: string
+          format: date-time
+          description: 最後に把握している更新日時（任意）
+        lastViewedAt:
+          type: string
+          format: date-time
+          description: 最後に閲覧した日時（任意）
         memo:
           type: string
           description: メモ（任意）
@@ -521,8 +886,7 @@ components:
         - type: object
           required:
             - displayName
-            - connectedServices
-            - theme
+            - hasUpdate
           properties:
             displayName:
               type: string
@@ -531,20 +895,45 @@ components:
               type: string
               format: uri
               description: プロフィール画像URL（任意）
+            hasUpdate:
+              type: boolean
+              description: 更新があるかどうか（更新検知フラグ）
             bio:
               type: string
-              description: 自己紹介（任意）
+              description: 自己紹介（Public名刺のみ、任意）
             connectedServices:
               type: object
               additionalProperties:
                 $ref: '#/components/schemas/ConnectedService'
-              description: 連携サービス
+              description: 連携サービス（Public名刺のみ、任意）
             theme:
               type: string
-              description: テーマ
+              description: テーマ（Public名刺のみ、任意）
             customCss:
               type: string
-              description: カスタムCSS（サニタイズ済み、任意）
+              description: カスタムCSS（Public名刺のみ、任意）
+            email:
+              type: string
+              format: email
+              description: メールアドレス（Private名刺のみ、任意）
+            phoneNumber:
+              type: string
+              description: 電話番号（Private名刺のみ、任意）
+            lineId:
+              type: string
+              description: LINE ID（Private名刺のみ、任意）
+            discordId:
+              type: string
+              description: Discord ID（Private名刺のみ、任意）
+            twitterHandle:
+              type: string
+              maxLength: 15
+              pattern: '^[A-Za-z0-9_]{1,15}$'
+              description: X (Twitter) ハンドル（Private名刺のみ、@なし正規化済み、任意）
+              example: 'username'
+            otherContacts:
+              type: string
+              description: その他の連絡先（Private名刺のみ、任意）
 
     User:
       type: object
@@ -589,6 +978,77 @@ components:
           type: string
           format: date-time
           description: 更新日時
+
+    PrivateCard:
+      type: object
+      required:
+        - userId
+        - displayName
+        - updatedAt
+      properties:
+        userId:
+          type: string
+          description: ユーザーID
+        displayName:
+          type: string
+          description: 表示名
+        photoURL:
+          type: string
+          format: uri
+          description: プロフィール画像URL（任意）
+        email:
+          type: string
+          format: email
+          description: メールアドレス（任意）
+        phoneNumber:
+          type: string
+          description: 電話番号（任意）
+        lineId:
+          type: string
+          description: LINE ID（任意）
+        discordId:
+          type: string
+          description: Discord ID（任意）
+        twitterHandle:
+          type: string
+          maxLength: 15
+          pattern: '^[A-Za-z0-9_]{1,15}$'
+          description: X (Twitter) ハンドル（@なし、正規化済み、任意）
+          example: 'username'
+        otherContacts:
+          type: string
+          description: その他の連絡先（任意）
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時
+
+    ExchangeToken:
+      type: object
+      required:
+        - tokenId
+        - ownerUserId
+        - createdAt
+        - expiresAt
+        - isUsed
+      properties:
+        tokenId:
+          type: string
+          description: トークンID
+        ownerUserId:
+          type: string
+          description: トークン所有者のuserId
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+        expiresAt:
+          type: string
+          format: date-time
+          description: 有効期限（作成から1分後）
+        isUsed:
+          type: boolean
+          description: 使用済みフラグ
 
   securitySchemes:
     firebaseAuth:

@@ -14,12 +14,13 @@ export interface UpdateProfileInput {
  */
 export interface IProfileUpdateTransaction {
   /**
-   * Execute atomic update of both /users and /public_cards
+   * Execute atomic update of /users, /public_cards, and optionally /private_cards
    */
   execute(
     userId: string,
     userUpdate: {displayName?: string; photoURL?: string},
-    publicCardUpdate: {displayName?: string; bio?: string; photoURL?: string}
+    publicCardUpdate: {displayName?: string; bio?: string; photoURL?: string},
+    privateCardUpdate?: {displayName?: string; photoURL?: string}
   ): Promise<void>;
 }
 
@@ -67,7 +68,24 @@ export class UpdateProfileUseCase {
       publicCardUpdateData.photoURL = photoURL;
     }
 
+    // Prepare update data for PrivateCard (only if displayName or photoURL changed)
+    let privateCardUpdateData: {displayName?: string; photoURL?: string} | undefined;
+    if (displayName !== undefined || photoURL !== undefined) {
+      privateCardUpdateData = {};
+      if (displayName !== undefined) {
+        privateCardUpdateData.displayName = displayName;
+      }
+      if (photoURL !== undefined) {
+        privateCardUpdateData.photoURL = photoURL;
+      }
+    }
+
     // Execute atomic update via transaction interface
-    await this.transaction.execute(userId, userUpdateData, publicCardUpdateData);
+    await this.transaction.execute(
+      userId,
+      userUpdateData,
+      publicCardUpdateData,
+      privateCardUpdateData
+    );
   }
 }

@@ -54,10 +54,7 @@ export const updateProfile = onCall(async (request) => {
     try {
       const url = new URL(photoURL);
       if (url.protocol !== "https:") {
-        throw new HttpsError(
-          "invalid-argument",
-          "photoURL must use HTTPS protocol"
-        );
+        throw new HttpsError("invalid-argument", "photoURL must use HTTPS protocol");
       }
     } catch (error) {
       if (error instanceof HttpsError) {
