@@ -31,7 +31,7 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
       displayName = user.displayName;
     } else if (user.email) {
       // Extract and sanitize email prefix for email/password auth
-      const emailPrefix = user.email.split('@')[0];
+      const emailPrefix = user.email.split("@")[0];
       displayName = sanitizeService.sanitizeDisplayName(emailPrefix);
     }
 

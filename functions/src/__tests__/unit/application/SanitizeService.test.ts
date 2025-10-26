@@ -19,13 +19,13 @@ describe("SanitizeService", () => {
     });
 
     it("should handle complex email prefixes (user+tag@example.com)", () => {
-      const emailPrefix = "user+tag@example.com".split('@')[0];
+      const emailPrefix = "user+tag@example.com".split("@")[0];
       const result = sanitizeService.sanitizeDisplayName(emailPrefix);
       expect(result).toBe("usertag");
     });
 
     it("should handle dots and hyphens (user.name-test@example.com)", () => {
-      const emailPrefix = "user.name-test@example.com".split('@')[0];
+      const emailPrefix = "user.name-test@example.com".split("@")[0];
       const result = sanitizeService.sanitizeDisplayName(emailPrefix);
       expect(result).toBe("usernametest");
     });

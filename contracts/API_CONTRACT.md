@@ -1,4 +1,4 @@
-# API Contract v0.2.0
+# API Contract v0.3.0
 
 **このファイルがバックエンドAPIの唯一の真実です。**
 
@@ -263,7 +263,8 @@
 {
   cardType?: "public" | "private";  // フィルター (任意)
   eventId?: string;                 // イベントIDでフィルター (任意)
-  limit?: number;                   // 取得件数 (任意、1-500、デフォルト100)
+  limit?: number;                   // 取得件数 (任意、1-500、デフォルト20) ⚠️ v0.3.0で変更
+  startAfter?: string;              // ページネーション: savedCardId (任意) ✨ v0.3.0で追加
 }
 ```
 
@@ -308,17 +309,34 @@
 }
 ```
 
-**更新検知ロジック**:
+**更新検知ロジック (v0.3.0で改善)**:
 ```typescript
-hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt < master.updatedAt
+hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt <= master.updatedAt
 ```
+⚠️ v0.3.0変更: 境界条件を `<` から `<=` に変更。同じミリ秒での更新も検知可能に。
 
 **エラー**:
 - `unauthenticated`: 認証されていない場合
 - `invalid-argument`: 以下の場合
   - `cardType` が "public" または "private" 以外
   - `limit` が1未満または500超
+  - `startAfter` が文字列以外の型 (v0.3.0)
 - `internal`: サーバー内部エラー
+
+**ページネーション (v0.3.0) ✨**:
+- `startAfter`: 前回取得した最後のカードの `savedCardId` を指定
+- 無限スクロール実装例:
+  ```typescript
+  // 初回取得
+  const first = await getSavedCards({ limit: 20 });
+
+  // 次のページ取得
+  const lastCard = first.savedCards[first.savedCards.length - 1];
+  const next = await getSavedCards({
+    limit: 20,
+    startAfter: lastCard.savedCardId
+  });
+  ```
 
 **注意事項**:
 - SavedCardはスナップショットではなく、**常に最新のマスターカードを参照**します
@@ -326,6 +344,7 @@ hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt < master.updatedAt
 - `hasUpdate=true` の場合、「最新版があります！」バッジを表示することを推奨
 - 名刺詳細を表示したら `markAsViewed` を呼び出して `hasUpdate` をfalseにしてください
 - `isDeleted=true` の場合、マスターカードが削除済みです（「この名刺は削除されました」と表示を推奨）
+- **v0.3.0変更**: デフォルト `limit` が 100 → 20 に変更。必要に応じて明示的に `limit: 100` を指定してください
 
 **変更点 (v0.2.0)**:
 - リクエストに `cardType`, `eventId`, `limit` フィルター追加
@@ -513,7 +532,64 @@ connectedServices: {
 
 ---
 
-### 10. Callable Function: `savePrivateCard`
+### 10. Callable Function: `createExchangeToken` ✨ v0.3.0
+
+**エンドポイント**: `createExchangeToken` (Callable Function)
+
+**認証**: 必須
+
+**説明**: 自分のPrivateCardを交換するための一時トークンを生成します。生成されたトークンをQRコード化し、相手に読み取ってもらうことでPrivateCard交換を実現します。
+
+**リクエスト**: なし（認証済みユーザーのPrivateCardから自動生成）
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  tokenId: string;        // ランダム生成されたトークンID (20文字、英数字)
+  expiresAt: string;      // トークン有効期限 (ISO 8601形式、生成から1分後)
+  qrCodeData: string;     // QRコード用データ "devcard://exchange/{tokenId}"
+}
+```
+
+**トークンの仕様**:
+- **有効期限**: 生成から1分間
+- **使用回数**: 1回のみ（誰かが `savePrivateCard` で使用すると無効化）
+- **保存先**: `/exchange_tokens/{tokenId}` コレクション
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `not-found`: PrivateCardが未作成の場合（先に `updatePrivateCard` を呼び出す必要あり）
+- `internal`: サーバー内部エラー
+
+**使用フロー例**:
+```typescript
+// 1. PrivateCard交換トークン生成
+const token = await createExchangeToken({});
+console.log(token.qrCodeData); // "devcard://exchange/abc123..."
+
+// 2. QRコードを生成して表示
+<QRCode value={token.qrCodeData} />
+
+// 3. 相手がQRコードをスキャンして savePrivateCard を実行
+// （相手側の処理）
+await savePrivateCard({ tokenId: "abc123..." });
+```
+
+**注意事項**:
+- PrivateCardが未作成の場合はエラーになります。先に `updatePrivateCard` で作成してください
+- トークンは1分間で自動的に期限切れになります
+- トークンは1回使用されると無効化されます
+- 自分のトークンを自分で使用することはできません（`savePrivateCard` でエラー）
+- セキュリティ: トークンIDは推測困難なランダム文字列（20文字、英数字）
+
+**QRコード実装推奨**:
+- `qrCodeData` の値をそのままQRコードライブラリに渡してください
+- QRコード読み取り後、カスタムURLスキーム `devcard://exchange/{tokenId}` をハンドリングし、`savePrivateCard` を呼び出してください
+
+---
+
+### 11. Callable Function: `savePrivateCard`
 
 **エンドポイント**: `savePrivateCard` (Callable Function)
 
@@ -571,7 +647,7 @@ connectedServices: {
 
 ---
 
-### 11. Callable Function: `markAsViewed`
+### 12. Callable Function: `markAsViewed`
 
 **エンドポイント**: `markAsViewed` (Callable Function)
 
@@ -614,7 +690,7 @@ connectedServices: {
 
 ---
 
-### 12. Callable Function: `deleteSavedCard`
+### 13. Callable Function: `deleteSavedCard`
 
 **エンドポイント**: `deleteSavedCard` (Callable Function)
 

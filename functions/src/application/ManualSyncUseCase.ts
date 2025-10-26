@@ -2,6 +2,7 @@ import {IUserRepository} from "../domain/IUserRepository";
 import {IPublicCardRepository} from "../domain/IPublicCardRepository";
 import {IGitHubService} from "../domain/IGitHubService";
 import {ConnectedService} from "../domain/PublicCard";
+import {UserNotFoundError, PublicCardNotFoundError} from "../domain/errors/DomainErrors";
 
 /**
  * Input data for manual sync
@@ -63,18 +64,18 @@ export class ManualSyncUseCase {
     // Verify user exists
     const user = await this.userRepository.findById(input.userId);
     if (!user) {
-      throw new Error(`User ${input.userId} not found`);
+      // Issue #17: Use custom error class instead of generic Error
+      throw new UserNotFoundError(input.userId);
     }
 
     const syncedServices: string[] = [];
     const errors: SyncError[] = [];
 
     // Get existing public card
-    const publicCard = await this.publicCardRepository.findByUserId(
-      input.userId
-    );
+    const publicCard = await this.publicCardRepository.findByUserId(input.userId);
     if (!publicCard) {
-      throw new Error(`PublicCard for user ${input.userId} not found`);
+      // Issue #17: Use custom error class instead of generic Error
+      throw new PublicCardNotFoundError(input.userId);
     }
 
     // Copy existing connected services to preserve them
@@ -117,9 +118,7 @@ export class ManualSyncUseCase {
    * @param {string | undefined} accessToken GitHub access token
    * @return {Promise<SyncServiceResult>} Sync result
    */
-  private async syncGitHub(
-    accessToken: string | undefined
-  ): Promise<SyncServiceResult> {
+  private async syncGitHub(accessToken: string | undefined): Promise<SyncServiceResult> {
     if (!accessToken) {
       return {
         success: false,

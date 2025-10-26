@@ -1,9 +1,5 @@
 import axios from "axios";
-import {
-  IGitHubService,
-  GitHubUserInfo,
-  GitHubSyncResult,
-} from "../domain/IGitHubService";
+import {IGitHubService, GitHubUserInfo, GitHubSyncResult} from "../domain/IGitHubService";
 import {ConnectedService} from "../domain/PublicCard";
 
 /**
@@ -37,11 +33,12 @@ export class GitHubApiClient implements IGitHubService {
         };
       }
 
+      // Issue #18: Explicitly convert null/empty string to undefined
       const userInfo: GitHubUserInfo = {
         username: data.login,
-        name: data.name || undefined,
+        name: data.name ? data.name : undefined,
         avatarUrl: data.avatar_url,
-        bio: data.bio || undefined,
+        bio: data.bio ? data.bio : undefined,
         profileUrl: data.html_url,
       };
 

@@ -3,6 +3,7 @@ import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
 import {UpdateProfileUseCase} from "../application/UpdateProfileUseCase";
 import {ProfileUpdateTransaction} from "../infrastructure/ProfileUpdateTransaction";
+import {UserNotFoundError, PublicCardNotFoundError} from "../domain/errors/DomainErrors";
 import {PROFILE_VALIDATION} from "../constants/validation";
 
 const firestore = getFirestore();
@@ -101,10 +102,9 @@ export const updateProfile = onCall(async (request) => {
       throw error;
     }
 
-    // Convert specific errors to appropriate HttpsError
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes("not found")) {
-      throw new HttpsError("not-found", errorMessage);
+    // Issue #17: Use instanceof checks instead of string matching
+    if (error instanceof UserNotFoundError || error instanceof PublicCardNotFoundError) {
+      throw new HttpsError("not-found", error.message);
     }
 
     throw new HttpsError("internal", "Failed to update profile");

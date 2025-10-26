@@ -18,6 +18,10 @@ export {
   deleteSavedCard,
 } from "./handlers/savedCardHandlers";
 export {updateProfile} from "./handlers/profileHandlers";
-export {updatePrivateCard, getPrivateCard} from "./handlers/privateCardHandlers";
+export {
+  updatePrivateCard,
+  getPrivateCard,
+  createExchangeToken,
+} from "./handlers/privateCardHandlers";
 export {getPublicCard} from "./handlers/publicCardHandlers";
 export {manualSync} from "./handlers/syncHandlers";

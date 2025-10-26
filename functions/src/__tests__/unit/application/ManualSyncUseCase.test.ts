@@ -4,6 +4,7 @@ import {IPublicCardRepository} from "../../../domain/IPublicCardRepository";
 import {IGitHubService} from "../../../domain/IGitHubService";
 import {User} from "../../../domain/User";
 import {PublicCard} from "../../../domain/PublicCard";
+import {UserNotFoundError, PublicCardNotFoundError} from "../../../domain/errors/DomainErrors";
 
 const mockUserRepository: jest.Mocked<IUserRepository> = {
   create: jest.fn(),
@@ -92,12 +93,8 @@ describe("ManualSyncUseCase", () => {
     expect(result.errors).toBeUndefined();
 
     expect(mockUserRepository.findById).toHaveBeenCalledWith("user-123");
-    expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith(
-      "valid_github_token"
-    );
-    expect(mockGitHubService.toConnectedService).toHaveBeenCalledWith(
-      gitHubUserInfo
-    );
+    expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith("valid_github_token");
+    expect(mockGitHubService.toConnectedService).toHaveBeenCalledWith(gitHubUserInfo);
     expect(mockPublicCardRepository.update).toHaveBeenCalledWith("user-123", {
       connectedServices: {
         github: connectedService,
@@ -199,9 +196,7 @@ describe("ManualSyncUseCase", () => {
       },
     ]);
 
-    expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith(
-      "expired_token"
-    );
+    expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith("expired_token");
     expect(mockPublicCardRepository.update).not.toHaveBeenCalled();
   });
 
@@ -253,7 +248,8 @@ describe("ManualSyncUseCase", () => {
     ]);
   });
 
-  it("should throw error if user not found", async () => {
+  // Issue #17: Test custom error class (UserNotFoundError)
+  it("should throw UserNotFoundError if user not found", async () => {
     const input = {
       userId: "nonexistent-user",
       services: ["github"],
@@ -267,12 +263,12 @@ describe("ManualSyncUseCase", () => {
       mockGitHubService
     );
 
-    await expect(useCase.execute(input)).rejects.toThrow(
-      "User nonexistent-user not found"
-    );
+    await expect(useCase.execute(input)).rejects.toThrow(UserNotFoundError);
+    await expect(useCase.execute(input)).rejects.toThrow("User nonexistent-user not found");
   });
 
-  it("should throw error if public card not found", async () => {
+  // Issue #17: Test custom error class (PublicCardNotFoundError)
+  it("should throw PublicCardNotFoundError if public card not found", async () => {
     const input = {
       userId: "user-123",
       services: ["github"],
@@ -308,9 +304,8 @@ describe("ManualSyncUseCase", () => {
       mockGitHubService
     );
 
-    await expect(useCase.execute(input)).rejects.toThrow(
-      "PublicCard for user user-123 not found"
-    );
+    await expect(useCase.execute(input)).rejects.toThrow(PublicCardNotFoundError);
+    await expect(useCase.execute(input)).rejects.toThrow("PublicCard for user user-123 not found");
   });
 
   it("should ignore unsupported services", async () => {

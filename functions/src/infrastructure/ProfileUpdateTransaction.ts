@@ -1,5 +1,6 @@
 import {Firestore} from "firebase-admin/firestore";
 import {IProfileUpdateTransaction} from "../application/UpdateProfileUseCase";
+import {UserNotFoundError, PublicCardNotFoundError} from "../domain/errors/DomainErrors";
 
 /**
  * Firestore implementation of profile update transaction
@@ -28,10 +29,10 @@ export class ProfileUpdateTransaction implements IProfileUpdateTransaction {
       ]);
 
       if (!userDoc.exists) {
-        throw new Error(`User with ID ${userId} not found`);
+        throw new UserNotFoundError(userId);
       }
       if (!publicCardDoc.exists) {
-        throw new Error(`PublicCard for user ${userId} not found`);
+        throw new PublicCardNotFoundError(userId);
       }
 
       // Prepare update data with updatedAt

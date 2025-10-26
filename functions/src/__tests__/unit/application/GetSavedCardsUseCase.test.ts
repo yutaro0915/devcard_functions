@@ -157,7 +157,7 @@ describe("GetSavedCardsUseCase", () => {
     expect(mockPublicCardRepository.findByUserId).not.toHaveBeenCalled();
   });
 
-  it("should calculate hasUpdate correctly", async () => {
+  it("should calculate hasUpdate correctly when card is updated", async () => {
     const userId = "user-123";
     const oldDate = new Date("2024-01-01");
     const newDate = new Date("2024-01-02");
@@ -178,6 +178,80 @@ describe("GetSavedCardsUseCase", () => {
       connectedServices: {},
       theme: "default",
       updatedAt: newDate,
+    };
+
+    mockSavedCardRepository.findByUserId.mockResolvedValue(savedCards);
+    mockPublicCardRepository.findByUserId.mockResolvedValue(publicCard);
+
+    const useCase = new GetSavedCardsUseCase(
+      mockSavedCardRepository,
+      mockPublicCardRepository,
+      mockPrivateCardRepository
+    );
+    const result = await useCase.execute(userId);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].hasUpdate).toBe(true);
+  });
+
+  // Issue #20: Test boundary condition where timestamps are equal
+  it("should calculate hasUpdate=true when lastKnownUpdatedAt equals masterUpdatedAt", async () => {
+    const userId = "user-123";
+    const sameDate = new Date("2024-01-01T12:00:00.000Z");
+
+    const savedCards: SavedCard[] = [
+      {
+        savedCardId: "saved-1",
+        cardUserId: "card-user-1",
+        cardType: "public",
+        savedAt: sameDate,
+        lastKnownUpdatedAt: sameDate,
+      },
+    ];
+
+    const publicCard: PublicCard = {
+      userId: "card-user-1",
+      displayName: "User 1",
+      connectedServices: {},
+      theme: "default",
+      updatedAt: sameDate, // Same timestamp (boundary condition)
+    };
+
+    mockSavedCardRepository.findByUserId.mockResolvedValue(savedCards);
+    mockPublicCardRepository.findByUserId.mockResolvedValue(publicCard);
+
+    const useCase = new GetSavedCardsUseCase(
+      mockSavedCardRepository,
+      mockPublicCardRepository,
+      mockPrivateCardRepository
+    );
+    const result = await useCase.execute(userId);
+
+    expect(result).toHaveLength(1);
+    // Issue #20: Should return true when timestamps are equal (<=)
+    expect(result[0].hasUpdate).toBe(true);
+  });
+
+  it("should calculate hasUpdate=true when lastKnownUpdatedAt is undefined", async () => {
+    const userId = "user-123";
+    const now = new Date();
+
+    const savedCards: SavedCard[] = [
+      {
+        savedCardId: "saved-1",
+        cardUserId: "card-user-1",
+        cardType: "public",
+        savedAt: now,
+        // lastKnownUpdatedAt is undefined (old saved card)
+      },
+    ];
+
+    const publicCard: PublicCard = {
+      userId: "card-user-1",
+      displayName: "User 1",
+      connectedServices: {},
+      theme: "default",
+      updatedAt: now,
     };
 
     mockSavedCardRepository.findByUserId.mockResolvedValue(savedCards);

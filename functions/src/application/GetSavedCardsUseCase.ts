@@ -178,13 +178,15 @@ export class GetSavedCardsUseCase {
 
   /**
    * Calculate hasUpdate flag
-   * Returns true if lastKnownUpdatedAt is undefined or older than masterUpdatedAt
+   * Returns true if lastKnownUpdatedAt is undefined or older than/equal to masterUpdatedAt
+   * Issue #20: Use <= instead of < to handle boundary condition where timestamps are equal
    */
   private calculateHasUpdate(lastKnownUpdatedAt: Date | undefined, masterUpdatedAt: Date): boolean {
     if (!lastKnownUpdatedAt) {
       return true; // Never viewed or no tracking
     }
 
-    return lastKnownUpdatedAt.getTime() < masterUpdatedAt.getTime();
+    // Issue #20: Changed from < to <= to handle same-millisecond updates
+    return lastKnownUpdatedAt.getTime() <= masterUpdatedAt.getTime();
   }
 }
