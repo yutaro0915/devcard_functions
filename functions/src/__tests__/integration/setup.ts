@@ -1,57 +1,101 @@
-import {
-  initializeTestEnvironment,
-  RulesTestEnvironment,
-} from "@firebase/rules-unit-testing";
-import {setLogLevel} from "firebase/firestore";
+import {initializeApp, deleteApp} from "firebase/app";
+import {connectFunctionsEmulator, getFunctions} from "firebase/functions";
+import {connectFirestoreEmulator, getFirestore} from "firebase/firestore";
+import {connectAuthEmulator, getAuth, signInWithCustomToken} from "firebase/auth";
+import type {FirebaseApp} from "firebase/app";
+import type {Functions} from "firebase/functions";
+import type {Firestore} from "firebase/firestore";
+import type {Auth, User} from "firebase/auth";
+import * as admin from "firebase-admin";
 
-let testEnv: RulesTestEnvironment;
+let app: FirebaseApp;
+let functions: Functions;
+let firestore: Firestore;
+let auth: Auth;
+let currentUser: User | null = null;
+let adminApp: admin.app.App;
 
 /**
  * Initialize Firebase Test Environment
  * Called once before all integration tests
  */
-export async function setupTestEnvironment(): Promise<RulesTestEnvironment> {
-  // Suppress Firestore logs during tests
-  setLogLevel("error");
+export async function setupTestEnvironment(): Promise<void> {
+  // Set environment variables for Admin SDK to use emulators
+  process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
+  process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+  process.env.GCLOUD_PROJECT = "dev-card-ae929";
 
-  testEnv = await initializeTestEnvironment({
-    projectId: "devcard-test",
-    firestore: {
-      host: "127.0.0.1",
-      port: 8080,
-      rules: `
-        rules_version = '2';
-        service cloud.firestore {
-          match /databases/{database}/documents {
-            match /{document=**} {
-              allow read, write: if true; // Allow all for testing
-            }
-          }
-        }
-      `,
-    },
+  // Initialize Admin SDK for creating custom tokens
+  adminApp = admin.initializeApp({
+    projectId: "dev-card-ae929",
   });
 
-  return testEnv;
+  // Initialize Firebase app
+  app = initializeApp({
+    projectId: "dev-card-ae929",
+    apiKey: "fake-api-key",
+  });
+
+  // Connect to emulators
+  functions = getFunctions(app);
+  connectFunctionsEmulator(functions, "127.0.0.1", 5001);
+
+  firestore = getFirestore(app);
+  connectFirestoreEmulator(firestore, "127.0.0.1", 8080);
+
+  auth = getAuth(app);
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", {disableWarnings: true});
 }
 
 /**
- * Get the test environment
- * Returns the initialized test environment
+ * Get Firebase Functions instance
  */
-export function getTestEnvironment(): RulesTestEnvironment {
-  if (!testEnv) {
-    throw new Error("Test environment not initialized. Call setupTestEnvironment() first.");
+export function getFunctionsInstance(): Functions {
+  if (!functions) {
+    throw new Error("Functions not initialized. Call setupTestEnvironment() first.");
   }
-  return testEnv;
+  return functions;
+}
+
+/**
+ * Get Firestore instance
+ */
+export function getFirestoreInstance(): Firestore {
+  if (!firestore) {
+    throw new Error("Firestore not initialized. Call setupTestEnvironment() first.");
+  }
+  return firestore;
+}
+
+/**
+ * Get Auth instance
+ */
+export function getAuthInstance(): Auth {
+  if (!auth) {
+    throw new Error("Auth not initialized. Call setupTestEnvironment() first.");
+  }
+  return auth;
 }
 
 /**
  * Clean up test data after each test
  */
 export async function cleanupTestData(): Promise<void> {
-  if (testEnv) {
-    await testEnv.clearFirestore();
+  if (!adminApp) return;
+
+  const adminFirestore = adminApp.firestore();
+
+  // Clear all collections using Admin SDK
+  const collections = ["users", "public_cards"];
+  for (const collectionName of collections) {
+    const snapshot = await adminFirestore.collection(collectionName).get();
+    await Promise.all(snapshot.docs.map((d) => d.ref.delete()));
+  }
+
+  // Sign out if signed in
+  if (currentUser && auth) {
+    await auth.signOut();
+    currentUser = null;
   }
 }
 
@@ -60,25 +104,40 @@ export async function cleanupTestData(): Promise<void> {
  * Called once after all integration tests
  */
 export async function teardownTestEnvironment(): Promise<void> {
-  if (testEnv) {
-    await testEnv.cleanup();
+  if (auth && currentUser) {
+    await auth.signOut();
+  }
+  if (app) {
+    await deleteApp(app);
+  }
+  if (adminApp) {
+    await adminApp.delete();
   }
 }
 
 /**
  * Create a test user with authenticated context
  */
-export async function createTestUser(userId: string, email: string) {
-  const testEnv = getTestEnvironment();
-  const authenticatedContext = testEnv.authenticatedContext(userId, {
-    email,
-  });
+export async function createTestUser(
+  userId: string,
+  email: string
+): Promise<User> {
+  if (!auth || !firestore || !adminApp) {
+    throw new Error("Auth/Firestore/Admin not initialized");
+  }
 
-  // Create user document in /users collection
-  const firestore = authenticatedContext.firestore();
+  // Create custom token with the specified userId
+  const customToken = await adminApp.auth().createCustomToken(userId);
+
+  // Sign in with custom token so that auth.uid matches userId
+  const userCredential = await signInWithCustomToken(auth, customToken);
+  currentUser = userCredential.user;
+
+  // Create user document in /users collection using Admin SDK
   const now = new Date();
+  const adminFirestore = adminApp.firestore();
 
-  await firestore.collection("users").doc(userId).set({
+  await adminFirestore.collection("users").doc(userId).set({
     userId,
     email,
     displayName: "Test User",
@@ -91,8 +150,8 @@ export async function createTestUser(userId: string, email: string) {
     updatedAt: now,
   });
 
-  // Create public card in /public_cards collection
-  await firestore.collection("public_cards").doc(userId).set({
+  // Create public card in /public_cards collection using Admin SDK
+  await adminFirestore.collection("public_cards").doc(userId).set({
     userId,
     displayName: "Test User",
     photoURL: "https://example.com/photo.jpg",
@@ -103,13 +162,12 @@ export async function createTestUser(userId: string, email: string) {
     updatedAt: now,
   });
 
-  return authenticatedContext;
+  return currentUser;
 }
 
 /**
- * Get unauthenticated context for testing
+ * Get current authenticated user
  */
-export function getUnauthenticatedContext() {
-  const testEnv = getTestEnvironment();
-  return testEnv.unauthenticatedContext();
+export function getCurrentUser(): User | null {
+  return currentUser;
 }

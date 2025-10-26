@@ -11,7 +11,7 @@
     "logs": "firebase functions:log",
     "test": "jest",
     "test:unit": "jest --testPathPatterns=__tests__/unit",
-    "test:integration": "firebase emulators:exec --only functions,firestore,auth 'jest --testPathPatterns=__tests__/integration --runInBand'",
+    "test:integration": "jest --testPathPatterns=__tests__/integration --runInBand",
     "test:all": "npm run test:unit && npm run test:integration",
     "test:watch": "jest --watch"
   },

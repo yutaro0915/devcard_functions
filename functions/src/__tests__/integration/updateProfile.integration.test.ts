@@ -3,14 +3,11 @@ import {
   teardownTestEnvironment,
   cleanupTestData,
   createTestUser,
-  getTestEnvironment,
+  getFunctionsInstance,
+  getFirestoreInstance,
 } from "./setup";
-import {UpdateProfileUseCase} from "../../application/UpdateProfileUseCase";
-import {ProfileUpdateTransaction} from "../../infrastructure/ProfileUpdateTransaction";
-import {getFirestore} from "firebase-admin/firestore";
-
-// Initialize Firestore for integration tests
-const firestore = getFirestore();
+import {httpsCallable} from "firebase/functions";
+import {doc, getDoc} from "firebase/firestore";
 
 describe("updateProfile Integration Test", () => {
   beforeAll(async () => {
@@ -28,26 +25,27 @@ describe("updateProfile Integration Test", () => {
   const TEST_USER_ID = "test-user-123";
   const TEST_EMAIL = "test@example.com";
 
-  describe("成功系: Firestore統合", () => {
+  describe("成功系: Callable Function経由", () => {
     it("全フィールドを更新し、両コレクションに反映される", async () => {
       // Setup: Create test user
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
-      // Execute: Call UseCase with real Firestore
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
+      // Execute: Call updateProfile via Emulator
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
 
-      await useCase.execute({
-        userId: TEST_USER_ID,
+      const result = await updateProfile({
         displayName: "Updated Name",
         bio: "Updated bio",
         photoURL: "https://example.com/new-photo.jpg",
       });
 
+      // Verify: Response
+      expect(result.data).toEqual({success: true});
+
       // Verify: Firestore data - /users collection
-      const testEnv = getTestEnvironment();
-      const testFirestore = testEnv.authenticatedContext(TEST_USER_ID).firestore();
-      const userDoc = await testFirestore.collection("users").doc(TEST_USER_ID).get();
+      const firestore = getFirestoreInstance();
+      const userDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
       const userData = userDoc.data();
 
       expect(userData?.displayName).toBe("Updated Name");
@@ -55,10 +53,7 @@ describe("updateProfile Integration Test", () => {
       expect(userData?.updatedAt).toBeDefined();
 
       // Verify: Firestore data - /public_cards collection
-      const publicCardDoc = await testFirestore
-        .collection("public_cards")
-        .doc(TEST_USER_ID)
-        .get();
+      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
       const publicCardData = publicCardDoc.data();
 
       expect(publicCardData?.displayName).toBe("Updated Name");
@@ -70,17 +65,17 @@ describe("updateProfile Integration Test", () => {
     it("displayNameのみ更新できる", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
 
-      await useCase.execute({
-        userId: TEST_USER_ID,
+      const result = await updateProfile({
         displayName: "Name Only Update",
       });
 
-      const testEnv = getTestEnvironment();
-      const testFirestore = testEnv.authenticatedContext(TEST_USER_ID).firestore();
-      const userDoc = await testFirestore.collection("users").doc(TEST_USER_ID).get();
+      expect(result.data).toEqual({success: true});
+
+      const firestore = getFirestoreInstance();
+      const userDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
 
       expect(userDoc.data()?.displayName).toBe("Name Only Update");
     });
@@ -88,20 +83,17 @@ describe("updateProfile Integration Test", () => {
     it("bioのみ更新できる", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
 
-      await useCase.execute({
-        userId: TEST_USER_ID,
+      const result = await updateProfile({
         bio: "Bio only update",
       });
 
-      const testEnv = getTestEnvironment();
-      const testFirestore = testEnv.authenticatedContext(TEST_USER_ID).firestore();
-      const publicCardDoc = await testFirestore
-        .collection("public_cards")
-        .doc(TEST_USER_ID)
-        .get();
+      expect(result.data).toEqual({success: true});
+
+      const firestore = getFirestoreInstance();
+      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
 
       expect(publicCardDoc.data()?.bio).toBe("Bio only update");
     });
@@ -109,17 +101,17 @@ describe("updateProfile Integration Test", () => {
     it("photoURLのみ更新できる", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
 
-      await useCase.execute({
-        userId: TEST_USER_ID,
+      const result = await updateProfile({
         photoURL: "https://newdomain.com/photo.png",
       });
 
-      const testEnv = getTestEnvironment();
-      const testFirestore = testEnv.authenticatedContext(TEST_USER_ID).firestore();
-      const userDoc = await testFirestore.collection("users").doc(TEST_USER_ID).get();
+      expect(result.data).toEqual({success: true});
+
+      const firestore = getFirestoreInstance();
+      const userDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
 
       expect(userDoc.data()?.photoURL).toBe("https://newdomain.com/photo.png");
     });
@@ -127,20 +119,17 @@ describe("updateProfile Integration Test", () => {
     it("bioに空文字列を指定できる", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
 
-      await useCase.execute({
-        userId: TEST_USER_ID,
+      const result = await updateProfile({
         bio: "",
       });
 
-      const testEnv = getTestEnvironment();
-      const testFirestore = testEnv.authenticatedContext(TEST_USER_ID).firestore();
-      const publicCardDoc = await testFirestore
-        .collection("public_cards")
-        .doc(TEST_USER_ID)
-        .get();
+      expect(result.data).toEqual({success: true});
+
+      const firestore = getFirestoreInstance();
+      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
 
       expect(publicCardDoc.data()?.bio).toBe("");
     });
@@ -149,28 +138,23 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       // Get initial updatedAt
-      const testEnv = getTestEnvironment();
-      const testFirestore = testEnv.authenticatedContext(TEST_USER_ID).firestore();
-      const initialUserDoc = await testFirestore
-        .collection("users")
-        .doc(TEST_USER_ID)
-        .get();
+      const firestore = getFirestoreInstance();
+      const initialUserDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
       const initialUpdatedAt = initialUserDoc.data()?.updatedAt;
 
       // Wait a bit to ensure timestamp difference
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Update profile
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
 
-      await useCase.execute({
-        userId: TEST_USER_ID,
+      await updateProfile({
         displayName: "New Name",
       });
 
       // Verify updatedAt changed
-      const updatedUserDoc = await testFirestore.collection("users").doc(TEST_USER_ID).get();
+      const updatedUserDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
       const newUpdatedAt = updatedUserDoc.data()?.updatedAt;
 
       expect(newUpdatedAt).toBeDefined();
@@ -178,68 +162,79 @@ describe("updateProfile Integration Test", () => {
     });
   });
 
-  describe("失敗系: データ不整合", () => {
-    it("ユーザーが存在しない場合に失敗する", async () => {
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
-
-      await expect(
-        useCase.execute({
-          userId: "non-existent-user",
-          displayName: "Test",
-        })
-      ).rejects.toThrow("User with ID non-existent-user not found");
-    });
-
-    it("PublicCardが存在しない場合に失敗する", async () => {
-      // Create only user, not public card
-      const testEnv = getTestEnvironment();
-      const testFirestore = testEnv.authenticatedContext(TEST_USER_ID).firestore();
-
-      await testFirestore.collection("users").doc(TEST_USER_ID).set({
-        userId: TEST_USER_ID,
-        email: TEST_EMAIL,
-        displayName: "Test User",
-        photoURL: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
-
-      await expect(
-        useCase.execute({
-          userId: TEST_USER_ID,
-          displayName: "Test",
-        })
-      ).rejects.toThrow(`PublicCard for user ${TEST_USER_ID} not found`);
-    });
-
-    it("アトミック更新: 両方のコレクションが同時に更新される", async () => {
+  describe("失敗系: バリデーション", () => {
+    it("全フィールド未指定で失敗する", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
-      const transaction = new ProfileUpdateTransaction(firestore);
-      const useCase = new UpdateProfileUseCase(transaction);
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
 
-      // This should succeed and update both collections
-      await useCase.execute({
-        userId: TEST_USER_ID,
-        displayName: "Atomic Test",
-      });
+      await expect(updateProfile({})).rejects.toThrow();
+    });
 
-      const testEnv = getTestEnvironment();
-      const testFirestore = testEnv.authenticatedContext(TEST_USER_ID).firestore();
+    it("displayNameが空文字列で失敗する", async () => {
+      await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
-      // Verify both were updated
-      const userDoc = await testFirestore.collection("users").doc(TEST_USER_ID).get();
-      const publicCardDoc = await testFirestore
-        .collection("public_cards")
-        .doc(TEST_USER_ID)
-        .get();
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
 
-      expect(userDoc.data()?.displayName).toBe("Atomic Test");
-      expect(publicCardDoc.data()?.displayName).toBe("Atomic Test");
+      await expect(
+        updateProfile({
+          displayName: "",
+        })
+      ).rejects.toThrow();
+    });
+
+    it("displayNameが100文字超で失敗する", async () => {
+      await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
+
+      await expect(
+        updateProfile({
+          displayName: "a".repeat(101),
+        })
+      ).rejects.toThrow();
+    });
+
+    it("bioが500文字超で失敗する", async () => {
+      await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
+
+      await expect(
+        updateProfile({
+          bio: "a".repeat(501),
+        })
+      ).rejects.toThrow();
+    });
+
+    it("photoURLが非HTTPSで失敗する", async () => {
+      await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
+
+      await expect(
+        updateProfile({
+          photoURL: "http://example.com/photo.jpg",
+        })
+      ).rejects.toThrow();
+    });
+
+    it("photoURLが無効なURL形式で失敗する", async () => {
+      await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+      const functions = getFunctionsInstance();
+      const updateProfile = httpsCallable(functions, "updateProfile");
+
+      await expect(
+        updateProfile({
+          photoURL: "not-a-valid-url",
+        })
+      ).rejects.toThrow();
     });
   });
 });
