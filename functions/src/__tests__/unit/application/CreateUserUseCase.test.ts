@@ -1,6 +1,6 @@
-import {CreateUserUseCase} from "../../application/CreateUserUseCase";
-import {IUserRepository} from "../../domain/IUserRepository";
-import {User} from "../../domain/User";
+import {CreateUserUseCase} from "../../../application/CreateUserUseCase";
+import {IUserRepository} from "../../../domain/IUserRepository";
+import {User} from "../../../domain/User";
 
 // モック: IUserRepositoryの偽物を作る
 // 実際のFirestoreにアクセスせず、メモリ上で動作する

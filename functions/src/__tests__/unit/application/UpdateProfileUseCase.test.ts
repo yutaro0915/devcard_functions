@@ -1,7 +1,7 @@
 import {
   UpdateProfileUseCase,
   IProfileUpdateTransaction,
-} from "../../application/UpdateProfileUseCase";
+} from "../../../application/UpdateProfileUseCase";
 
 const mockTransaction: jest.Mocked<IProfileUpdateTransaction> = {
   execute: jest.fn(),

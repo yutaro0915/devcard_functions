@@ -1,6 +1,6 @@
-import {SaveGitHubTokenUseCase} from "../../application/SaveGitHubTokenUseCase";
-import {IUserRepository} from "../../domain/IUserRepository";
-import {User} from "../../domain/User";
+import {SaveGitHubTokenUseCase} from "../../../application/SaveGitHubTokenUseCase";
+import {IUserRepository} from "../../../domain/IUserRepository";
+import {User} from "../../../domain/User";
 
 const mockUserRepository: jest.Mocked<IUserRepository> = {
   create: jest.fn(),

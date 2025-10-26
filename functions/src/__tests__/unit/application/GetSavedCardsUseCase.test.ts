@@ -1,8 +1,8 @@
-import {GetSavedCardsUseCase} from "../../application/GetSavedCardsUseCase";
-import {ISavedCardRepository} from "../../domain/ISavedCardRepository";
-import {IPublicCardRepository} from "../../domain/IPublicCardRepository";
-import {SavedCard} from "../../domain/SavedCard";
-import {PublicCard} from "../../domain/PublicCard";
+import {GetSavedCardsUseCase} from "../../../application/GetSavedCardsUseCase";
+import {ISavedCardRepository} from "../../../domain/ISavedCardRepository";
+import {IPublicCardRepository} from "../../../domain/IPublicCardRepository";
+import {SavedCard} from "../../../domain/SavedCard";
+import {PublicCard} from "../../../domain/PublicCard";
 
 const mockSavedCardRepository: jest.Mocked<ISavedCardRepository> = {
   save: jest.fn(),

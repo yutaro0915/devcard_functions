@@ -1,55 +1,46 @@
 {
-  "feature_name": "User Profile Update API",
+  "feature_name": "Firebase Emulator Integration Testing Infrastructure",
   "backend_commit_sha": null,
-  "status": "ready-for-review",
+  "status": "in-progress",
   "api_changes": [
     {
-      "path": "updateProfile",
-      "method": "Callable Function",
-      "change_type": "add",
+      "path": "N/A",
+      "method": "N/A",
+      "change_type": "infrastructure",
       "breaking": false,
-      "details": "新規Callable Function追加: updateProfile(displayName?, bio?, photoURL?)",
-      "reason": "ユーザーが自分のプロフィール情報を更新できるようにするため"
+      "details": "Firebase Emulatorを使用した結合テストインフラを構築。Handler層からInfrastructure層までの統合的なテストを可能にする。",
+      "reason": "既存の単体テスト（UseCase層）では、Handler層のバリデーション、Firebase Auth認証、Firestore transaction動作が未検証であり、実行時エラーを検出できない。"
     }
   ],
   "security_notes": [
-    "認証必須: Firebase Auth トークンが必要",
-    "認可: ユーザーは自分自身のプロフィールのみ更新可能（request.auth.uidで判定）",
-    "入力バリデーション: 型チェック（string）をHandler層で実施",
-    "文字列長バリデーション: displayName (1-100文字), bio (0-500文字)",
-    "URL検証: photoURL は有効なHTTPS URLである必要がある",
-    "ログ出力: ユーザーIDのみをログに記録（bio, photoURLは含めない）"
+    "Emulatorのみで実行されるため本番環境への影響なし",
+    "Firebase Auth Emulatorで認証フローを実際にテスト",
+    "各テストケースで独立したFirestoreデータを使用",
+    "認証・認可ロジックの実動作を検証可能"
   ],
   "tests_required": [
-    "成功系: 全フィールド更新（displayName, bio, photoURL）",
+    "成功系: 認証済みユーザーがプロフィール全フィールド更新",
     "成功系: displayNameのみ更新",
     "成功系: bioのみ更新",
-    "成功系: photoURLのみ更新",
-    "成功系: /users と /public_cards 両方が更新されること",
-    "成功系: updatedAt が更新されること",
-    "成功系: bio に空文字列を許可",
-    "失敗系: 未認証の場合 unauthenticated エラー",
-    "失敗系: 全フィールド未指定の場合 invalid-argument エラー",
-    "失敗系: displayName が非文字列の場合 invalid-argument エラー",
-    "失敗系: bio が非文字列の場合 invalid-argument エラー",
-    "失敗系: photoURL が非文字列の場合 invalid-argument エラー",
-    "失敗系: displayName が1文字未満の場合 invalid-argument エラー",
-    "失敗系: displayName が100文字超の場合 invalid-argument エラー",
-    "失敗系: bio が500文字超の場合 invalid-argument エラー",
-    "失敗系: photoURL が無効なURL形式の場合 invalid-argument エラー",
-    "失敗系: photoURL が HTTPS でない場合 invalid-argument エラー",
-    "失敗系: ユーザー未存在の場合エラー",
-    "失敗系: 公開名刺未存在の場合エラー"
+    "成功系: photoURLのみ更新（HTTPS）",
+    "成功系: bioに空文字列を指定",
+    "成功系: /users と /public_cards 両方が更新される",
+    "成功系: updatedAt が更新される",
+    "失敗系: 未認証リクエスト（unauthenticated）",
+    "失敗系: 全フィールド未指定（invalid-argument）",
+    "失敗系: displayName非文字列（invalid-argument）",
+    "失敗系: displayName 1文字未満（invalid-argument）",
+    "失敗系: displayName 100文字超（invalid-argument）",
+    "失敗系: bio 500文字超（invalid-argument）",
+    "失敗系: photoURL非HTTPS（invalid-argument）",
+    "失敗系: photoURL無効URL形式（invalid-argument）",
+    "失敗系: ユーザー未存在（transaction失敗）",
+    "失敗系: PublicCard未存在（transaction失敗）",
+    "トランザクション: アトミック更新の検証（一方が失敗→両方ロールバック）"
   ],
   "client_work_items": [
-    "Web: プロフィール編集画面の実装",
-    "Web: updateProfile 呼び出しのAPIクライアント実装",
-    "Web: エラーハンドリング（unauthenticated, invalid-argument, not-found）",
-    "Web: 成功時のUI更新（楽観的更新 or リフレッシュ）",
-    "iOS: プロフィール編集画面の実装",
-    "iOS: updateProfile 呼び出しのAPIクライアント実装",
-    "iOS: エラーハンドリング"
+    "影響なし: テストインフラの変更のみ"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "新規エンドポイント updateProfile を追加します。ユーザーは displayName, bio, photoURL を更新できます（全て任意フィールド、最低1つは指定必要）。エラーは unauthenticated, invalid-argument, not-found, internal の4種類です。更新後、getSavedCards等で取得される公開名刺情報にも反映されます。"
+  "notes_for_frontend": "フロントエンドへの影響はありません。バックエンドのテストインフラ改善のみです。結合テストにより、API仕様の正確性とバリデーションルールの実動作が保証されます。"
 }
