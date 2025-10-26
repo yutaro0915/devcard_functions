@@ -1,13 +1,14 @@
 name: Contract Sync to Web Client
 
 # このワークフローは、contracts/の変更をWebクライアント（devcard_nextjs）へ自動同期します。
+# トリガー: develop ブランチへのPRマージ時（contracts/ 変更があった場合のみ）
 # 1. PR作成（契約ファイル同期）
 # 2. Issue作成（実装指示）
 
 on:
   push:
     branches:
-      - main
+      - develop
     paths:
       - 'contracts/**'
 
