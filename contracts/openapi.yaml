@@ -2,7 +2,7 @@ openapi: 3.0.3
 
 info:
   title: DevCard API
-  version: 0.0.0
+  version: 0.1.0
   description: |
     DevCard バックエンドAPI仕様
 
@@ -16,11 +16,382 @@ servers:
     description: Local Emulator
 
 paths:
-  # TODO: エンドポイント定義を追加
+  /saveGitHubToken:
+    post:
+      summary: GitHubアクセストークンを保存
+      description: GitHubのOAuthアクセストークンをユーザープロフィールに保存します
+      operationId: saveGitHubToken
+      security:
+        - firebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accessToken
+              properties:
+                accessToken:
+                  type: string
+                  description: GitHub OAuth access token
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /saveCard:
+    post:
+      summary: 名刺を保存
+      description: 他ユーザーの公開名刺を自分のコレクションに保存します
+      operationId: saveCard
+      security:
+        - firebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cardUserId
+              properties:
+                cardUserId:
+                  type: string
+                  description: 保存する名刺の持ち主のuserId
+                memo:
+                  type: string
+                  description: メモ（任意）
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: タグ（任意）
+                eventId:
+                  type: string
+                  description: イベントID（任意）
+                badge:
+                  type: string
+                  description: バッジ（任意、例："VIP", "Speaker"）
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  savedCard:
+                    $ref: '#/components/schemas/SavedCard'
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 公開名刺が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: すでに保存済み
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /getSavedCards:
+    post:
+      summary: 保存した名刺一覧を取得
+      description: 保存した名刺の一覧を、公開名刺の詳細情報と共に取得します
+      operationId: getSavedCards
+      security:
+        - firebaseAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  savedCards:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SavedCardWithDetails'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
-    # TODO: データモデル定義を追加
+    SuccessResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: エラーコード
+          enum:
+            - unauthenticated
+            - permission-denied
+            - not-found
+            - already-exists
+            - invalid-argument
+            - internal
+        message:
+          type: string
+          description: エラーメッセージ
+        details:
+          type: object
+          description: 追加の詳細情報（任意）
+
+    ConnectedService:
+      type: object
+      required:
+        - serviceName
+        - username
+        - profileUrl
+      properties:
+        serviceName:
+          type: string
+          description: サービス名
+          enum:
+            - github
+            - qiita
+            - zenn
+            - x
+        username:
+          type: string
+          description: ユーザー名
+        profileUrl:
+          type: string
+          format: uri
+          description: プロフィールURL
+        avatarUrl:
+          type: string
+          format: uri
+          description: アバターURL（任意）
+        bio:
+          type: string
+          description: 自己紹介（任意）
+        stats:
+          type: object
+          additionalProperties: true
+          description: サービス固有の統計情報（任意）
+
+    PublicCard:
+      type: object
+      required:
+        - userId
+        - displayName
+        - connectedServices
+        - theme
+        - updatedAt
+      properties:
+        userId:
+          type: string
+          description: ユーザーID
+        displayName:
+          type: string
+          description: 表示名
+        photoURL:
+          type: string
+          format: uri
+          description: プロフィール画像URL（任意）
+        bio:
+          type: string
+          description: 自己紹介（任意）
+        connectedServices:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ConnectedService'
+          description: 連携サービス
+        theme:
+          type: string
+          description: テーマ
+          default: default
+        customCss:
+          type: string
+          description: カスタムCSS（サニタイズ済み、任意）
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時
+
+    SavedCard:
+      type: object
+      required:
+        - cardUserId
+        - savedAt
+      properties:
+        cardUserId:
+          type: string
+          description: 保存した名刺の持ち主のuserId
+        savedAt:
+          type: string
+          format: date-time
+          description: 保存日時
+        memo:
+          type: string
+          description: メモ（任意）
+        tags:
+          type: array
+          items:
+            type: string
+          description: タグ（任意）
+        eventId:
+          type: string
+          description: イベントID（任意）
+        badge:
+          type: string
+          description: バッジ（任意）
+
+    SavedCardWithDetails:
+      allOf:
+        - $ref: '#/components/schemas/SavedCard'
+        - type: object
+          required:
+            - displayName
+            - connectedServices
+            - theme
+          properties:
+            displayName:
+              type: string
+              description: 表示名
+            photoURL:
+              type: string
+              format: uri
+              description: プロフィール画像URL（任意）
+            bio:
+              type: string
+              description: 自己紹介（任意）
+            connectedServices:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/ConnectedService'
+              description: 連携サービス
+            theme:
+              type: string
+              description: テーマ
+            customCss:
+              type: string
+              description: カスタムCSS（サニタイズ済み、任意）
+
+    User:
+      type: object
+      required:
+        - userId
+        - email
+        - displayName
+        - createdAt
+        - updatedAt
+      properties:
+        userId:
+          type: string
+          description: ユーザーID
+        email:
+          type: string
+          format: email
+          description: メールアドレス
+        displayName:
+          type: string
+          description: 表示名
+        photoURL:
+          type: string
+          format: uri
+          description: プロフィール画像URL（任意）
+        githubAccessToken:
+          type: string
+          description: GitHubアクセストークン（非公開、任意）
+        xAccessToken:
+          type: string
+          description: Xアクセストークン（非公開、任意）
+        qiitaAccessToken:
+          type: string
+          description: Qiitaアクセストークン（非公開、任意）
+        customCss:
+          type: string
+          description: カスタムCSS下書き（任意）
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時
 
   securitySchemes:
-    # TODO: 認証スキーム定義を追加
+    firebaseAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Firebase Authentication JWT token
+
+        **注意**: Callable Functions利用時は、Firebase SDKが自動的に認証トークンを付与します。
+        クライアント側でベアラートークンを手動で設定する必要はありません。
+
+        詳細は API_CONTRACT.md の「認証方法」セクションを参照してください。
