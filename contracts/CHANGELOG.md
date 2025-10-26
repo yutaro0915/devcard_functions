@@ -12,6 +12,12 @@
 ### Added
 - **Callable Function: `getPublicCard`** - 公開名刺を取得（認証不要、Webでの名刺共有を実現）
 - **Callable Function: `updateProfile`** - ユーザーが自分のプロフィール情報（displayName, bio, photoURL）を更新
+- **Callable Function: `manualSync`** - 外部サービス（現在はGitHub）の最新情報を公開名刺に手動同期
+- **Domain: `IGitHubService`** - GitHub API連携のインターフェース定義
+- **Infrastructure: `GitHubApiClient`** - GitHub REST API v3を使用したユーザー情報取得の実装
+
+### Changed
+- **`PublicCard.connectedServices`** - GitHubサービス情報（username, avatarUrl, bio, profileUrl）を含むようになりました
 
 ---
 

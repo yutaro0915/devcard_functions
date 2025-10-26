@@ -26,6 +26,65 @@
 3. `security_notes[]` を確認（実装時に考慮すべきセキュリティ要件）
 4. `api_changes[]` を確認（実装すべき変更内容）
 
+---
+
+### ステップ0.5: 既存コードの事前調査（**必須！テストを書く前に実行**）
+
+**目的**: テストや実装で使用する既存インターフェース・クラスのメソッド名・シグネチャを事前に確認し、`findById` vs `findByUserId` のような命名ミスを防ぐ。
+
+**必ず実施すること**：
+
+1. **依存するRepositoryインターフェースを全て読む**
+   ```bash
+   # 例: PublicCardを扱う場合
+   Read functions/src/domain/IPublicCardRepository.ts
+   Read functions/src/domain/IUserRepository.ts
+   ```
+   - メソッド名（`findById` か `findByUserId` か？）
+   - 引数の型と順序
+   - 戻り値の型
+
+2. **既存の類似テストを読む**
+   ```bash
+   # 例: 既存のUseCaseテストパターンを確認
+   Read functions/src/__tests__/unit/application/UpdateProfileUseCase.test.ts
+   ```
+   - モックの作り方（特に外部ライブラリ: axios, firestoreなど）
+   - テストの命名規則
+   - アサーションのパターン
+
+3. **外部ライブラリの既存利用パターンを確認**
+   ```bash
+   # 例: axiosを使う場合、既存のaxios利用例を探す
+   Grep "import.*axios" functions/src
+   ```
+   - 既存コードでのimport方法
+   - エラーハンドリングのパターン
+
+**確認後、以下を明示的に出力**：
+```markdown
+## 事前調査結果
+
+### 使用するインターフェース
+- `IPublicCardRepository`:
+  - メソッド: `findByUserId(userId: string): Promise<PublicCard | null>`
+  - メソッド: `update(userId: string, data: Partial<PublicCard>): Promise<void>`
+- `IUserRepository`:
+  - メソッド: `findById(userId: string): Promise<User | null>`
+
+### 既存テストパターン
+- axiosのモック: `jest.mock("axios")` + 型アサーション
+- Repositoryのモック: `jest.Mocked<IRepository>` パターン
+
+### 注意点
+- PublicCardは `findByUserId` を使う（`findById` ではない！）
+- axiosエラーは `isAxiosError()` ではなく型アサーションでチェック
+```
+
+**この調査をスキップした場合、実装後にメソッド名ミスが発覚し、手戻りが発生する。**
+
+---
+
 ### ステップ1: テストコードの追加・更新
 
 #### 1.1 結合テストの作成
@@ -208,11 +267,13 @@ OpenAPI形式での定義を追加・更新。
 
 以下を**絶対に行わない**：
 
+- ❌ **ステップ0.5（事前調査）をスキップする** - テストを書く前に必ず既存インターフェースを確認すること
 - ❌ テストを書かずにいきなり実装する（docs/DEVELOPMENT_PROCESS.md: ステップ1が必須）
 - ❌ `contracts/` を先に更新して実装を後回しにする（docs/DEVELOPMENT_PROCESS.md: 実装が「正」）
 - ❌ テストが赤のまま次のステップに進む（docs/DEVELOPMENT_PROCESS.md: 検証が必須）
 - ❌ 計画にない機能を勝手に追加する（docs/CONTRIBUTION_RULES.md: 仕様を勝手に拡張しない）
 - ❌ エミュレーターを起動する（`npm run dev`等は実行禁止）
+- ❌ **メソッド名やシグネチャを推測で書く** - 必ず実際のインターフェースファイルを読んで確認すること
 
 ---
 
@@ -220,6 +281,7 @@ OpenAPI形式での定義を追加・更新。
 
 以下がすべて満たされていること：
 
+- ✅ **ステップ0.5の事前調査を実施し、結果を出力している**
 - ✅ .work/item.json の `tests_required[]` がすべてテストコードとして実装されている
 - ✅ テストファーストでコードが書かれている
 - ✅ すべてのテストが緑（成功）
@@ -235,9 +297,10 @@ OpenAPI形式での定義を追加・更新。
 以下の順序で出力すること：
 
 1. **.work/item.json の確認** - 読み込んだ内容のサマリ（tests_required[], security_notes[]）
-2. **テストコード** - まず追加・更新するテストを提示
-3. **実装コード** - Domain → Application → Handlers の順
-4. **.work/item.json 更新案** - status, breaking_changes の更新
-5. **Contracts更新案** - 3ファイルの差分を提示
-6. **検証コマンド** - 実行すべきテストコマンド
-7. **次のステップ** - `/prepare-sync` への移行提案
+2. **事前調査結果**（ステップ0.5） - 使用するインターフェースのメソッド名・シグネチャ、既存テストパターンを明示
+3. **テストコード** - まず追加・更新するテストを提示
+4. **実装コード** - Domain → Application → Handlers の順
+5. **.work/item.json 更新案** - status, breaking_changes の更新
+6. **Contracts更新案** - 3ファイルの差分を提示
+7. **検証コマンド** - 実行すべきテストコマンド
+8. **次のステップ** - `/prepare-sync` への移行提案
