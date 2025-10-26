@@ -1,0 +1,93 @@
+name: Convert Review Comments to Issues
+
+on:
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+    if: contains(github.event.comment.body, '[RECOMMENDED]') || contains(github.event.comment.body, '[OPTIONAL]')
+
+    steps:
+      - name: Extract comment details
+        id: extract
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          FILE_PATH: ${{ github.event.comment.path }}
+          LINE_NUMBER: ${{ github.event.comment.line }}
+        run: |
+          # Extract priority label
+          if echo "$COMMENT_BODY" | grep -q "\[RECOMMENDED\]"; then
+            echo "priority=recommended" >> $GITHUB_OUTPUT
+            echo "labels=tech-debt,priority:high" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT_BODY" | grep -q "\[OPTIONAL\]"; then
+            echo "priority=optional" >> $GITHUB_OUTPUT
+            echo "labels=enhancement,priority:low" >> $GITHUB_OUTPUT
+          fi
+
+          # Extract first line as title (remove emoji and label)
+          TITLE=$(echo "$COMMENT_BODY" | head -n 1 | sed 's/^[🔴🟡🟢ℹ️]*[[:space:]]*\[.*\][[:space:]]*//' | cut -c 1-80)
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+      - name: Create issue from comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const commentBody = process.env.COMMENT_BODY;
+            const commentUser = process.env.COMMENT_USER;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            const prTitle = process.env.PR_TITLE;
+            const filePath = process.env.FILE_PATH;
+            const lineNumber = process.env.LINE_NUMBER;
+            const issueTitle = process.env.ISSUE_TITLE;
+            const labels = process.env.LABELS.split(',');
+
+            // Create issue body with context
+            const issueBody = `## Copilot Review Comment からの自動Issue化
+
+**元のPR**: #${prNumber} - ${prTitle}
+**ファイル**: \`${filePath}:${lineNumber}\`
+**レビュワー**: @${commentUser}
+
+---
+
+${commentBody}
+
+---
+
+<sub>このIssueは GitHub Actions により自動生成されました。元のコメント: [PR #${prNumber}](${context.payload.comment.html_url})</sub>
+            `;
+
+            // Create the issue
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: labels
+            });
+
+            // Comment back on PR
+            await github.rest.pulls.createReplyForReviewComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              body: `✅ このコメントは Issue #${issue.data.number} として記録されました。マージ後に対応します。`
+            });
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          FILE_PATH: ${{ github.event.comment.path }}
+          LINE_NUMBER: ${{ github.event.comment.line }}
+          ISSUE_TITLE: ${{ steps.extract.outputs.title }}
+          LABELS: ${{ steps.extract.outputs.labels }}
