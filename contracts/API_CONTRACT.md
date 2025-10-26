@@ -1,4 +1,4 @@
-# API Contract
+# API Contract v0.1.0
 
 **このファイルがバックエンドAPIの唯一の真実です。**
 
@@ -8,36 +8,254 @@
 
 ## エンドポイント一覧
 
-**未定**
+### 1. Auth Trigger: `onUserCreate`
 
-このセクションには、Cloud Functionsの各エンドポイントが列挙されます。
+**種類**: Firebase Auth onCreate Trigger (自動実行)
+
+**説明**: 新規ユーザー登録時に自動的に実行され、ユーザープロフィールと公開名刺を作成します。
+
+**処理内容**:
+- `/users/{userId}` に非公開プロフィールを作成
+- `/public_cards/{userId}` に公開名刺を作成
+
+**作成されるデータ**:
+```typescript
+// /users/{userId}
+{
+  userId: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// /public_cards/{userId}
+{
+  userId: string;
+  displayName: string;
+  photoURL?: string;
+  bio?: string;
+  connectedServices: {}; // 初期状態は空
+  theme: "default";
+  updatedAt: Timestamp;
+}
+```
+
+---
+
+### 2. Callable Function: `saveGitHubToken`
+
+**エンドポイント**: `saveGitHubToken` (Callable Function)
+
+**認証**: 必須
+
+**説明**: GitHubのOAuthアクセストークンを保存します。
+
+**リクエスト**:
+```typescript
+{
+  accessToken: string; // GitHub OAuth access token
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: `accessToken` が不正な場合
+- `internal`: サーバー内部エラー
+
+**保存先**: `/users/{userId}` の `githubAccessToken` フィールド
+
+---
+
+### 3. Callable Function: `saveCard`
+
+**エンドポイント**: `saveCard` (Callable Function)
+
+**認証**: 必須
+
+**説明**: 他のユーザーの公開名刺を自分のコレクションに保存します。
+
+**リクエスト**:
+```typescript
+{
+  cardUserId: string;    // 保存する名刺の持ち主のuserId (必須)
+  memo?: string;         // メモ (任意)
+  tags?: string[];       // タグ (任意)
+  eventId?: string;      // イベントID (任意)
+  badge?: string;        // バッジ (任意、例: "VIP", "Speaker")
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  savedCard: {
+    cardUserId: string;
+    savedAt: Timestamp;
+    memo?: string;
+    tags?: string[];
+    eventId?: string;
+    badge?: string;
+  }
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: `cardUserId` が不正な場合
+- `not-found`: 指定された公開名刺が存在しない場合
+- `already-exists`: すでに保存済みの場合
+- `internal`: サーバー内部エラー
+
+**保存先**: `/users/{userId}/saved_cards/{cardUserId}`
+
+---
+
+### 4. Callable Function: `getSavedCards`
+
+**エンドポイント**: `getSavedCards` (Callable Function)
+
+**認証**: 必須
+
+**説明**: 保存した名刺の一覧を、公開名刺の詳細情報と共に取得します。
+
+**リクエスト**: なし
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  savedCards: Array<{
+    // SavedCard metadata
+    cardUserId: string;
+    savedAt: Timestamp;
+    memo?: string;
+    tags?: string[];
+    eventId?: string;
+    badge?: string;
+
+    // PublicCard details (joined)
+    displayName: string;
+    photoURL?: string;
+    bio?: string;
+    connectedServices: Record<string, ConnectedService>;
+    theme: string;
+    customCss?: string;
+  }>
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `internal`: サーバー内部エラー
 
 ---
 
 ## リクエスト/レスポンスの基本形
 
-**未定**
+### 認証方法
 
-このセクションには、以下の内容が記載される予定です：
-- 認証ヘッダーの扱い
-- 共通のレスポンス形式
-- ページネーション方式（必要な場合）
+Callable Functionsは、Firebase Authenticationのトークンを自動的に検証します。
+
+クライアントは以下の方法で認証済みのリクエストを送信してください：
+
+```typescript
+// JavaScript/TypeScript (Firebase SDK)
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getAuth } from 'firebase/auth';
+
+const functions = getFunctions();
+const saveCard = httpsCallable(functions, 'saveCard');
+
+// 自動的に認証トークンが付与される
+const result = await saveCard({ cardUserId: 'user123' });
+```
+
+### 共通レスポンス形式
+
+すべての成功レスポンスは以下の形式を含みます：
+
+```typescript
+{
+  success: true;
+  // ... その他のデータ
+}
+```
 
 ---
 
-## エラーフォーマットの基本方針
+## エラーフォーマット
 
-**未定**
+### エラーコード
 
-このセクションには、以下の内容が記載される予定です：
-- エラーコードの体系
-- エラーレスポンスの構造
-- 各HTTPステータスコードの使い分け
+Firebase Functions v2の `HttpsError` を使用します。
+
+| コード | 説明 | HTTPステータス |
+|--------|------|---------------|
+| `unauthenticated` | 認証されていない | 401 |
+| `permission-denied` | 権限がない | 403 |
+| `not-found` | リソースが見つからない | 404 |
+| `already-exists` | リソースが既に存在する | 409 |
+| `invalid-argument` | 引数が不正 | 400 |
+| `internal` | サーバー内部エラー | 500 |
+
+### エラーレスポンス構造
+
+```typescript
+{
+  code: string;      // エラーコード (上記参照)
+  message: string;   // エラーメッセージ
+  details?: any;     // 追加の詳細情報 (任意)
+}
+```
+
+### エラーハンドリング例
+
+```typescript
+try {
+  const result = await saveCard({ cardUserId: 'user123' });
+} catch (error) {
+  if (error.code === 'unauthenticated') {
+    // ログイン画面へ遷移
+  } else if (error.code === 'not-found') {
+    // 名刺が見つからない旨を表示
+  } else {
+    // 一般的なエラー処理
+  }
+}
+```
+
+---
+
+## データ型定義
+
+### ConnectedService
+
+```typescript
+interface ConnectedService {
+  serviceName: string;  // "github", "qiita", "zenn", "x"
+  username: string;
+  profileUrl: string;
+  avatarUrl?: string;
+  bio?: string;
+  stats?: Record<string, number | string>; // サービス固有の統計情報
+}
+```
 
 ---
 
 ## 備考
 
+- バージョン: **v0.1.0** (初回リリース)
 - この契約は段階的に拡張されます
 - 変更履歴は `CHANGELOG.md` を参照してください
 - 機械可読な仕様は `openapi.yaml` に記載されます（将来的に）
