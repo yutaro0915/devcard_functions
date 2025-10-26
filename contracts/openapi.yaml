@@ -165,7 +165,7 @@ paths:
                   type: string
                   format: uri
                   description: プロフィール写真URL（任意、HTTPS必須）
-                  pattern: '^https://'
+                  pattern: '^https://.+'
               minProperties: 1
       responses:
         '200':

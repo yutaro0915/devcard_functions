@@ -103,17 +103,18 @@ describe("UpdateProfileUseCase", () => {
     );
   });
 
-  it("should throw error if no fields provided", async () => {
+  it("should handle empty update gracefully", async () => {
     const input = {
       userId: "user-123",
     };
 
-    const useCase = new UpdateProfileUseCase(mockTransaction);
-    await expect(useCase.execute(input)).rejects.toThrow(
-      "At least one field must be provided for update"
-    );
+    mockTransaction.execute.mockResolvedValue(undefined);
 
-    expect(mockTransaction.execute).not.toHaveBeenCalled();
+    const useCase = new UpdateProfileUseCase(mockTransaction);
+    await useCase.execute(input);
+
+    // Empty updates should still call transaction with empty objects
+    expect(mockTransaction.execute).toHaveBeenCalledWith("user-123", {}, {});
   });
 
   it("should throw error if user not found", async () => {

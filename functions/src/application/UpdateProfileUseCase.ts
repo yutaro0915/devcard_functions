@@ -42,11 +42,6 @@ export class UpdateProfileUseCase {
   async execute(input: UpdateProfileInput): Promise<void> {
     const {userId, displayName, bio, photoURL} = input;
 
-    // Validate that at least one field is provided
-    if (displayName === undefined && bio === undefined && photoURL === undefined) {
-      throw new Error("At least one field must be provided for update");
-    }
-
     // Prepare update data for User
     const userUpdateData: {displayName?: string; photoURL?: string} = {};
     if (displayName !== undefined) {
