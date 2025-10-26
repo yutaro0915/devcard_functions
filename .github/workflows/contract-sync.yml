@@ -168,8 +168,7 @@ jobs:
           ISSUE_URL=$(gh issue create \
             --repo ${{ env.WEB_REPO }} \
             --title "[feature request] Reflect backend contract changes – commit ${{ steps.commit_info.outputs.short_sha }}" \
-            --body-file issue_body.txt \
-            --label "contracts,automated")
+            --body-file issue_body.txt)
 
           echo "issue_url=$ISSUE_URL" >> $GITHUB_OUTPUT
           echo "✓ Created Issue: $ISSUE_URL"
