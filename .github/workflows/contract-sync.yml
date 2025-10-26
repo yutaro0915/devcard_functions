@@ -49,15 +49,18 @@ jobs:
         run: |
           echo "${{ secrets.WEB_REPO_TOKEN }}" | gh auth login --with-token
 
-      - name: Check if dev branch exists in web repo
+      - name: Check if dev/develop branch exists in web repo
         id: check_dev
         run: |
-          if gh api repos/${{ env.WEB_REPO }}/git/ref/heads/dev >/dev/null 2>&1; then
+          if gh api repos/${{ env.WEB_REPO }}/git/ref/heads/develop >/dev/null 2>&1; then
+            echo "base_branch=develop" >> $GITHUB_OUTPUT
+            echo "✓ develop branch exists, using as base"
+          elif gh api repos/${{ env.WEB_REPO }}/git/ref/heads/dev >/dev/null 2>&1; then
             echo "base_branch=dev" >> $GITHUB_OUTPUT
             echo "✓ dev branch exists, using as base"
           else
             echo "base_branch=main" >> $GITHUB_OUTPUT
-            echo "⚠ dev branch not found, falling back to main"
+            echo "⚠ dev/develop branch not found, falling back to main"
           fi
 
       - name: Checkout web repository
