@@ -120,7 +120,16 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
+    const existingPublicCard: PublicCard = {
+      userId: "user-123",
+      displayName: "Test User",
+      connectedServices: {},
+      theme: "default",
+      updatedAt: new Date(),
+    };
+
     mockUserRepository.findById.mockResolvedValue(existingUser);
+    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
@@ -158,7 +167,16 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
+    const existingPublicCard: PublicCard = {
+      userId: "user-123",
+      displayName: "Test User",
+      connectedServices: {},
+      theme: "default",
+      updatedAt: new Date(),
+    };
+
     mockUserRepository.findById.mockResolvedValue(existingUser);
+    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: false,
       error: "token-expired",
@@ -202,7 +220,16 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
+    const existingPublicCard: PublicCard = {
+      userId: "user-123",
+      displayName: "Test User",
+      connectedServices: {},
+      theme: "default",
+      updatedAt: new Date(),
+    };
+
     mockUserRepository.findById.mockResolvedValue(existingUser);
+    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: false,
       error: "api-error",
