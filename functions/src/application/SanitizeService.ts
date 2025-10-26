@@ -27,4 +27,24 @@ export class SanitizeService {
     // - Escape special characters
     return text;
   }
+
+  /**
+   * Sanitize displayName from email address
+   * Removes special characters that may cause issues in Firestore or UI
+   * @param emailPrefix - Email prefix (before @)
+   * @returns Sanitized displayName (alphanumeric only, max 100 chars)
+   */
+  sanitizeDisplayName(emailPrefix: string): string {
+    // Remove all non-alphanumeric characters (keep only a-z, A-Z, 0-9)
+    // This prevents issues with special chars like +, ., -, etc.
+    const sanitized = emailPrefix.replace(/[^a-zA-Z0-9]/g, "");
+
+    // If all characters were removed, fallback to "user"
+    if (sanitized.length === 0) {
+      return "user";
+    }
+
+    // Limit to 100 characters (displayName max length)
+    return sanitized.substring(0, 100);
+  }
 }

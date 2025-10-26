@@ -20,8 +20,15 @@
 
 **displayName の生成ロジック**:
 1. Firebase Auth の `user.displayName` が存在する場合（Google/Apple認証など）→ それを使用
-2. `user.displayName` が null の場合（メール/パスワード認証）→ メールアドレスの @ の前を抽出（例: `test@example.com` → `test`）
+2. `user.displayName` が null の場合（メール/パスワード認証）→ メールアドレスの @ の前を抽出し、サニタイズ処理を実行
+   - 特殊文字（`+`, `.`, `-` など）を削除し、英数字（a-z, A-Z, 0-9）のみ保持
+   - 例: `test@example.com` → `test`
+   - 例: `user.name+tag@example.com` → `usernametag`
+   - 例: `太郎.tanaka@example.jp` → `tanaka`
+   - すべての文字が削除された場合 → `"user"` にフォールバック
 3. メールアドレスも存在しない場合 → `"Anonymous"` にフォールバック
+
+**サニタイゼーション理由**: 特殊文字を含む displayName は Firestore のセキュリティルールやクライアント側の表示で問題を引き起こす可能性があるため
 
 **作成されるデータ**:
 ```typescript

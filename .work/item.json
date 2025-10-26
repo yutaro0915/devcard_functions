@@ -7,12 +7,13 @@
       "method": "Auth Trigger",
       "change_type": "fix-bug",
       "breaking": false,
-      "details": "user.displayName が null の場合、user.email?.split('@')[0] から displayName を生成。既存の user.displayName がある場合（Google/Apple認証）はそれを優先。最終フォールバックは 'Anonymous'。",
-      "reason": "現在は常に 'Anonymous' が保存されるバグを修正。API Contract の期待動作（メールアドレスから自動生成）に合致させる。"
+      "details": "user.displayName が null の場合、user.email の @ 前を抽出しサニタイズ処理を実行。特殊文字（+, ., - 等）を削除し英数字のみ保持。既存の user.displayName がある場合（Google/Apple認証）はそれを優先。最終フォールバックは 'Anonymous'。",
+      "reason": "現在は常に 'Anonymous' が保存されるバグを修正。API Contract の期待動作（メールアドレスから自動生成）に合致させる。特殊文字を含む displayName は Firestore のセキュリティルールやクライアント側の表示で問題を引き起こす可能性があるため、サニタイズ処理を追加。"
     }
   ],
   "security_notes": [
-    "displayName はメールアドレスの @ 前を使用するが、元々公開情報として扱われているため問題なし",
+    "displayName はメールアドレスの @ 前を使用するが、サニタイズ処理により英数字のみに制限",
+    "特殊文字（+, ., - 等）を削除することで、Firestore セキュリティルールやクライアント側の表示問題を防止",
     "Firebase Auth で検証済みのメールアドレスを使用するため、インジェクション攻撃の危険性なし",
     "既存のエラーハンドリング（try-catch）で保護されており、失敗してもユーザー作成はブロックされない"
   ],
@@ -20,8 +21,11 @@
     "成功系: メール認証ユーザー作成時、メールアドレスから displayName が生成される（例: test@example.com → test）",
     "成功系: Google/Apple認証で displayName が既に存在する場合、それを優先する",
     "成功系: メールアドレスが null の場合、'Anonymous' にフォールバックする",
-    "成功系: 複雑なメールアドレス（user.name+tag@example.co.jp）でも @ 前が正しく抽出される",
-    "成功系: /users/{userId} と /public_cards/{userId} の両方に同じ displayName が保存される"
+    "成功系: 複雑なメールアドレス（user.name+tag@example.co.jp）で特殊文字が削除される（→ usernametag）",
+    "成功系: /users/{userId} と /public_cards/{userId} の両方に同じ displayName が保存される",
+    "成功系: SanitizeService.sanitizeDisplayName() が特殊文字を削除する",
+    "成功系: SanitizeService.sanitizeDisplayName() がすべての文字が削除された場合に 'user' にフォールバックする",
+    "成功系: SanitizeService.sanitizeDisplayName() が100文字制限を適用する"
   ],
   "client_work_items": [
     "任意: displayName が 'Anonymous' の既存ユーザーに対して、プロフィール編集を促す UI を表示",

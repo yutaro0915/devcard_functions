@@ -5,6 +5,7 @@ import {UserRepository} from "../infrastructure/UserRepository";
 import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
 import {CreateUserUseCase} from "../application/CreateUserUseCase";
 import {GeneratePublicCardUseCase} from "../application/GeneratePublicCardUseCase";
+import {SanitizeService} from "../application/SanitizeService";
 
 const firestore = getFirestore();
 
@@ -19,10 +20,21 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
     // Initialize dependencies
     const userRepository = new UserRepository(firestore);
     const publicCardRepository = new PublicCardRepository(firestore);
+    const sanitizeService = new SanitizeService();
     const createUserUseCase = new CreateUserUseCase(userRepository);
     const generatePublicCardUseCase = new GeneratePublicCardUseCase(publicCardRepository);
 
-    const displayName = user.displayName || user.email?.split('@')[0] || "Anonymous";
+    // Generate displayName with sanitization
+    let displayName = "Anonymous";
+    if (user.displayName) {
+      // Use existing displayName from OAuth providers (Google/Apple)
+      displayName = user.displayName;
+    } else if (user.email) {
+      // Extract and sanitize email prefix for email/password auth
+      const emailPrefix = user.email.split('@')[0];
+      displayName = sanitizeService.sanitizeDisplayName(emailPrefix);
+    }
+
     const photoURL = user.photoURL;
 
     // Create user profile
