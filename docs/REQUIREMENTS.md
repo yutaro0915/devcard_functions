@@ -16,7 +16,7 @@ DevCardは、GitHub/Qiita/Zennなどの技術発信情報を自動で集約し�
 
 #### 4.1 認証
 * 以下のプロバイダでログインできる：
-    * **Apple Sign In** (iOS必須要件)
+    * **Apple Sign-In** (iOS必須要件)
     * **Google Sign In**
     * **GitHub OAuth**
     * **X (Twitter) OAuth**
@@ -126,7 +126,7 @@ iOSアプリは認証と共有の起点、Web (Next.js) は公開閲覧、Cloud 
 ### 3. 認証 (Firebase Authentication)
 * **役割:** アプリの認証基盤として利用。
 * **プロバイダ:**
-    * **Apple Sign In** (iOS App Store必須要件)
+    * **Apple Sign-In** (iOS App Store必須要件)
     * **Google Sign In**
     * **GitHub OAuth**
     * **X (Twitter) OAuth**

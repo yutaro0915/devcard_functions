@@ -1,0 +1,42 @@
+{
+  "feature_name": "Contract v0.1.1 - Documentation Clarifications",
+  "backend_commit_sha": null,
+  "status": "ready-for-review",
+  "api_changes": [
+    {
+      "path": "contracts/openapi.yaml",
+      "method": "N/A",
+      "change_type": "documentation",
+      "breaking": false,
+      "details": "firebaseAuth securitySchemeのdescriptionを拡充：Callable Functions利用時は自動的にトークンが付与される旨を明記",
+      "reason": "Copilotレビュー: REST APIとCallable Functionsの認証方法の違いが不明確だった"
+    },
+    {
+      "path": "contracts/API_CONTRACT.md",
+      "method": "N/A",
+      "change_type": "documentation",
+      "breaking": false,
+      "details": "データ型定義セクションにTimestamp型の説明を追加：FirestoreのTimestampオブジェクトとJSON表現（ISO 8601文字列）の両方を明記",
+      "reason": "Copilotレビュー: Timestamp型がFirestoreオブジェクトなのかISO 8601文字列なのか不明確で、openapi.yamlとの不整合があった"
+    },
+    {
+      "path": "docs/REQUIREMENTS.md",
+      "method": "N/A",
+      "change_type": "documentation",
+      "breaking": false,
+      "details": "Apple Sign In → Apple Sign-In に表記修正（公式ブランディングに準拠）",
+      "reason": "Copilotレビュー: Appleの公式表記との整合性"
+    }
+  ],
+  "security_notes": [
+    "ドキュメントの明確化のみで、実装やセキュリティ動作に変更なし"
+  ],
+  "tests_required": [
+    "既存のテストがすべてパスすること（実装変更なし）"
+  ],
+  "client_work_items": [
+    "特になし（ドキュメントの明確化のみ、API動作に変更なし）"
+  ],
+  "breaking_changes": false,
+  "notes_for_frontend": "ドキュメントの明確化のみです。API仕様やレスポンス形式に変更はありません。Timestamp型はFirestoreから取得時はTimestampオブジェクトですが、JSON serialization時はISO 8601文字列（YYYY-MM-DDTHH:mm:ss.sssZ）になります。"
+}

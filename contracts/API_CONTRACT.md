@@ -238,6 +238,28 @@ try {
 
 ## データ型定義
 
+### Timestamp
+
+Firestore の日時データは、環境によって異なる形式で扱われます：
+
+**Firestoreから取得時**:
+- Firebase Admin SDK（サーバー側）: `Timestamp` オブジェクト
+- Firebase Client SDK（Web/モバイル）: `Timestamp` オブジェクト
+
+**JSON シリアライゼーション時**:
+- HTTP レスポンスやJSON形式での転送時: ISO 8601形式の文字列
+- 形式: `YYYY-MM-DDTHH:mm:ss.sssZ`
+- 例: `"2025-10-26T06:52:30.123Z"`
+
+**TypeScript型定義**:
+```typescript
+// Firestore内部では
+createdAt: Timestamp
+
+// JSON APIレスポンスでは
+createdAt: string  // ISO 8601形式
+```
+
 ### ConnectedService
 
 ```typescript

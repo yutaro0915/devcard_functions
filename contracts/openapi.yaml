@@ -388,4 +388,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Firebase Authentication JWT token
+      description: |
+        Firebase Authentication JWT token
+
+        **注意**: Callable Functions利用時は、Firebase SDKが自動的に認証トークンを付与します。
+        クライアント側でベアラートークンを手動で設定する必要はありません。
+
+        詳細は API_CONTRACT.md の「認証方法」セクションを参照してください。
