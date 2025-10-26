@@ -18,6 +18,11 @@
 - `/users/{userId}` に非公開プロフィールを作成
 - `/public_cards/{userId}` に公開名刺を作成
 
+**displayName の生成ロジック**:
+1. Firebase Auth の `user.displayName` が存在する場合（Google/Apple認証など）→ それを使用
+2. `user.displayName` が null の場合（メール/パスワード認証）→ メールアドレスの @ の前を抽出（例: `test@example.com` → `test`）
+3. メールアドレスも存在しない場合 → `"Anonymous"` にフォールバック
+
 **作成されるデータ**:
 ```typescript
 // /users/{userId}

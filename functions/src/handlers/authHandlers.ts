@@ -22,7 +22,7 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
     const createUserUseCase = new CreateUserUseCase(userRepository);
     const generatePublicCardUseCase = new GeneratePublicCardUseCase(publicCardRepository);
 
-    const displayName = user.displayName || "Anonymous";
+    const displayName = user.displayName || user.email?.split('@')[0] || "Anonymous";
     const photoURL = user.photoURL;
 
     // Create user profile
