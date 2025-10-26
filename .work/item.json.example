@@ -1,0 +1,30 @@
+{
+  "feature_name": "Example: User profile displayName exposure",
+  "backend_commit_sha": null,
+  "status": "draft",
+  "api_changes": [
+    {
+      "path": "/users/:id",
+      "method": "GET",
+      "change_type": "add-field",
+      "breaking": false,
+      "details": "レスポンスに displayName: string を追加",
+      "reason": "フロントエンドでユーザー名を正しく表示する必要があるため"
+    }
+  ],
+  "security_notes": [
+    "displayName は公開可能な非機微情報として扱う。認可要件は従来と同じ。"
+  ],
+  "tests_required": [
+    "GET /users/:id で displayName が必ず含まれること（200系）",
+    "権限がない場合は従来どおり403を返すこと",
+    "レスポンス型の変更が原因でパースが落ちないこと"
+  ],
+  "client_work_items": [
+    "Web: UserProfile画面にdisplayNameを表示",
+    "Web: UserCardコンポーネントの型定義更新",
+    "Web: APIクライアントのレスポンス型とパーサ更新"
+  ],
+  "breaking_changes": false,
+  "notes_for_frontend": "UIには新しいラベルを表示するだけで、既存フィールドの削除はない。エラー処理は従来どおり。"
+}

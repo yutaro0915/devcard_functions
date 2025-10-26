@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "DevCard Work Item Metadata",
+  "description": "Single source of truth for tracking API changes from planning to client synchronization",
+  "type": "object",
+  "required": [
+    "feature_name",
+    "status",
+    "api_changes",
+    "tests_required",
+    "client_work_items",
+    "breaking_changes"
+  ],
+  "properties": {
+    "feature_name": {
+      "type": "string",
+      "description": "Human-readable name for this change (e.g., 'User profile displayName exposure')",
+      "minLength": 1
+    },
+    "backend_commit_sha": {
+      "type": ["string", "null"],
+      "description": "Git commit SHA when merged to develop (null until merged)",
+      "pattern": "^[0-9a-f]{40}$|^$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "ready-for-review", "merged"],
+      "description": "Current status of this work item"
+    },
+    "api_changes": {
+      "type": "array",
+      "description": "List of API endpoint changes",
+      "items": {
+        "type": "object",
+        "required": ["path", "method", "change_type", "breaking", "details", "reason"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Endpoint path (e.g., '/users/:id')"
+          },
+          "method": {
+            "type": "string",
+            "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "N/A"],
+            "description": "HTTP method or N/A for Cloud Functions"
+          },
+          "change_type": {
+            "type": "string",
+            "enum": ["add-endpoint", "add-field", "remove-field", "change-field-type", "change-validation", "change-auth"],
+            "description": "Type of change being made"
+          },
+          "breaking": {
+            "type": "boolean",
+            "description": "Whether this specific change is breaking"
+          },
+          "details": {
+            "type": "string",
+            "description": "Technical description of the change",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why this change is needed",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "security_notes": {
+      "type": "array",
+      "description": "Security, authorization, and privacy considerations",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "tests_required": {
+      "type": "array",
+      "description": "Test cases that must be implemented (success and failure cases)",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "client_work_items": {
+      "type": "array",
+      "description": "Tasks for Web/iOS clients to implement",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "breaking_changes": {
+      "type": "boolean",
+      "description": "Overall breaking change flag (true if any api_changes[].breaking is true)"
+    },
+    "notes_for_frontend": {
+      "type": "string",
+      "description": "Natural language instructions for frontend developers"
+    }
+  }
+}

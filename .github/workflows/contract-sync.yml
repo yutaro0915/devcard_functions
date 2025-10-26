@@ -99,28 +99,67 @@ jobs:
             git push origin "${{ steps.branch.outputs.branch_name }}"
           fi
 
-      - name: Create PR body template
+      - name: Create PR body from .work/item.json
         if: env.skip != 'true'
         run: |
-          cat > pr_body.txt <<'EOF'
-          このPRはバックエンド側で更新された `contracts/` ディレクトリをWebクライアントへ同期するものです。
+          if [ -f .work/item.json ]; then
+            # JSONから情報抽出
+            FEATURE_NAME=$(jq -r '.feature_name' .work/item.json)
+            BREAKING=$(jq -r '.breaking_changes' .work/item.json)
+            API_CHANGES=$(jq -r '.api_changes | map("- **\(.path)** (\(.method)): \(.details)") | join("\n")' .work/item.json)
+            BACKEND_SHA=$(git rev-parse HEAD)
+
+            cat > pr_body.txt <<EOF
+          ## 🔄 Backend Contracts Sync
+
+          このPRはバックエンド側で更新された \`contracts/\` ディレクトリをWebクライアントへ同期するものです。
+
+          ### Feature
+          **${FEATURE_NAME}**
+
+          ### API Changes
+          ${API_CHANGES}
+
+          ### Breaking Changes
+          ${BREAKING}
+
+          ### Backend Commit
+          - SHA: ${BACKEND_SHA}
+          - Message:
+          \`\`\`
+          ${{ steps.commit_info.outputs.message }}
+          \`\`\`
+
+          ### 次のステップ
+          1. このPRをマージして contracts/ を同期
+          2. Issue を確認して実装作業を開始
+
+          ---
+
+          **⚠️ 注意**: このPRは自動生成です。内容を直接編集しないでください。
+          EOF
+          else
+            # フォールバック: .work/item.json がない場合は従来形式
+            cat > pr_body.txt <<'EOF'
+          このPRはバックエンド側で更新された \`contracts/\` ディレクトリをWebクライアントへ同期するものです。
 
           ### 対象
-          - `contracts/API_CONTRACT.md`
-          - `contracts/CHANGELOG.md`
-          - `contracts/openapi.yaml`
+          - \`contracts/API_CONTRACT.md\`
+          - \`contracts/CHANGELOG.md\`
+          - \`contracts/openapi.yaml\`
 
           ### 背景
           - backend commit: ${{ steps.commit_info.outputs.sha }}
           - message:
-          ```
+          \`\`\`
           ${{ steps.commit_info.outputs.message }}
-          ```
+          \`\`\`
 
           ### 注意
           - これは仕様書更新の同期PRです。マージ後、Issueを確認して実装作業を進めてください。
           - このPRは自動生成です。内容を直接編集しないでください。
           EOF
+          fi
 
       - name: Create PR
         if: env.skip != 'true'
@@ -138,31 +177,97 @@ jobs:
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           echo "✓ Created PR: $PR_URL"
 
-      - name: Create Issue body template
+      - name: Create Issue body from .work/item.json
         if: env.skip != 'true'
         run: |
-          cat > issue_body.txt <<'EOF'
-          バックエンドの `contracts/` が更新されました。
+          if [ -f .work/item.json ]; then
+            # JSONから情報抽出
+            FEATURE_NAME=$(jq -r '.feature_name' .work/item.json)
+            CLIENT_ITEMS=$(jq -r '.client_work_items | map("- [ ] \(.)") | join("\n")' .work/item.json)
+            NOTES=$(jq -r '.notes_for_frontend' .work/item.json)
+            BREAKING=$(jq -r '.breaking_changes' .work/item.json)
+            API_CHANGES=$(jq -r '.api_changes | map("- **\(.path)** (\(.method)): \(.details)") | join("\n")' .work/item.json)
+            BACKEND_SHA=$(git rev-parse HEAD)
+
+            cat > issue_body.txt <<EOF
+          # 🔄 Backend Contract Update
+
+          バックエンドの \`contracts/\` が更新されました。
+
+          ---
+
+          ## 📋 変更概要
+
+          **Feature**: ${FEATURE_NAME}
+
+          ### API Changes
+          ${API_CHANGES}
+
+          ---
+
+          ## 🎯 Web側で必要な対応
+
+          ${CLIENT_ITEMS}
+
+          ---
+
+          ## ⚠️ 破壊的変更
+
+          ${BREAKING}
+
+          ---
+
+          ## 📝 フロントエンド向けメモ
+
+          ${NOTES}
+
+          ---
+
+          ## 📚 参考情報
+
+          ### 変更の詳細
+          - PR: #${{ steps.create_pr.outputs.pr_number }}
+          - Backend Commit: ${BACKEND_SHA}
+          - CHANGELOG: contracts/CHANGELOG.md 参照
+
+          ### 関連ドキュメント
+          - API仕様: contracts/API_CONTRACT.md
+          - OpenAPI: contracts/openapi.yaml
+
+          ---
+
+          ## ✅ 完了条件
+
+          - [ ] contracts/ をdevelopにマージ
+          - [ ] 上記チェックリストの実装完了
+          - [ ] テスト・リント通過
+          - [ ] 動作確認完了
+          EOF
+          else
+            # フォールバック: .work/item.json がない場合は従来形式
+            cat > issue_body.txt <<'EOF'
+          バックエンドの \`contracts/\` が更新されました。
 
           ### 対応内容
           - PR: #${{ steps.create_pr.outputs.pr_number }}
           - commit: ${{ steps.commit_info.outputs.sha }}
           - message:
-          ```
+          \`\`\`
           ${{ steps.commit_info.outputs.message }}
-          ```
+          \`\`\`
 
           ### 指示
-          1. PRを確認し、`contracts/` をマージ。
-          2. `CHANGELOG.md` を参照して、影響範囲を整理。
-          3. 新しいfeatureブランチを作成（例: `feature/reflect-contract-${{ steps.commit_info.outputs.short_sha }}`）。
+          1. PRを確認し、\`contracts/\` をマージ。
+          2. \`CHANGELOG.md\` を参照して、影響範囲を整理。
+          3. 新しいfeatureブランチを作成（例: \`feature/reflect-contract-${{ steps.commit_info.outputs.short_sha }}\`）。
           4. 必要なUI/APIクライアント/テストの修正を行い、PRを作成。
           5. テスト・リント通過を確認後、レビューへ。
 
           ### 備考
           - このIssueは自動生成です。
-          - 契約の唯一の正は `contracts/` です。内容を変更しないでください。
+          - 契約の唯一の正は \`contracts/\` です。内容を変更しないでください。
           EOF
+          fi
 
       - name: Create Issue
         if: env.skip != 'true'
