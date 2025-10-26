@@ -1,0 +1,32 @@
+name: Contract Sync to Clients
+
+# このワークフローは、contracts/の変更をフロントエンド・iOSなどのクライアントリポジトリに伝える役割を担います。
+# 現時点では骨組みのみで、実際の同期処理はまだ有効化されていません。
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'contracts/**'
+
+jobs:
+  notify-clients:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # TODO: 以下の情報を確定させる必要があります
+      # - フロントエンドリポジトリ名
+      # - iOSリポジトリ名（存在する場合）
+      # - GitHub Personal Access Token (Secrets名)
+      # - Issue作成 vs PR作成のどちらを採用するか
+      # - 通知メッセージのテンプレート
+
+      - name: Placeholder for client notification
+        run: |
+          echo "contracts/ has been updated."
+          echo "In the future, this workflow will create an Issue or PR in client repositories."
+          echo "See CHANGELOG.md for details of the changes."

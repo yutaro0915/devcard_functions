@@ -1,0 +1,26 @@
+openapi: 3.0.3
+
+info:
+  title: DevCard API
+  version: 0.0.0
+  description: |
+    DevCard バックエンドAPI仕様
+
+    **注意**: この仕様は段階的に拡張されます。
+    詳細は API_CONTRACT.md および CHANGELOG.md を参照してください。
+
+servers:
+  - url: https://us-central1-dev-card-ae929.cloudfunctions.net
+    description: Production (Firebase Cloud Functions)
+  - url: http://localhost:5001/dev-card-ae929/us-central1
+    description: Local Emulator
+
+paths:
+  # TODO: エンドポイント定義を追加
+
+components:
+  schemas:
+    # TODO: データモデル定義を追加
+
+  securitySchemes:
+    # TODO: 認証スキーム定義を追加
