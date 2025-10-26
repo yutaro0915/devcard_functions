@@ -25,12 +25,18 @@ jobs:
           LINE_NUMBER: ${{ github.event.comment.line }}
         run: |
           # Extract priority label
-          if echo "$COMMENT_BODY" | grep -q "\[RECOMMENDED\]"; then
+          if echo "$COMMENT_BODY" | grep -q "\[CRITICAL\]"; then
+            echo "priority=critical" >> $GITHUB_OUTPUT
+            echo "labels=bug,priority:critical" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT_BODY" | grep -q "\[RECOMMENDED\]"; then
             echo "priority=recommended" >> $GITHUB_OUTPUT
             echo "labels=tech-debt,priority:high" >> $GITHUB_OUTPUT
           elif echo "$COMMENT_BODY" | grep -q "\[OPTIONAL\]"; then
             echo "priority=optional" >> $GITHUB_OUTPUT
             echo "labels=enhancement,priority:low" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT_BODY" | grep -q "\[INFO\]"; then
+            echo "priority=info" >> $GITHUB_OUTPUT
+            echo "labels=documentation,priority:info" >> $GITHUB_OUTPUT
           fi
 
           # Extract first line as title (remove emoji and label)
