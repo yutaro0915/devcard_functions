@@ -14,6 +14,10 @@
 - API_CONTRACT.md の作成（プレースホルダー）
 - openapi.yaml の作成（雛形）
 - このCHANGELOG.md の作成
+- contract-sync.yml ワークフロー（develop → Web自動同期）
+
+#### Changed
+- **テスト**: 自動同期ワークフローの動作確認
 
 ---
 
@@ -28,4 +32,3 @@
 - `Removed`: 削除
 - `Fixed`: バグ修正
 - `Security`: セキュリティ関連
-Test change at 2025年 10月26日 日曜日 11時18分40秒 JST
