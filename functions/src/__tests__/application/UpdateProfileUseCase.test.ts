@@ -225,4 +225,29 @@ describe("UpdateProfileUseCase", () => {
     expect(mockUserRepository.update).not.toHaveBeenCalled();
     expect(mockPublicCardRepository.update).not.toHaveBeenCalled();
   });
+
+  it("should allow empty string for bio", async () => {
+    const input = {
+      userId: "user-123",
+      bio: "",
+    };
+
+    mockUserRepository.findById.mockResolvedValue(mockUser);
+    mockPublicCardRepository.findByUserId.mockResolvedValue(mockPublicCard);
+    mockUserRepository.update.mockResolvedValue(undefined);
+    mockPublicCardRepository.update.mockResolvedValue(undefined);
+
+    const useCase = new UpdateProfileUseCase(
+      mockUserRepository,
+      mockPublicCardRepository
+    );
+    await useCase.execute(input);
+
+    expect(mockPublicCardRepository.update).toHaveBeenCalledWith(
+      "user-123",
+      {
+        bio: "",
+      }
+    );
+  });
 });

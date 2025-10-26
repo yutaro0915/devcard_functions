@@ -16,8 +16,9 @@
     "認証必須: Firebase Auth トークンが必要",
     "認可: ユーザーは自分自身のプロフィールのみ更新可能（request.auth.uidで判定）",
     "入力バリデーション: 型チェック（string）をHandler層で実施",
-    "推奨: 文字列長バリデーション（displayName: 1-100, bio: 0-500）",
-    "推奨: photoURL の URL形式検証とドメイン制限"
+    "文字列長バリデーション: displayName (1-100文字), bio (0-500文字)",
+    "URL検証: photoURL は有効なHTTPS URLである必要がある",
+    "ログ出力: ユーザーIDのみをログに記録（bio, photoURLは含めない）"
   ],
   "tests_required": [
     "成功系: 全フィールド更新（displayName, bio, photoURL）",
@@ -26,11 +27,17 @@
     "成功系: photoURLのみ更新",
     "成功系: /users と /public_cards 両方が更新されること",
     "成功系: updatedAt が更新されること",
+    "成功系: bio に空文字列を許可",
     "失敗系: 未認証の場合 unauthenticated エラー",
     "失敗系: 全フィールド未指定の場合 invalid-argument エラー",
     "失敗系: displayName が非文字列の場合 invalid-argument エラー",
     "失敗系: bio が非文字列の場合 invalid-argument エラー",
     "失敗系: photoURL が非文字列の場合 invalid-argument エラー",
+    "失敗系: displayName が1文字未満の場合 invalid-argument エラー",
+    "失敗系: displayName が100文字超の場合 invalid-argument エラー",
+    "失敗系: bio が500文字超の場合 invalid-argument エラー",
+    "失敗系: photoURL が無効なURL形式の場合 invalid-argument エラー",
+    "失敗系: photoURL が HTTPS でない場合 invalid-argument エラー",
     "失敗系: ユーザー未存在の場合エラー",
     "失敗系: 公開名刺未存在の場合エラー"
   ],

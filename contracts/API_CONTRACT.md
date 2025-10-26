@@ -131,11 +131,16 @@
 **リクエスト**:
 ```typescript
 {
-  displayName?: string;  // 表示名（任意）
-  bio?: string;          // 自己紹介文（任意）
-  photoURL?: string;     // プロフィール写真URL（任意）
+  displayName?: string;  // 表示名（任意、1-100文字）
+  bio?: string;          // 自己紹介文（任意、0-500文字）
+  photoURL?: string;     // プロフィール写真URL（任意、HTTPS必須）
 }
 ```
+
+**バリデーション**:
+- `displayName`: 1文字以上100文字以下
+- `bio`: 500文字以下（空文字列可）
+- `photoURL`: 有効なHTTPS URL形式
 
 **レスポンス**:
 ```typescript
@@ -146,7 +151,12 @@
 
 **エラー**:
 - `unauthenticated`: 認証されていない場合
-- `invalid-argument`: フィールドの型が不正、または全フィールドが未指定の場合
+- `invalid-argument`: 以下の場合
+  - フィールドの型が不正
+  - 全フィールドが未指定
+  - `displayName` が1文字未満または100文字超
+  - `bio` が500文字超
+  - `photoURL` が無効なURL形式またはHTTPS以外のプロトコル
 - `not-found`: ユーザーまたは公開名刺が存在しない場合
 - `internal`: サーバー内部エラー
 

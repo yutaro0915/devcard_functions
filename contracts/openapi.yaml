@@ -155,13 +155,17 @@ paths:
                 displayName:
                   type: string
                   description: 表示名（任意）
+                  minLength: 1
+                  maxLength: 100
                 bio:
                   type: string
                   description: 自己紹介文（任意）
+                  maxLength: 500
                 photoURL:
                   type: string
                   format: uri
-                  description: プロフィール写真URL（任意）
+                  description: プロフィール写真URL（任意、HTTPS必須）
+                  pattern: '^https://'
               minProperties: 1
       responses:
         '200':
@@ -171,7 +175,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: 不正なリクエスト（全フィールド未指定、型エラー）
+          description: 不正なリクエスト（全フィールド未指定、型エラー、バリデーションエラー）
           content:
             application/json:
               schema:

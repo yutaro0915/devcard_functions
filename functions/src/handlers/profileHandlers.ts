@@ -20,15 +20,48 @@ export const updateProfile = onCall(async (request) => {
   const userId = request.auth.uid;
   const {displayName, bio, photoURL} = request.data;
 
-  // Validate input types
-  if (displayName !== undefined && typeof displayName !== "string") {
-    throw new HttpsError("invalid-argument", "displayName must be a string");
+  // Validate input types and lengths
+  if (displayName !== undefined) {
+    if (typeof displayName !== "string") {
+      throw new HttpsError("invalid-argument", "displayName must be a string");
+    }
+    if (displayName.length < 1 || displayName.length > 100) {
+      throw new HttpsError(
+        "invalid-argument",
+        "displayName must be between 1 and 100 characters"
+      );
+    }
   }
-  if (bio !== undefined && typeof bio !== "string") {
-    throw new HttpsError("invalid-argument", "bio must be a string");
+  if (bio !== undefined) {
+    if (typeof bio !== "string") {
+      throw new HttpsError("invalid-argument", "bio must be a string");
+    }
+    if (bio.length > 500) {
+      throw new HttpsError(
+        "invalid-argument",
+        "bio must be at most 500 characters"
+      );
+    }
   }
-  if (photoURL !== undefined && typeof photoURL !== "string") {
-    throw new HttpsError("invalid-argument", "photoURL must be a string");
+  if (photoURL !== undefined) {
+    if (typeof photoURL !== "string") {
+      throw new HttpsError("invalid-argument", "photoURL must be a string");
+    }
+    // Validate URL format and protocol
+    try {
+      const url = new URL(photoURL);
+      if (url.protocol !== "https:") {
+        throw new HttpsError(
+          "invalid-argument",
+          "photoURL must use HTTPS protocol"
+        );
+      }
+    } catch (error) {
+      if (error instanceof HttpsError) {
+        throw error;
+      }
+      throw new HttpsError("invalid-argument", "photoURL must be a valid URL");
+    }
   }
 
   // Validate that at least one field is provided
@@ -40,7 +73,7 @@ export const updateProfile = onCall(async (request) => {
   }
 
   try {
-    logger.info("Updating user profile", {userId, displayName, bio, photoURL});
+    logger.info("Updating user profile", {userId});
 
     // Initialize dependencies
     const userRepository = new UserRepository(firestore);
