@@ -92,8 +92,12 @@ describe("ManualSyncUseCase", () => {
     expect(result.errors).toBeUndefined();
 
     expect(mockUserRepository.findById).toHaveBeenCalledWith("user-123");
-    expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith("valid_github_token");
-    expect(mockGitHubService.toConnectedService).toHaveBeenCalledWith(gitHubUserInfo);
+    expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith(
+      "valid_github_token"
+    );
+    expect(mockGitHubService.toConnectedService).toHaveBeenCalledWith(
+      gitHubUserInfo
+    );
     expect(mockPublicCardRepository.update).toHaveBeenCalledWith("user-123", {
       connectedServices: {
         github: connectedService,
@@ -195,7 +199,9 @@ describe("ManualSyncUseCase", () => {
       },
     ]);
 
-    expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith("expired_token");
+    expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith(
+      "expired_token"
+    );
     expect(mockPublicCardRepository.update).not.toHaveBeenCalled();
   });
 
@@ -261,7 +267,9 @@ describe("ManualSyncUseCase", () => {
       mockGitHubService
     );
 
-    await expect(useCase.execute(input)).rejects.toThrow("User nonexistent-user not found");
+    await expect(useCase.execute(input)).rejects.toThrow(
+      "User nonexistent-user not found"
+    );
   });
 
   it("should throw error if public card not found", async () => {
@@ -300,7 +308,9 @@ describe("ManualSyncUseCase", () => {
       mockGitHubService
     );
 
-    await expect(useCase.execute(input)).rejects.toThrow("PublicCard for user user-123 not found");
+    await expect(useCase.execute(input)).rejects.toThrow(
+      "PublicCard for user user-123 not found"
+    );
   });
 
   it("should ignore unsupported services", async () => {

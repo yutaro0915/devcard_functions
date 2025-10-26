@@ -1,5 +1,9 @@
 import axios from "axios";
-import {IGitHubService, GitHubUserInfo, GitHubSyncResult} from "../domain/IGitHubService";
+import {
+  IGitHubService,
+  GitHubUserInfo,
+  GitHubSyncResult,
+} from "../domain/IGitHubService";
 import {ConnectedService} from "../domain/PublicCard";
 
 /**

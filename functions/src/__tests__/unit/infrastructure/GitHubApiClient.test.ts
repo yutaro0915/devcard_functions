@@ -38,12 +38,15 @@ describe("GitHubApiClient", () => {
       });
       expect(result.error).toBeUndefined();
 
-      expect(mockedAxios.get).toHaveBeenCalledWith("https://api.github.com/user", {
-        headers: {
-          Authorization: "Bearer valid_token_123",
-          Accept: "application/vnd.github.v3+json",
-        },
-      });
+      expect(mockedAxios.get).toHaveBeenCalledWith(
+        "https://api.github.com/user",
+        {
+          headers: {
+            Authorization: "Bearer valid_token_123",
+            Accept: "application/vnd.github.v3+json",
+          },
+        }
+      );
     });
 
     it("should handle GitHub user with missing optional fields", async () => {

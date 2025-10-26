@@ -29,11 +29,17 @@ export const manualSync = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "services must be an array");
   }
   if (services.length === 0) {
-    throw new HttpsError("invalid-argument", "services array must not be empty");
+    throw new HttpsError(
+      "invalid-argument",
+      "services array must not be empty"
+    );
   }
   // Validate array elements are strings
   if (!services.every((s) => typeof s === "string")) {
-    throw new HttpsError("invalid-argument", "services array must contain only strings");
+    throw new HttpsError(
+      "invalid-argument",
+      "services array must contain only strings"
+    );
   }
 
   try {

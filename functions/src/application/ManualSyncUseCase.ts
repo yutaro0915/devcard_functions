@@ -70,7 +70,9 @@ export class ManualSyncUseCase {
     const errors: SyncError[] = [];
 
     // Get existing public card
-    const publicCard = await this.publicCardRepository.findByUserId(input.userId);
+    const publicCard = await this.publicCardRepository.findByUserId(
+      input.userId
+    );
     if (!publicCard) {
       throw new Error(`PublicCard for user ${input.userId} not found`);
     }
@@ -96,7 +98,7 @@ export class ManualSyncUseCase {
       // For now, unsupported services are silently ignored
     }
 
-    // Update public card only if at least one service was synced successfully
+    // Update public card only if at least one service was synced
     if (syncedServices.length > 0) {
       await this.publicCardRepository.update(input.userId, {
         connectedServices: updatedServices,
@@ -115,7 +117,9 @@ export class ManualSyncUseCase {
    * @param {string | undefined} accessToken GitHub access token
    * @return {Promise<SyncServiceResult>} Sync result
    */
-  private async syncGitHub(accessToken: string | undefined): Promise<SyncServiceResult> {
+  private async syncGitHub(
+    accessToken: string | undefined
+  ): Promise<SyncServiceResult> {
     if (!accessToken) {
       return {
         success: false,
