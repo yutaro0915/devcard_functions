@@ -1,0 +1,187 @@
+name: Contract Sync to Web Client
+
+# このワークフローは、contracts/の変更をWebクライアント（devcard_nextjs）へ自動同期します。
+# トリガー: develop ブランチへのPRマージ時（contracts/ 変更があった場合のみ）
+# 1. PR作成（契約ファイル同期）
+# 2. Issue作成（実装指示）
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'contracts/**'
+
+env:
+  WEB_REPO: yutaro0915/devcard_nextjs
+
+jobs:
+  sync-to-web:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout backend repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 最新のコミット情報取得のため
+
+      - name: Get commit information
+        id: commit_info
+        run: |
+          SHA=$(git rev-parse HEAD)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          MSG=$(git log -1 --pretty=%B)
+          AUTHOR=$(git log -1 --pretty=%an)
+          echo "sha=$SHA" >> $GITHUB_OUTPUT
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$MSG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "author=$AUTHOR" >> $GITHUB_OUTPUT
+
+      - name: Generate timestamp for branch name
+        id: timestamp
+        run: |
+          TIMESTAMP=$(date -u +"%Y%m%d-%H%M")
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+
+      - name: Setup GitHub CLI
+        run: |
+          echo "${{ secrets.WEB_REPO_TOKEN }}" | gh auth login --with-token
+
+      - name: Check if dev branch exists in web repo
+        id: check_dev
+        run: |
+          if gh api repos/${{ env.WEB_REPO }}/git/ref/heads/dev >/dev/null 2>&1; then
+            echo "base_branch=dev" >> $GITHUB_OUTPUT
+            echo "✓ dev branch exists, using as base"
+          else
+            echo "base_branch=main" >> $GITHUB_OUTPUT
+            echo "⚠ dev branch not found, falling back to main"
+          fi
+
+      - name: Checkout web repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          token: ${{ secrets.WEB_REPO_TOKEN }}
+          ref: ${{ steps.check_dev.outputs.base_branch }}
+          path: web-repo
+
+      - name: Create sync branch
+        id: branch
+        working-directory: web-repo
+        run: |
+          BRANCH_NAME="sync/contracts/${{ steps.timestamp.outputs.timestamp }}"
+          echo "branch_name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          git checkout -b "$BRANCH_NAME"
+          git config user.name "DevCard Backend Bot"
+          git config user.email "bot@devcard.example.com"
+
+      - name: Sync contracts directory
+        run: |
+          # contracts/ ディレクトリを丸ごとコピー（内容は改変しない）
+          rm -rf web-repo/contracts/
+          cp -r contracts/ web-repo/contracts/
+
+      - name: Commit and push changes
+        working-directory: web-repo
+        run: |
+          git add contracts/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            echo "skip=true" >> $GITHUB_ENV
+          else
+            git commit -m "chore(contracts): sync from backend commit ${{ steps.commit_info.outputs.short_sha }}"
+            git push origin "${{ steps.branch.outputs.branch_name }}"
+          fi
+
+      - name: Create PR body template
+        if: env.skip != 'true'
+        run: |
+          cat > pr_body.txt <<'EOF'
+          このPRはバックエンド側で更新された `contracts/` ディレクトリをWebクライアントへ同期するものです。
+
+          ### 対象
+          - `contracts/API_CONTRACT.md`
+          - `contracts/CHANGELOG.md`
+          - `contracts/openapi.yaml`
+
+          ### 背景
+          - backend commit: ${{ steps.commit_info.outputs.sha }}
+          - message:
+          ```
+          ${{ steps.commit_info.outputs.message }}
+          ```
+
+          ### 注意
+          - これは仕様書更新の同期PRです。マージ後、Issueを確認して実装作業を進めてください。
+          - このPRは自動生成です。内容を直接編集しないでください。
+          EOF
+
+      - name: Create PR
+        if: env.skip != 'true'
+        id: create_pr
+        run: |
+          PR_URL=$(gh pr create \
+            --repo ${{ env.WEB_REPO }} \
+            --base ${{ steps.check_dev.outputs.base_branch }} \
+            --head ${{ steps.branch.outputs.branch_name }} \
+            --title "[contracts sync] Update API contracts from backend commit ${{ steps.commit_info.outputs.short_sha }}" \
+            --body-file pr_body.txt)
+
+          PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+          echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "✓ Created PR: $PR_URL"
+
+      - name: Create Issue body template
+        if: env.skip != 'true'
+        run: |
+          cat > issue_body.txt <<'EOF'
+          バックエンドの `contracts/` が更新されました。
+
+          ### 対応内容
+          - PR: #${{ steps.create_pr.outputs.pr_number }}
+          - commit: ${{ steps.commit_info.outputs.sha }}
+          - message:
+          ```
+          ${{ steps.commit_info.outputs.message }}
+          ```
+
+          ### 指示
+          1. PRを確認し、`contracts/` をマージ。
+          2. `CHANGELOG.md` を参照して、影響範囲を整理。
+          3. 新しいfeatureブランチを作成（例: `feature/reflect-contract-${{ steps.commit_info.outputs.short_sha }}`）。
+          4. 必要なUI/APIクライアント/テストの修正を行い、PRを作成。
+          5. テスト・リント通過を確認後、レビューへ。
+
+          ### 備考
+          - このIssueは自動生成です。
+          - 契約の唯一の正は `contracts/` です。内容を変更しないでください。
+          EOF
+
+      - name: Create Issue
+        if: env.skip != 'true'
+        id: create_issue
+        run: |
+          ISSUE_URL=$(gh issue create \
+            --repo ${{ env.WEB_REPO }} \
+            --title "[feature request] Reflect backend contract changes – commit ${{ steps.commit_info.outputs.short_sha }}" \
+            --body-file issue_body.txt \
+            --label "contracts,automated")
+
+          echo "issue_url=$ISSUE_URL" >> $GITHUB_OUTPUT
+          echo "✓ Created Issue: $ISSUE_URL"
+
+      - name: Summary
+        if: env.skip != 'true'
+        run: |
+          echo "## Contract Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Synced contracts/ to ${{ env.WEB_REPO }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR**: ${{ steps.create_pr.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Issue**: ${{ steps.create_issue.outputs.issue_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ steps.branch.outputs.branch_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Base**: ${{ steps.check_dev.outputs.base_branch }}" >> $GITHUB_STEP_SUMMARY
