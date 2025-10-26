@@ -10,13 +10,16 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:unit": "jest --testPathIgnorePatterns=integration",
+    "test:integration": "jest integration"
   },
   "engines": {
     "node": "22"
   },
   "main": "lib/index.js",
   "dependencies": {
+    "@octokit/rest": "^22.0.0",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.0.1"
   },
@@ -27,6 +30,7 @@
     "eslint": "^8.9.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.25.4",
+    "firebase": "^11.2.0",
     "firebase-functions-test": "^3.1.0",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.5",

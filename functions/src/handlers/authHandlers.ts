@@ -1,5 +1,5 @@
-import * as auth from "firebase-functions/v1/auth";
 import * as logger from "firebase-functions/logger";
+import * as auth from "firebase-functions/v1/auth";
 import {getFirestore} from "firebase-admin/firestore";
 import {UserRepository} from "../infrastructure/UserRepository";
 import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
@@ -9,7 +9,7 @@ import {GeneratePublicCardUseCase} from "../application/GeneratePublicCardUseCas
 const firestore = getFirestore();
 
 /**
- * Auth onCreate trigger (v1)
+ * Auth onCreate trigger (v1 - region set via setGlobalOptions)
  * Creates user profile in /users and public card in /public_cards when a new user signs up
  */
 export const onUserCreate = auth.user().onCreate(async (user) => {
@@ -22,8 +22,17 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
     const createUserUseCase = new CreateUserUseCase(userRepository);
     const generatePublicCardUseCase = new GeneratePublicCardUseCase(publicCardRepository);
 
-    const displayName = user.displayName || "Anonymous";
+    const displayName = user.displayName
+      || user.email?.split('@')[0]
+      || "Anonymous";
     const photoURL = user.photoURL;
+
+    logger.info("DisplayName resolution", {
+      userId: user.uid,
+      userDisplayName: user.displayName,
+      userEmail: user.email,
+      resolvedDisplayName: displayName,
+    });
 
     // Create user profile
     await createUserUseCase.execute({
