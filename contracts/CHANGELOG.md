@@ -7,6 +7,13 @@
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Callable Function: `updateProfile`** - ユーザーが自分のプロフィール情報（displayName, bio, photoURL）を更新
+
+---
+
 ## [0.1.0] - 2025-10-26
 
 ### Added

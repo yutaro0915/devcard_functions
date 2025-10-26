@@ -1,42 +1,55 @@
 {
-  "feature_name": "Contract v0.1.1 - Documentation Clarifications",
+  "feature_name": "User Profile Update API",
   "backend_commit_sha": null,
   "status": "ready-for-review",
   "api_changes": [
     {
-      "path": "contracts/openapi.yaml",
-      "method": "N/A",
-      "change_type": "documentation",
+      "path": "updateProfile",
+      "method": "Callable Function",
+      "change_type": "add",
       "breaking": false,
-      "details": "firebaseAuth securitySchemeのdescriptionを拡充：Callable Functions利用時は自動的にトークンが付与される旨を明記",
-      "reason": "Copilotレビュー: REST APIとCallable Functionsの認証方法の違いが不明確だった"
-    },
-    {
-      "path": "contracts/API_CONTRACT.md",
-      "method": "N/A",
-      "change_type": "documentation",
-      "breaking": false,
-      "details": "データ型定義セクションにTimestamp型の説明を追加：FirestoreのTimestampオブジェクトとJSON表現（ISO 8601文字列）の両方を明記",
-      "reason": "Copilotレビュー: Timestamp型がFirestoreオブジェクトなのかISO 8601文字列なのか不明確で、openapi.yamlとの不整合があった"
-    },
-    {
-      "path": "docs/REQUIREMENTS.md",
-      "method": "N/A",
-      "change_type": "documentation",
-      "breaking": false,
-      "details": "Apple Sign In → Apple Sign-In に表記修正（公式ブランディングに準拠）",
-      "reason": "Copilotレビュー: Appleの公式表記との整合性"
+      "details": "新規Callable Function追加: updateProfile(displayName?, bio?, photoURL?)",
+      "reason": "ユーザーが自分のプロフィール情報を更新できるようにするため"
     }
   ],
   "security_notes": [
-    "ドキュメントの明確化のみで、実装やセキュリティ動作に変更なし"
+    "認証必須: Firebase Auth トークンが必要",
+    "認可: ユーザーは自分自身のプロフィールのみ更新可能（request.auth.uidで判定）",
+    "入力バリデーション: 型チェック（string）をHandler層で実施",
+    "文字列長バリデーション: displayName (1-100文字), bio (0-500文字)",
+    "URL検証: photoURL は有効なHTTPS URLである必要がある",
+    "ログ出力: ユーザーIDのみをログに記録（bio, photoURLは含めない）"
   ],
   "tests_required": [
-    "既存のテストがすべてパスすること（実装変更なし）"
+    "成功系: 全フィールド更新（displayName, bio, photoURL）",
+    "成功系: displayNameのみ更新",
+    "成功系: bioのみ更新",
+    "成功系: photoURLのみ更新",
+    "成功系: /users と /public_cards 両方が更新されること",
+    "成功系: updatedAt が更新されること",
+    "成功系: bio に空文字列を許可",
+    "失敗系: 未認証の場合 unauthenticated エラー",
+    "失敗系: 全フィールド未指定の場合 invalid-argument エラー",
+    "失敗系: displayName が非文字列の場合 invalid-argument エラー",
+    "失敗系: bio が非文字列の場合 invalid-argument エラー",
+    "失敗系: photoURL が非文字列の場合 invalid-argument エラー",
+    "失敗系: displayName が1文字未満の場合 invalid-argument エラー",
+    "失敗系: displayName が100文字超の場合 invalid-argument エラー",
+    "失敗系: bio が500文字超の場合 invalid-argument エラー",
+    "失敗系: photoURL が無効なURL形式の場合 invalid-argument エラー",
+    "失敗系: photoURL が HTTPS でない場合 invalid-argument エラー",
+    "失敗系: ユーザー未存在の場合エラー",
+    "失敗系: 公開名刺未存在の場合エラー"
   ],
   "client_work_items": [
-    "特になし（ドキュメントの明確化のみ、API動作に変更なし）"
+    "Web: プロフィール編集画面の実装",
+    "Web: updateProfile 呼び出しのAPIクライアント実装",
+    "Web: エラーハンドリング（unauthenticated, invalid-argument, not-found）",
+    "Web: 成功時のUI更新（楽観的更新 or リフレッシュ）",
+    "iOS: プロフィール編集画面の実装",
+    "iOS: updateProfile 呼び出しのAPIクライアント実装",
+    "iOS: エラーハンドリング"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "ドキュメントの明確化のみです。API仕様やレスポンス形式に変更はありません。Timestamp型はFirestoreから取得時はTimestampオブジェクトですが、JSON serialization時はISO 8601文字列（YYYY-MM-DDTHH:mm:ss.sssZ）になります。"
+  "notes_for_frontend": "新規エンドポイント updateProfile を追加します。ユーザーは displayName, bio, photoURL を更新できます（全て任意フィールド、最低1つは指定必要）。エラーは unauthenticated, invalid-argument, not-found, internal の4種類です。更新後、getSavedCards等で取得される公開名刺情報にも反映されます。"
 }

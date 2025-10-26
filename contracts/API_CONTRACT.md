@@ -120,7 +120,58 @@
 
 ---
 
-### 4. Callable Function: `getSavedCards`
+### 4. Callable Function: `updateProfile`
+
+**エンドポイント**: `updateProfile` (Callable Function)
+
+**認証**: 必須（自分のプロフィールのみ更新可能）
+
+**説明**: ユーザーが自分のプロフィール情報を更新します。`/users/{userId}`（非公開プロフィール）と `/public_cards/{userId}`（公開名刺）の両方が更新されます。
+
+**リクエスト**:
+```typescript
+{
+  displayName?: string;  // 表示名（任意、1-100文字）
+  bio?: string;          // 自己紹介文（任意、0-500文字）
+  photoURL?: string;     // プロフィール写真URL（任意、HTTPS必須）
+}
+```
+
+**バリデーション**:
+- `displayName`: 1文字以上100文字以下
+- `bio`: 500文字以下（空文字列可）
+- `photoURL`: 有効なHTTPS URL形式
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: 以下の場合
+  - フィールドの型が不正
+  - 全フィールドが未指定
+  - `displayName` が1文字未満または100文字超
+  - `bio` が500文字超
+  - `photoURL` が無効なURL形式またはHTTPS以外のプロトコル
+- `not-found`: ユーザーまたは公開名刺が存在しない場合
+- `internal`: サーバー内部エラー
+
+**更新対象**:
+- `/users/{userId}`: `displayName`, `photoURL`, `updatedAt`
+- `/public_cards/{userId}`: `displayName`, `bio`, `photoURL`, `updatedAt`
+
+**注意事項**:
+- 少なくとも1つのフィールド（`displayName`、`bio`、または `photoURL`）を指定する必要があります
+- 未指定のフィールドは更新されません
+- 両方のコレクションが自動的に同期されます
+
+---
+
+### 5. Callable Function: `getSavedCards`
 
 **エンドポイント**: `getSavedCards` (Callable Function)
 
