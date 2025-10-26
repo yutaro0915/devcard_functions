@@ -421,7 +421,7 @@ connectedServices: {
   phoneNumber?: string;     // 電話番号 (任意、最大50文字)
   lineId?: string;          // LINE ID (任意、最大100文字)
   discordId?: string;       // Discord ID (任意、最大100文字)
-  twitterHandle?: string;   // Twitterハンドル (任意、最大15文字)
+  twitterHandle?: string;   // Twitterハンドル (任意、@付きでも可、保存時は@なしで正規化、最大15文字)
   otherContacts?: string;   // その他連絡先 (任意、最大500文字)
 }
 ```
@@ -431,7 +431,12 @@ connectedServices: {
 - `email`: 有効なメールアドレス形式、255文字以下
 - `phoneNumber`: 50文字以下
 - `lineId`, `discordId`: 100文字以下
-- `twitterHandle`: 15文字以下
+- `twitterHandle`:
+  - 1-15文字（@を除く）
+  - 英数字とアンダースコアのみ
+  - 入力時に`@`付きでも可（例: `@username` または `username`）
+  - 保存時は`@`なしで正規化（例: `username`）
+  - 表示時はフロントエンドで`@`を追加推奨（例: `@username`）
 - `otherContacts`: 500文字以下
 
 **レスポンス**:

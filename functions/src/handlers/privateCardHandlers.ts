@@ -5,7 +5,11 @@ import {UpdatePrivateCardUseCase} from "../application/UpdatePrivateCardUseCase"
 import {GetPrivateCardUseCase} from "../application/GetPrivateCardUseCase";
 import {PrivateCardRepository} from "../infrastructure/PrivateCardRepository";
 import {UserRepository} from "../infrastructure/UserRepository";
-import {PRIVATE_CARD_VALIDATION} from "../constants/validation";
+import {
+  PRIVATE_CARD_VALIDATION,
+  isValidTwitterHandle,
+  normalizeTwitterHandle,
+} from "../constants/validation";
 
 const firestore = getFirestore();
 
@@ -91,16 +95,24 @@ export const updatePrivateCard = onCall(async (request) => {
     }
   }
 
-  // Validate twitterHandle
+  // Validate and normalize twitterHandle
+  let normalizedTwitterHandle: string | undefined;
   if (twitterHandle !== undefined) {
     if (typeof twitterHandle !== "string") {
       throw new HttpsError("invalid-argument", "twitterHandle must be a string");
     }
-    if (twitterHandle.length > PRIVATE_CARD_VALIDATION.TWITTER_HANDLE_MAX_LENGTH) {
-      throw new HttpsError(
-        "invalid-argument",
-        `twitterHandle must be at most ${PRIVATE_CARD_VALIDATION.TWITTER_HANDLE_MAX_LENGTH} characters`
-      );
+    if (twitterHandle.length > 0) {
+      if (!isValidTwitterHandle(twitterHandle)) {
+        throw new HttpsError(
+          "invalid-argument",
+          "twitterHandle must be 1-15 characters and contain only letters, numbers, and underscores (@ prefix is optional)"
+        );
+      }
+      // Normalize: remove @ prefix
+      normalizedTwitterHandle = normalizeTwitterHandle(twitterHandle);
+    } else {
+      // Empty string is allowed (clears the field)
+      normalizedTwitterHandle = "";
     }
   }
 
@@ -140,7 +152,7 @@ export const updatePrivateCard = onCall(async (request) => {
       phoneNumber,
       lineId,
       discordId,
-      twitterHandle,
+      twitterHandle: normalizedTwitterHandle,
       otherContacts,
     });
 

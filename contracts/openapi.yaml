@@ -463,7 +463,13 @@ paths:
                 twitterHandle:
                   type: string
                   maxLength: 15
-                  description: X (Twitter) ハンドル（任意）
+                  pattern: '^@?[A-Za-z0-9_]{1,15}$'
+                  description: |
+                    X (Twitter) ハンドル（任意、@付きでも可）
+                    - 入力: @付きでも可（例: @username または username）
+                    - 保存: @なしで正規化（Twitter公式仕様に準拠）
+                    - 1-15文字、英数字とアンダースコアのみ
+                  example: 'username'
                 otherContacts:
                   type: string
                   maxLength: 500
@@ -921,7 +927,10 @@ components:
               description: Discord ID（Private名刺のみ、任意）
             twitterHandle:
               type: string
-              description: X (Twitter) ハンドル（Private名刺のみ、任意）
+              maxLength: 15
+              pattern: '^[A-Za-z0-9_]{1,15}$'
+              description: X (Twitter) ハンドル（Private名刺のみ、@なし正規化済み、任意）
+              example: 'username'
             otherContacts:
               type: string
               description: その他の連絡先（Private名刺のみ、任意）
@@ -1002,7 +1011,10 @@ components:
           description: Discord ID（任意）
         twitterHandle:
           type: string
-          description: X (Twitter) ハンドル（任意）
+          maxLength: 15
+          pattern: '^[A-Za-z0-9_]{1,15}$'
+          description: X (Twitter) ハンドル（@なし、正規化済み、任意）
+          example: 'username'
         otherContacts:
           type: string
           description: その他の連絡先（任意）
