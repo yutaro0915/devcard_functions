@@ -171,7 +171,56 @@
 
 ---
 
-### 5. Callable Function: `getSavedCards`
+### 5. Callable Function: `getPublicCard`
+
+**エンドポイント**: `getPublicCard` (Callable Function)
+
+**認証**: 不要（公開情報）
+
+**説明**: 公開名刺（PublicCard）を取得します。認証不要で誰でも閲覧可能。Webでの名刺共有を実現するための基本機能。
+
+**リクエスト**:
+```typescript
+{
+  userId: string;  // 取得したい名刺の持ち主のuserId（必須）
+}
+```
+
+**バリデーション**:
+- `userId`: 必須、非空文字列
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  publicCard: {
+    userId: string;
+    displayName: string;
+    photoURL?: string;
+    bio?: string;
+    connectedServices: Record<string, ConnectedService>;
+    theme: string;
+    customCss?: string;
+    updatedAt: string; // ISO 8601形式
+  }
+}
+```
+
+**エラー**:
+- `invalid-argument`: `userId` が不正な形式（空文字列、null、undefined等）
+- `not-found`: 指定された公開名刺が存在しない場合
+- `internal`: サーバー内部エラー
+
+**参照データ**:
+- `/public_cards/{userId}` を読み取り専用で取得
+
+**注意事項**:
+- 認証不要のため、公開URLから誰でもアクセス可能
+- Webページ `https://devcard.com/{userId}` での利用を想定
+
+---
+
+### 6. Callable Function: `getSavedCards`
 
 **エンドポイント**: `getSavedCards` (Callable Function)
 

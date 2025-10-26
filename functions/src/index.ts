@@ -12,3 +12,4 @@ export {onUserCreate} from "./handlers/authHandlers";
 export {saveGitHubToken} from "./handlers/serviceTokenHandlers";
 export {saveCard, getSavedCards} from "./handlers/savedCardHandlers";
 export {updateProfile} from "./handlers/profileHandlers";
+export {getPublicCard} from "./handlers/publicCardHandlers";
