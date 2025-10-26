@@ -6,7 +6,7 @@ on:
 
 permissions:
   issues: write
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   create-issue:
@@ -34,7 +34,7 @@ jobs:
           fi
 
           # Extract first line as title (remove emoji and label)
-          TITLE=$(echo "$COMMENT_BODY" | head -n 1 | sed 's/^[🔴🟡🟢ℹ️]*\s*\[.*\]\s*//' | cut -c 1-80)
+          TITLE=$(echo "$COMMENT_BODY" | head -n 1 | sed 's/^[🔴🟡🟢ℹ️]*[[:space:]]*\[.*\][[:space:]]*//' | cut -c 1-80)
           echo "title=$TITLE" >> $GITHUB_OUTPUT
 
       - name: Create issue from comment
@@ -43,7 +43,7 @@ jobs:
           script: |
             const commentBody = process.env.COMMENT_BODY;
             const commentUser = process.env.COMMENT_USER;
-            const prNumber = process.env.PR_NUMBER;
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
             const prTitle = process.env.PR_TITLE;
             const filePath = process.env.FILE_PATH;
             const lineNumber = process.env.LINE_NUMBER;
@@ -76,12 +76,11 @@ ${commentBody}
             });
 
             // Comment back on PR
-            await github.rest.pulls.createReviewComment({
+            await github.rest.pulls.createReplyForReviewComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: prNumber,
-              body: `✅ このコメントは Issue #${issue.data.number} として記録されました。マージ後に対応します。`,
-              in_reply_to: context.payload.comment.id
+              comment_id: context.payload.comment.id,
+              body: `✅ このコメントは Issue #${issue.data.number} として記録されました。マージ後に対応します。`
             });
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
