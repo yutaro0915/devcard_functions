@@ -4,6 +4,7 @@ import {getFirestore} from "firebase-admin/firestore";
 import {UserRepository} from "../infrastructure/UserRepository";
 import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
 import {UpdateProfileUseCase} from "../application/UpdateProfileUseCase";
+import {PROFILE_VALIDATION} from "../constants/validation";
 
 const firestore = getFirestore();
 
@@ -25,10 +26,13 @@ export const updateProfile = onCall(async (request) => {
     if (typeof displayName !== "string") {
       throw new HttpsError("invalid-argument", "displayName must be a string");
     }
-    if (displayName.length < 1 || displayName.length > 100) {
+    if (
+      displayName.length < PROFILE_VALIDATION.DISPLAY_NAME_MIN_LENGTH ||
+      displayName.length > PROFILE_VALIDATION.DISPLAY_NAME_MAX_LENGTH
+    ) {
       throw new HttpsError(
         "invalid-argument",
-        "displayName must be between 1 and 100 characters"
+        `displayName must be between ${PROFILE_VALIDATION.DISPLAY_NAME_MIN_LENGTH} and ${PROFILE_VALIDATION.DISPLAY_NAME_MAX_LENGTH} characters`
       );
     }
   }
@@ -36,10 +40,10 @@ export const updateProfile = onCall(async (request) => {
     if (typeof bio !== "string") {
       throw new HttpsError("invalid-argument", "bio must be a string");
     }
-    if (bio.length > 500) {
+    if (bio.length > PROFILE_VALIDATION.BIO_MAX_LENGTH) {
       throw new HttpsError(
         "invalid-argument",
-        "bio must be at most 500 characters"
+        `bio must be at most ${PROFILE_VALIDATION.BIO_MAX_LENGTH} characters`
       );
     }
   }

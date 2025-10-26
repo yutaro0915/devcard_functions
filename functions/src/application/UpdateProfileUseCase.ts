@@ -76,11 +76,21 @@ export class UpdateProfileUseCase {
       publicCardUpdateData.photoURL = photoURL;
     }
 
-    // Update both collections
+    // Update both collections sequentially to maintain consistency
     // Always update both to ensure updatedAt is refreshed in both collections
-    await Promise.all([
-      this.userRepository.update(userId, userUpdateData),
-      this.publicCardRepository.update(userId, publicCardUpdateData),
-    ]);
+    try {
+      await this.userRepository.update(userId, userUpdateData);
+      await this.publicCardRepository.update(userId, publicCardUpdateData);
+    } catch (error) {
+      // If either update fails, throw a descriptive error
+      // Note: Firestore updates are atomic per document, so partial failure
+      // will leave one collection updated. Consider using Firestore transactions
+      // for true atomicity across multiple documents in future iterations.
+      throw new Error(
+        `Failed to update profile: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
   }
 }
