@@ -284,6 +284,102 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /manualSync:
+    post:
+      summary: 外部サービスの手動同期
+      description: |
+        保存済みの外部サービストークンを使用して、サービスの最新情報を公開名刺に手動で同期します。
+        現在はGitHub基本情報（username, name, avatarUrl, bio, profileUrl）のみ対応。
+      operationId: manualSync
+      security:
+        - firebaseAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - services
+              properties:
+                services:
+                  type: array
+                  items:
+                    type: string
+                    enum:
+                      - github
+                  description: 同期するサービスのリスト
+                  minItems: 1
+                  example: ["github"]
+      responses:
+        '200':
+          description: 成功（部分成功を含む）
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - success
+                  - syncedServices
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  syncedServices:
+                    type: array
+                    items:
+                      type: string
+                    description: 成功した同期のリスト
+                    example: ["github"]
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - service
+                        - error
+                      properties:
+                        service:
+                          type: string
+                          description: エラーが発生したサービス名
+                          example: "github"
+                        error:
+                          type: string
+                          enum:
+                            - token-not-found
+                            - token-expired
+                            - api-error
+                          description: |
+                            エラーの種類:
+                            - token-not-found: トークンが保存されていない
+                            - token-expired: トークンの有効期限切れ
+                            - api-error: 外部APIエラー
+                    description: 同期エラーのリスト（任意）
+        '400':
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 認証エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: ユーザーまたは公開名刺が見つからない
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     SuccessResponse:

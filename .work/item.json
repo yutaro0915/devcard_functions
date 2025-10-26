@@ -1,36 +1,45 @@
 {
-  "feature_name": "getPublicCard: 公開名刺取得API",
+  "feature_name": "manualSync: GitHub基本情報の手動同期",
   "status": "ready-for-review",
   "api_changes": [
     {
-      "path": "getPublicCard",
+      "path": "manualSync",
       "method": "Callable Function",
       "change_type": "add-endpoint",
       "breaking": false,
-      "details": "公開名刺（PublicCard）を取得する新規エンドポイント。認証不要で誰でも閲覧可能。",
-      "reason": "Webでの名刺共有を実現するための最重要コア機能"
+      "details": "保存済みのGitHubトークンを使用してGitHub基本情報（username, name, avatarUrl, bio, profileUrl）を取得し、/public_cards/{userId} の connectedServices.github に反映する。",
+      "reason": "名刺として最低限必要な情報（アイコン、名前、自己紹介）を表示するため。MVPの完成に必須。"
     }
   ],
   "security_notes": [
-    "認証不要：公開情報のため未ログインでも閲覧可能",
-    "認可不要：/public_cards は全員に公開されている前提",
-    "入力バリデーション：userId の形式検証のみ"
+    "認証必須：Firebase Auth による認証が必要",
+    "認可：自分自身のデータのみ同期可能（UserIDはリクエストから受け取らず、認証済みユーザーのIDを使用）",
+    "トークン保護：GitHubトークンをログに出力しない（マスキング必須）",
+    "エラーメッセージ：GitHub APIの生エラーを返さず、抽象化したエラーコードのみ返す",
+    "API制限：GitHub認証済みで5000 req/hour（現状は手動同期のみなので問題なし）"
   ],
   "tests_required": [
-    "成功系：存在するuserIdでPublicCardが返される",
-    "成功系：レスポンスに必須フィールドが含まれる（userId, displayName等）",
-    "成功系：updatedAtがISO 8601形式である",
-    "失敗系：userIdが空文字列で invalid-argument エラー",
-    "失敗系：userIdがnull/undefinedで invalid-argument エラー",
-    "失敗系：存在しないuserIdで not-found エラー"
+    "成功系：有効なトークンでGitHub情報が取得され、public_cardsが更新される",
+    "成功系：レスポンスに success: true と syncedServices: ['github'] が含まれる",
+    "成功系：connectedServices.github に正しい情報が格納される",
+    "成功系：GitHub側で name や bio が未設定でもエラーにならない",
+    "失敗系：未ログイン時に unauthenticated エラー",
+    "失敗系：services が未指定で invalid-argument エラー",
+    "失敗系：services が空配列で invalid-argument エラー",
+    "失敗系：services が配列以外で invalid-argument エラー",
+    "失敗系：GitHubトークンが保存されていない場合、errors に token-not-found が含まれる",
+    "失敗系：GitHub APIが401を返した場合、errors に token-expired が含まれる",
+    "失敗系：GitHub APIが5xxを返した場合、errors に api-error が含まれる"
   ],
   "client_work_items": [
-    "Web: /[userId] ページでgetPublicCardを呼び出し、名刺を表示",
-    "Web: PublicCard型定義の追加",
-    "Web: エラーハンドリング（not-found時に404ページ表示）",
-    "iOS: （オプション）アプリ内で他人の名刺を表示する場合に利用"
+    "iOS: 設定画面に「同期ボタン」を追加し、manualSync を呼び出す",
+    "iOS: 同期成功時に「同期しました」トースト表示",
+    "iOS: トークン期限切れ時に再認証を促すアラート表示",
+    "Web: （将来的に）設定ページに「同期ボタン」を追加",
+    "Web: 公開名刺ページで connectedServices.github を表示（アイコン、名前、bio、リンク）",
+    "共通: エラーハンドリング（token-not-found, token-expired, api-error）の実装"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "新規エンドポイント追加のため、既存機能への影響はありません。Webの公開名刺ページ（/[userId]）でこのAPIを呼び出してください。認証不要です。",
+  "notes_for_frontend": "新規エンドポイント追加のため、既存機能への影響はありません。iOS の「同期ボタン」実装時にこのAPIを呼び出してください。エラー時は errors[] を確認し、token-expired の場合は再認証フローに誘導してください。Web では公開名刺ページで connectedServices.github の情報を表示してください（username, avatarUrl, bio, profileUrl）。",
   "backend_commit_sha": null
 }

@@ -260,6 +260,83 @@
 
 ---
 
+### 7. Callable Function: `manualSync`
+
+**エンドポイント**: `manualSync` (Callable Function)
+
+**認証**: 必須（自分のデータのみ同期可能）
+
+**説明**: 保存済みの外部サービストークンを使用して、サービスの最新情報を公開名刺に手動で同期します。現在はGitHub基本情報（username, name, avatarUrl, bio, profileUrl）のみ対応。
+
+**リクエスト**:
+```typescript
+{
+  services: string[];  // 同期するサービスのリスト（例: ["github"]）
+}
+```
+
+**バリデーション**:
+- `services`: 必須、非空配列
+- 配列の各要素は文字列型である必要があります
+- 現在サポート: `["github"]`（将来的に "qiita", "zenn" などを追加予定）
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  syncedServices: string[];  // 成功した同期のリスト（例: ["github"]）
+  errors?: Array<{
+    service: string;
+    error: "token-not-found" | "token-expired" | "api-error";
+  }>;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない場合
+- `invalid-argument`: 以下の場合
+  - `services` フィールドが未指定
+  - `services` が配列以外
+  - `services` が空配列
+  - `services` の要素に文字列以外が含まれる
+- `not-found`: ユーザーまたは公開名刺が存在しない場合
+- `internal`: サーバー内部エラー
+
+**同期エラー（`errors[]` 内）**:
+- `token-not-found`: 指定サービスのトークンが保存されていない
+- `token-expired`: トークンの有効期限切れ（再認証が必要）
+- `api-error`: 外部APIエラー（ネットワークエラー、5xx等）
+
+**処理フロー**:
+1. 認証済みユーザーのIDを取得
+2. `/users/{userId}` から各サービスのアクセストークンを取得
+3. 外部API（GitHub等）を呼び出して最新情報を取得
+4. `/public_cards/{userId}` の `connectedServices` を更新
+
+**更新されるデータ（GitHub の場合）**:
+```typescript
+connectedServices: {
+  github: {
+    serviceName: "github";
+    username: string;        // GitHubユーザー名
+    profileUrl: string;      // https://github.com/{username}
+    avatarUrl: string;       // プロフィール画像URL
+    bio?: string;            // GitHub上の自己紹介
+    stats?: {
+      name?: string;         // 実名（GitHub上で設定されている場合）
+    };
+  }
+}
+```
+
+**注意事項**:
+- 認可: 自分自身のデータのみ同期可能（UserIDはリクエストから受け取らず、認証済みユーザーのIDを使用）
+- 部分成功: 一部のサービス同期が失敗しても、成功したものは反映される
+- 既存サービス保持: 同期対象外のサービス情報は保持される
+- トークン保護: アクセストークンはログに出力されない
+
+---
+
 ## リクエスト/レスポンスの基本形
 
 ### 認証方法
