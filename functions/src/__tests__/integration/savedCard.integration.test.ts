@@ -533,7 +533,7 @@ describe("SavedCard Operations Integration Test", () => {
         expect(cards[0].hasUpdate).toBe(true);
       });
 
-      it.skip("更新検知ロジック - マスターのupdatedAtが同じ場合 hasUpdate=false (Issue #53)", async () => {
+      it("更新検知ロジック - マスターのupdatedAtが同じ場合 hasUpdate=false", async () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
 
@@ -553,14 +553,10 @@ describe("SavedCard Operations Integration Test", () => {
         const result = await getSavedCards({});
         expect(result.data).toHaveProperty("success", true);
         expect(result.data).toHaveProperty("savedCards");
-        // const cards = (result.data as any).savedCards as any[];
+        const cards = (result.data as any).savedCards as any[];
 
-        // const card = cards.find((c: any) => c.savedCardId === savedCardId);
-        // Issue #53: Contract line 323 uses <= not <, so hasUpdate stays true
-        // expect(card.hasUpdate).toBe(false);
-
-        // Verify at least markAsViewed worked
-        expect(savedCardId).toBeDefined();
+        const card = cards.find((c: any) => c.savedCardId === savedCardId);
+        expect(card.hasUpdate).toBe(false);
       });
 
       it("更新検知ロジック - PublicもPrivateも同じロジックで動作", async () => {
@@ -670,7 +666,7 @@ describe("SavedCard Operations Integration Test", () => {
         expect(savedCardData?.lastKnownUpdatedAt).toBeDefined();
       });
 
-      it.skip("markAsViewed 後、次回getSavedCardsでhasUpdate=falseになる (Issue #53)", async () => {
+      it("markAsViewed 後、次回getSavedCardsでhasUpdate=falseになる", async () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
 
         // Sign in as USER1 to save USER2's card

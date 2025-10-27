@@ -189,7 +189,10 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー4: 名刺の更新通知", () => {
-    it.skip("保存した名刺が更新されると hasUpdate フラグで通知される (Issue #53: hasUpdate always true)", async () => {
+    it.skip("保存した名刺が更新されると hasUpdate フラグで通知される (Skipped: createTestUser overwrites updatedAt)", async () => {
+      // NOTE: This test is skipped because createTestUser() overwrites publicCard.updatedAt,
+      // making it impossible to test the update notification scenario in the current test infrastructure.
+      // The hasUpdate logic is already covered by tests in savedCard.integration.test.ts
       const userA = "userA-story4";
       const userB = "userB-story4";
 
@@ -213,20 +216,17 @@ describe("User Story Integration Tests", () => {
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // User A checks saved cards
+      // User A checks saved cards (switch back to userA context)
       await createTestUser(userA, "userA@example.com");
-      const getSavedCards = httpsCallable(functions, "getSavedCards");
-      const savedCardsResult = await getSavedCards({});
+      const getSavedCards2 = httpsCallable(functions, "getSavedCards");
+      const savedCardsResult = await getSavedCards2({});
       const savedCards = (savedCardsResult.data as any).savedCards;
 
       const userBCard = savedCards.find((card: any) => card.cardUserId === userB);
       expect(userBCard).toBeDefined();
 
       // Contract: hasUpdate should be true when public card is updated
-      // Note: There is a known issue (#20) with boundary conditions
-      // This test validates the expected behavior per contract
-      expect(userBCard.hasUpdate).toBeDefined();
-      expect(typeof userBCard.hasUpdate).toBe("boolean");
+      expect(userBCard.hasUpdate).toBe(true);
     });
   });
 
@@ -708,7 +708,7 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー17: markAsViewed による lastKnownUpdatedAt の更新 (Issue #53)", () => {
-    it.skip("markAsViewed を呼び出すと lastKnownUpdatedAt が更新される (Issue #53: Contract uses <= not <)", async () => {
+    it("markAsViewed を呼び出すと lastKnownUpdatedAt が更新される", async () => {
       const userA = "userA-story17";
       const userB = "userB-story17";
 
@@ -722,11 +722,11 @@ describe("User Story Integration Tests", () => {
       const saveResult = await saveCard({cardUserId: userB});
       const savedCardId = (saveResult.data as any).savedCardId;
 
-      // Initial state: hasUpdate should be true (never viewed)
+      // Initial state: hasUpdate should be false (saveCard sets lastKnownUpdatedAt = master.updatedAt)
       const getSavedCards = httpsCallable(functions, "getSavedCards");
       let savedCardsResult = await getSavedCards({});
       let savedCards = (savedCardsResult.data as any).savedCards;
-      expect(savedCards[0].hasUpdate).toBe(true);
+      expect(savedCards[0].hasUpdate).toBe(false);
 
       // Mark as viewed per contract (lines 669-709)
       const markAsViewed = httpsCallable(functions, "markAsViewed");
@@ -738,10 +738,8 @@ describe("User Story Integration Tests", () => {
       expect(savedCards[0].lastViewedAt).toBeDefined();
       expect(savedCards[0].lastKnownUpdatedAt).toBeDefined();
 
-      // Issue #53: Contract line 323 uses <= not <, so hasUpdate stays true even after viewing
-      // This is a contract bug - hasUpdate should be false after markAsViewed
-      // Skipping test until contract is fixed
-      // expect(savedCards[0].hasUpdate).toBe(false);
+      // Fixed Issue #53: hasUpdate should be false after markAsViewed
+      expect(savedCards[0].hasUpdate).toBe(false);
     });
   });
 });
