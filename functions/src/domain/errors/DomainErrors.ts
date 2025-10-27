@@ -70,3 +70,33 @@ export class SavedCardIdCollisionError extends DomainError {
     super("Failed to generate unique savedCardId after multiple retries");
   }
 }
+
+/**
+ * Badge not found error
+ */
+export class BadgeNotFoundError extends DomainError {
+  constructor(public readonly badgeId: string) {
+    super(`Badge ${badgeId} not found`);
+  }
+}
+
+/**
+ * Unauthorized moderator error
+ */
+export class UnauthorizedModeratorError extends DomainError {
+  constructor(public readonly userId: string) {
+    super(`User ${userId} is not authorized to perform moderator actions`);
+  }
+}
+
+/**
+ * Badge already granted error
+ */
+export class BadgeAlreadyGrantedError extends DomainError {
+  constructor(
+    public readonly userId: string,
+    public readonly badgeId: string
+  ) {
+    super(`Badge ${badgeId} has already been granted to user ${userId}`);
+  }
+}

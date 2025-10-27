@@ -11,6 +11,50 @@
 
 ---
 
+## [0.4.0] - 2025-10-27
+
+### Added
+- **Badge Management System - Phase 1** (Issue #32)
+  - **Moderator System**: Firebase Auth Custom Claimsを使用した権限管理
+    - `moderator` claim: モデレーターまたは管理者の場合 `true`
+    - `admin` claim: 管理者の場合 `true`
+  - **Callable Function: `addModerator`** (Admin専用)
+    - モデレーターまたは新しい管理者を追加
+    - Custom Claimsの自動設定
+    - `/moderators/{userId}` コレクションにメタデータ保存
+  - **Callable Function: `createBadge`** (Moderator/Admin専用)
+    - プラットフォーム全体で使用するバッジを作成
+    - バッジ名（1-50文字）、説明（1-500文字）、アイコンURL、カラー、優先度を設定
+    - `/badges/{badgeId}` コレクションに保存
+  - **Callable Function: `listBadges`** (公開)
+    - アクティブなバッジの一覧を取得
+    - 優先度順（昇順）にソート
+    - 認証不要
+  - **Callable Function: `grantBadge`** (Moderator/Admin専用)
+    - ユーザーにバッジを付与
+    - 付与理由の記録（任意）
+    - デフォルトvisibility設定: `{showOnPublicCard: true, showOnPrivateCard: true}`
+    - `/users/{userId}/badges/{badgeId}` に保存
+  - **Callable Function: `revokeBadge`** (Moderator/Admin専用)
+    - ユーザーからバッジを剥奪
+    - `/users/{userId}/badges/{badgeId}` を削除
+  - **Domain Models**: Badge, UserBadge, Moderator
+  - **Custom Error Classes**: `BadgeNotFoundError`, `UnauthorizedModeratorError`, `BadgeAlreadyGrantedError`
+  - **Integration Tests**: 17テストケースでバッジ管理機能を網羅的にテスト
+
+### Technical
+- Clean Architecture（Domain, Application, Infrastructure層）を採用
+- TDD（Test-Driven Development）によるテストファースト開発
+- Firestoreセキュリティルールの更新：
+  - `/badges/{badgeId}`: 読み取り公開、書き込みはCloud Functionsのみ
+  - `/moderators/{userId}`: 読み書きともにCloud Functionsのみ
+  - `/users/{userId}/badges/{badgeId}`: 読み取り公開、書き込みはCloud Functionsのみ
+
+### Note
+- Phase 2（Issue #33）では、バッジのvisibility制御と既存API（`getPublicCard`, `getPrivateCard`, `getSavedCards`）へのバッジ統合を実装予定
+
+---
+
 ## [0.3.0] - 2025-10-27
 
 ### Added

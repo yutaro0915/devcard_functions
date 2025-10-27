@@ -30,6 +30,23 @@ service cloud.firestore {
       allow read, write: if false; // Only Cloud Functions (with admin privileges)
     }
 
+    // Badges - everyone can read, only Cloud Functions can write
+    match /badges/{badgeId} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions (with admin privileges)
+    }
+
+    // Moderators - only Cloud Functions can read/write
+    match /moderators/{userId} {
+      allow read, write: if false; // Only Cloud Functions (with admin privileges)
+    }
+
+    // User badges subcollection - everyone can read, only Cloud Functions can write
+    match /users/{userId}/badges/{badgeId} {
+      allow read: if true;
+      allow write: if false; // Only Cloud Functions (with admin privileges)
+    }
+
     // Deny all other access
     match /{document=**} {
       allow read, write: if false;
