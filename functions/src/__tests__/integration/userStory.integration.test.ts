@@ -133,7 +133,7 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー3: プライベート名刺の作成と交換", () => {
-    it.skip("ユーザーAがプライベート名刺を作成し、トークンでユーザーBと交換する (Firestore rules: private_cards read permission)", async () => {
+    it("ユーザーAがプライベート名刺を作成し、トークンでユーザーBと交換する", async () => {
       const userA = "userA-story3";
       const userB = "userB-story3";
 
@@ -142,16 +142,14 @@ describe("User Story Integration Tests", () => {
 
       // Step 1: User A creates private card
       const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({
+      const updateResult = await updatePrivateCard({
         email: "alice@company.com",
         phoneNumber: "123-456-7890",
         lineId: "alice_line",
       });
 
-      // Verify: private card created per contract
-      const privateCard = await getDoc(doc(firestore, "private_cards", userA));
-      expect(privateCard.exists()).toBe(true);
-      expect(privateCard.data()?.email).toBe("alice@company.com");
+      // Verify: updatePrivateCard succeeded
+      expect((updateResult.data as any).success).toBe(true);
 
       // Step 2: User A generates exchange token
       const createExchangeToken = httpsCallable(functions, "createExchangeToken");
@@ -180,11 +178,18 @@ describe("User Story Integration Tests", () => {
       expect(savedCards.length).toBe(1);
       expect(savedCards[0].cardType).toBe("private");
       expect(savedCards[0].cardUserId).toBe(userA);
+      // Verify private card data was correctly saved
+      expect(savedCards[0].email).toBe("alice@company.com");
+      expect(savedCards[0].phoneNumber).toBe("123-456-7890");
 
-      // Verify: token marked as used per contract
-      const tokenDoc = await getDoc(doc(firestore, "exchange_tokens", tokenData.tokenId));
-      expect(tokenDoc.data()?.usedBy).toBe(userB);
-      expect(tokenDoc.data()?.usedAt).toBeDefined();
+      // Step 5: Verify token can't be reused (marked as used)
+      try {
+        await savePrivateCard({tokenId: tokenData.tokenId});
+        fail("Expected savePrivateCard to throw error for reused token");
+      } catch (error: any) {
+        expect(error.code).toBe("functions/invalid-argument");
+        expect(error.message).toContain("already been used");
+      }
     });
   });
 
@@ -231,7 +236,7 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー5: 保存済み名刺の削除", () => {
-    it.skip("ユーザーが保存した名刺を削除できる (Firestore rules: saved_cards subcollection read permission)", async () => {
+    it("ユーザーが保存した名刺を削除できる", async () => {
       const userA = "userA-story5";
       const userB = "userB-story5";
 
@@ -244,25 +249,22 @@ describe("User Story Integration Tests", () => {
       const saveResult = await saveCard({cardUserId: userB});
       const savedCardId = (saveResult.data as any).savedCardId;
 
-      // Verify card exists
+      // Verify card exists via API
       const getSavedCards = httpsCallable(functions, "getSavedCards");
       let savedCardsResult = await getSavedCards({});
       let savedCards = (savedCardsResult.data as any).savedCards;
       expect(savedCards.length).toBe(1);
+      expect(savedCards[0].savedCardId).toBe(savedCardId);
 
       // Delete card
       const deleteSavedCard = httpsCallable(functions, "deleteSavedCard");
       const deleteResult = await deleteSavedCard({savedCardId});
       expect((deleteResult.data as any).success).toBe(true);
 
-      // Verify card deleted
+      // Verify card deleted via API
       savedCardsResult = await getSavedCards({});
       savedCards = (savedCardsResult.data as any).savedCards;
       expect(savedCards.length).toBe(0);
-
-      // Verify Firestore document deleted
-      const savedCardDoc = await getDoc(doc(firestore, `users/${userA}/saved_cards`, savedCardId));
-      expect(savedCardDoc.exists()).toBe(false);
     });
   });
 
