@@ -227,6 +227,7 @@
     photoURL?: string;
     bio?: string;
     connectedServices: Record<string, ConnectedService>;
+    badges?: string[]; // v0.5.0+: showOnPublicCard=true のバッジIDリスト
     theme: string;
     customCss?: string;
     updatedAt: string; // ISO 8601形式
@@ -297,6 +298,7 @@
     connectedServices?: Record<string, ConnectedService>;
     theme?: string;
     customCss?: string;
+    // badges?: string[];  // TODO v0.5.0+: 将来対応予定
 
     // Private card specific fields (cardType='private'の場合のみ)
     email?: string;
@@ -305,6 +307,7 @@
     discordId?: string;
     twitterHandle?: string;
     otherContacts?: string;
+    // badges?: string[];  // TODO v0.5.0+: 将来対応予定
   }>
 }
 ```
@@ -518,6 +521,7 @@ connectedServices: {
   discordId?: string;
   twitterHandle?: string;
   otherContacts?: string;
+  badges?: string[];  // v0.5.0+: showOnPrivateCard=true のバッジIDリスト
   updatedAt: string;  // ISO 8601形式
 } | null  // PrivateCardが未作成の場合null
 ```
