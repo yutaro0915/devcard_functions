@@ -35,6 +35,7 @@ export class UpdatePrivateCardUseCase {
     }
 
     // Filter out undefined values from contactFields
+    // Keep empty strings ("") as they indicate field deletion
     const filteredContactFields = Object.fromEntries(
       Object.entries(contactFields).filter(([, value]) => value !== undefined)
     );

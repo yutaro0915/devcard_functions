@@ -1,67 +1,56 @@
 {
-  "feature_name": "image-upload-profile-and-card-background",
+  "feature_name": "fix-security-and-private-card-validation",
   "status": "ready-for-review",
   "api_changes": [
     {
-      "path": "uploadProfileImage",
+      "path": "createExchangeToken",
       "method": "Callable Function",
-      "change_type": "new-endpoint",
+      "change_type": "security-fix",
       "breaking": false,
-      "details": "プロフィール画像をBase64形式でアップロード。パラメータ: {imageData: string, contentType: string}。レスポンス: {success: true, photoURL: string}",
-      "reason": "ユーザーが独自のプロフィール画像をFirebase Storageにアップロードし、OAuth画像を上書きできるようにするため"
+      "details": "トークンID生成を Math.random() から crypto.randomBytes() に変更。文字セットを [A-Za-z0-9] から Base64URL [A-Za-z0-9_-] に拡張。",
+      "reason": "Math.random() は暗号学的に安全ではなく、攻撃者がトークンIDを推測できる脆弱性がある（Issue #31 - CRITICAL）"
     },
     {
-      "path": "uploadCardBackground",
+      "path": "savePrivateCard",
       "method": "Callable Function",
-      "change_type": "new-endpoint",
+      "change_type": "validation-update",
       "breaking": false,
-      "details": "カード背景画像をBase64形式でアップロード。パラメータ: {imageData: string, contentType: string}。レスポンス: {success: true, backgroundImageUrl: string}",
-      "reason": "ユーザーが名刺デザインをカスタマイズできるように背景画像機能を提供"
+      "details": "tokenId バリデーションパターンを /^[A-Za-z0-9]{20}$/ から /^[A-Za-z0-9_-]{20}$/ に更新（Base64URL対応）",
+      "reason": "createExchangeToken の文字セット拡張に伴う整合性維持"
     },
     {
-      "path": "getPublicCard",
+      "path": "updatePrivateCard",
       "method": "Callable Function",
-      "change_type": "enhancement",
-      "breaking": false,
-      "details": "レスポンスに backgroundImageUrl?: string フィールド追加。uploadCardBackgroundでアップロードした背景画像URLを返却",
-      "reason": "PublicCardに背景画像情報を統合して一度のAPI呼び出しで取得可能に"
+      "change_type": "validation-fix",
+      "breaking": true,
+      "details": "twitterHandle に空文字列 '' を送信した場合、Firestore に '' を保存せず undefined（フィールド削除）に変更",
+      "reason": "データ一貫性の向上。空文字列 vs undefined の曖昧さを排除し、オプショナルフィールドの標準動作に統一"
     }
   ],
   "security_notes": [
-    "両エンドポイントとも認証必須（request.auth 必須）",
-    "ユーザーは自分の画像のみアップロード可能（Storage Rulesで userId 検証）",
-    "画像サイズ制限: 5MB以内（Handler層とStorage Rulesの両方で検証）",
-    "Content-Type制限: image/jpeg, image/png, image/webp のみ許可",
-    "アップロード先: /user_images/{userId}/* (公開読み取り可、書き込みは本人のみ)",
-    "storage.rules の新規作成が必要",
-    "PIIやトークンは画像メタデータに含めない"
+    "crypto.randomBytes(15) で120ビットのエントロピーを生成（衝突確率: 2^-120）",
+    "Base64URLエンコードによりURL/QRコード安全な文字列を生成",
+    "OSのエントロピープールを使用した予測不可能な乱数生成（CSPRNG）",
+    "twitterHandle の空文字列処理により、不要なフィールドが Firestore に保存されなくなる"
   ],
   "tests_required": [
-    "uploadProfileImage: 認証済みユーザーが正常な画像（JPEG）をアップロードできる",
-    "uploadProfileImage: アップロード後、/users, /public_cards, /private_cards の photoURL が更新される",
-    "uploadProfileImage: 画像サイズが5MBを超える場合 invalid-argument エラー",
-    "uploadProfileImage: 不正なContent-Type（image/svg+xml）の場合 invalid-argument エラー",
-    "uploadProfileImage: 未認証ユーザーは unauthenticated エラー",
-    "uploadCardBackground: 認証済みユーザーが背景画像（PNG）をアップロードできる",
-    "uploadCardBackground: アップロード後、/public_cards の backgroundImageUrl が更新される",
-    "uploadCardBackground: getPublicCard で backgroundImageUrl が返却される",
-    "uploadCardBackground: 画像サイズ超過で invalid-argument エラー",
-    "uploadCardBackground: 未認証ユーザーは unauthenticated エラー",
-    "StorageService (Unit): Base64デコードが正常に動作する",
-    "StorageService (Unit): ファイルサイズ検証が5MB境界で正しく動作する",
-    "StorageService (Unit): Content-Type検証が許可リストと一致する"
+    "CreateExchangeTokenUseCase (Unit): 生成されたtokenIdが20文字のBase64URL形式であること",
+    "CreateExchangeTokenUseCase (Unit): 100回生成して重複がないこと",
+    "CreateExchangeTokenUseCase (Unit): Math.random() が使用されていないことを確認",
+    "savePrivateCard (Integration): Base64URL文字セット（-と_含む）のtokenIdを受け入れること",
+    "updatePrivateCard (Integration): twitterHandle に '' を送信すると undefined で保存される",
+    "updatePrivateCard (Integration): twitterHandle に 'testuser' を送信すると 'testuser' で保存される",
+    "updatePrivateCard (Integration): twitterHandle に '@testuser' を送信すると 'testuser' で保存される",
+    "getPrivateCard (Integration): twitterHandle が undefined の場合、レスポンスに含まれない"
   ],
   "client_work_items": [
-    "Web: プロフィール編集画面に画像アップロード機能を追加（ファイル選択 → Base64変換 → uploadProfileImage呼び出し）",
-    "Web: カード編集画面に背景画像アップロード機能を追加",
-    "Web: クライアント側で画像を事前リサイズ（推奨: 1024x1024以下）してからアップロード",
-    "Web: アップロード中のローディング状態表示",
-    "Web: エラーハンドリング（サイズ超過、不正形式、ネットワークエラー）",
-    "iOS: UIImagePickerController で画像選択 → Base64変換 → uploadProfileImage呼び出し",
-    "iOS: 背景画像アップロード機能の実装",
-    "iOS: getPublicCard の backgroundImageUrl 対応（オプショナルフィールド）"
+    "Web: QRコード読み取り後のtokenId処理で Base64URL文字（-と_）を正しく扱うことを確認",
+    "iOS: 同様に、QRコード読み取り後のURL解析で Base64URL文字を正しく扱うことを確認",
+    "Web: twitterHandle のチェックを `=== ''` から `!twitterHandle` または `=== undefined` に変更（該当箇所がある場合）",
+    "iOS: 同様に、twitterHandle の空チェックを調整",
+    "Web/iOS: PrivateCard 編集画面で「X アカウントを削除」する場合、空文字列 '' を送信する仕様を維持（サーバー側で undefined に変換される）"
   ],
-  "breaking_changes": false,
-  "notes_for_frontend": "この変更はすべて非破壊的な追加です。\n\n新規機能:\n1. プロフィール画像アップロード（uploadProfileImage）\n2. カード背景画像アップロード（uploadCardBackground）\n3. getPublicCard に backgroundImageUrl フィールド追加（オプショナル）\n\n実装ガイド:\n- 画像はBase64形式（Data URL: 'data:image/jpeg;base64,...' または純粋なBase64文字列）で送信\n- サイズ制限: 5MB以内（クライアント側でも事前チェック推奨）\n- 対応形式: JPEG, PNG, WebP のみ\n- 推奨フロー: ファイル選択 → クライアント側リサイズ（1024x1024推奨）→ Base64変換 → API呼び出し\n- エラーハンドリング: invalid-argument（サイズ超過/不正形式）、unauthenticated（未ログイン）、internal（アップロード失敗）\n\n注意事項:\n- uploadProfileImage は /users, /public_cards, /private_cards の photoURL を一括更新\n- 同じユーザーが再度アップロードすると前の画像を上書き（削除APIは未実装）\n- backgroundImageUrl は新規フィールドなので、既存カードでは undefined",
+  "breaking_changes": true,
+  "notes_for_frontend": "この変更には1つのセキュリティ修正と1つの軽微な破壊的変更が含まれます。\n\n## 変更1: トークンIDのセキュリティ強化（非破壊的）\n- createExchangeToken で生成される tokenId の文字セットが [A-Za-z0-9] から [A-Za-z0-9_-] に拡張\n- tokenId の長さ（20文字）は変更なし\n- QRコード読み取り後のURL解析で `-` と `_` を含む tokenId を正しく処理できることを確認してください\n\n## 変更2: twitterHandle の空文字列処理（軽微な破壊的変更）\n\n### 変更内容\n- updatePrivateCard で `twitterHandle: ''` を送信すると、Firestore に `''` が保存される代わりに、フィールドが削除（undefined）されます\n\n### 影響\n- クライアントが `privateCard.twitterHandle === ''` でチェックしている場合、動作が変わります\n- 修正推奨: `!privateCard.twitterHandle` または `privateCard.twitterHandle === undefined` に変更\n\n### 移行方法\n1. 既存の `twitterHandle: ''` データは残りますが、次回更新時に削除されます\n2. クライアント側で空チェックを調整してください\n\n### 動作例\n```typescript\n// X アカウントを削除する場合（変更前後で同じ操作）\nawait updatePrivateCard({ twitterHandle: '' });\n\n// 変更前: privateCard.twitterHandle === ''\n// 変更後: privateCard.twitterHandle === undefined\n```",
   "backend_commit_sha": null
 }

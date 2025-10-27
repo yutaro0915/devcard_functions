@@ -11,6 +11,101 @@
 
 ---
 
+## [0.7.0] - 2025-10-27
+
+### Security
+- **🔴 CRITICAL: Exchange Token Security Fix** (Issue #31)
+  - **修正内容**: `createExchangeToken` のトークンID生成を `Math.random()` から `crypto.randomBytes()` に変更
+  - **影響**: `Math.random()` は暗号学的に安全ではなく、攻撃者がトークンIDを推測してプライベート名刺に不正アクセスできる脆弱性があった
+  - **対策**: `crypto.randomBytes(15)` で120ビットのエントロピーを生成（衝突確率: ~2^-120）
+  - **文字セット変更**: `[A-Za-z0-9]` → `[A-Za-z0-9_-]` (Base64URL形式)
+  - **非破壊的変更**: クライアント側は tokenId を不透明な文字列として扱うため影響なし
+
+### Changed
+- **`createExchangeToken` API 仕様変更**
+  - トークンIDが Base64URL形式 `[A-Za-z0-9_-]` に変更（`-` と `_` を含む可能性）
+  - トークンの長さは20文字で変更なし
+  - セキュリティ: `crypto.randomBytes()` による CSPRNG（暗号学的に安全な擬似乱数生成器）
+- **`savePrivateCard` バリデーション強化**
+  - `tokenId` パラメータで Base64URL形式を検証（`[A-Za-z0-9_-]{20}`）
+  - 無効な文字（`=`, `+` など）を含む tokenId は `invalid-argument` エラー
+  - 長さが20文字でない tokenId は `invalid-argument` エラー
+- **`updatePrivateCard` の `twitterHandle` 空文字列処理変更**
+  - `twitterHandle: ""` を送信すると、Firestore から該当フィールドが削除される（`undefined` として扱われる）
+  - 変更前: 空文字列 `""` が Firestore に保存されていた
+  - 変更後: 空文字列を送信すると `FieldValue.delete()` で削除される
+  - **軽微な破壊的変更**: クライアントが `twitterHandle === ""` でチェックしている場合、`=== undefined` または `!twitterHandle` に変更が必要
+
+### Migration Guide
+
+#### 1. トークンIDの文字セット拡張（非破壊的）
+
+クライアント側で tokenId を不透明文字列として扱っている場合、変更不要。
+
+QRコード読み取り時に `-` と `_` を含む tokenId を正しく処理できることを確認：
+
+```typescript
+// 変更前の例: "devcard://exchange/aBcD1234XyZ567890123"
+// 変更後の例: "devcard://exchange/aBcD-_34XyZ567890123"
+
+// URL解析は既存のパーサーで対応可能
+const url = new URL("devcard://exchange/abc-_123XYZ...");
+const tokenId = url.pathname.split('/')[1]; // "abc-_123XYZ..."
+```
+
+#### 2. twitterHandle の空文字列処理（軽微な破壊的変更）
+
+**変更内容**:
+- `updatePrivateCard({ twitterHandle: "" })` を呼び出すと、Firestore に `""` が保存される代わりに、フィールドが削除されます
+
+**影響**:
+- `privateCard.twitterHandle === ""` でチェックしている場合、動作が変わります
+
+**対応方法**:
+```typescript
+// 変更前
+if (privateCard.twitterHandle === "") {
+  // X アカウント未登録
+}
+
+// 変更後（推奨）
+if (!privateCard.twitterHandle) {
+  // X アカウント未登録（undefined または空文字列）
+}
+
+// または
+if (privateCard.twitterHandle === undefined) {
+  // X アカウント未登録
+}
+```
+
+**削除方法**（変更前後で同じ操作）:
+```typescript
+// X アカウントを削除する場合
+await updatePrivateCard({ twitterHandle: "" });
+
+// 変更前の結果: privateCard.twitterHandle === ""
+// 変更後の結果: privateCard.twitterHandle === undefined
+```
+
+### Technical
+- CreateExchangeTokenUseCase: `crypto.randomBytes()` 導入
+- PrivateCardRepository: 空文字列を `FieldValue.delete()` に変換するロジック追加
+- savedCardHandlers: tokenId の Base64URL バリデーション追加
+- 統合テスト: Base64URL tokenId のテストケース追加（3件）
+- 単体テスト: トークンID生成の形式・一意性テスト追加（2件）
+
+### Breaking Changes
+- **軽微な破壊的変更**: `updatePrivateCard` の `twitterHandle` で空文字列を送信した場合の動作変更
+  - クライアント側で `twitterHandle === ""` チェックを `!twitterHandle` に変更する必要がある場合があります
+  - 既存データ: `twitterHandle: ""` が保存されているデータは残りますが、次回更新時に削除されます
+
+### Non-Breaking Changes
+- `createExchangeToken` のトークンID文字セット拡張（クライアントへの影響なし）
+- `savePrivateCard` のバリデーション強化（セキュリティ向上）
+
+---
+
 ## [0.6.0] - 2025-10-27
 
 ### Added

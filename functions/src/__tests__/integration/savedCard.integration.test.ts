@@ -67,7 +67,7 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
 
-        const tokenId = "test-token-123";
+        const tokenId = "abcdefghij1234567890"; // 20 characters, Base64URL
         await createExchangeToken(tokenId, TEST_USER2_ID);
 
         // Sign in as USER1 to use USER2's token
@@ -108,7 +108,7 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
 
-        const tokenId = "test-token-456";
+        const tokenId = "xyz789-_ABCDEF123456"; // 20 characters, Base64URL
         await createExchangeToken(tokenId, TEST_USER2_ID);
 
         // Sign in as USER1 to use USER2's token
@@ -174,7 +174,7 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
 
-        const tokenId = "expired-token";
+        const tokenId = "expired1234567890AB"; // 20 characters
         const adminApp = admin.app();
         const adminFirestore = adminApp.firestore();
         const now = new Date();
@@ -203,7 +203,7 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
 
-        const tokenId = "used-token";
+        const tokenId = "usedToken1234567890A"; // 20 characters
         const adminApp = admin.app();
         const adminFirestore = adminApp.firestore();
         const now = new Date();
@@ -231,13 +231,58 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
         await createPrivateCardDirectly(TEST_USER_ID, "test@example.com");
 
-        const tokenId = "own-token";
+        const tokenId = "ownToken12345678901A"; // 20 characters
         await createExchangeToken(tokenId, TEST_USER_ID);
 
         const functions = getFunctionsInstance();
         const savePrivateCard = httpsCallable(functions, "savePrivateCard");
 
         await expect(savePrivateCard({tokenId})).rejects.toThrow();
+      });
+    });
+
+    describe("Base64URL tokenId サポート（Issue #31）", () => {
+      it("Base64URL文字セット（-と_含む）のtokenIdを受け入れる", async () => {
+        await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
+        await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
+
+        // Create token with Base64URL characters (- and _)
+        const tokenId = "test-token_with-url1"; // 20 characters with Base64URL chars
+        await createExchangeToken(tokenId, TEST_USER2_ID);
+
+        // Sign in as USER1 to use USER2's token
+        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+        const functions = getFunctionsInstance();
+        const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+
+        const result = await savePrivateCard({tokenId});
+
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCardId");
+      });
+
+      it("無効な文字（=）を含むtokenIdで invalid-argument エラー", async () => {
+        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+        const functions = getFunctionsInstance();
+        const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+
+        // '=' is not allowed in Base64URL (it's used in standard Base64 padding)
+        await expect(savePrivateCard({tokenId: "token-with-padding="})).rejects.toThrow();
+      });
+
+      it("19文字/21文字のtokenIdで invalid-argument エラー", async () => {
+        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+        const functions = getFunctionsInstance();
+        const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+
+        // 19 characters (too short)
+        await expect(savePrivateCard({tokenId: "a".repeat(19)})).rejects.toThrow();
+
+        // 21 characters (too long)
+        await expect(savePrivateCard({tokenId: "a".repeat(21)})).rejects.toThrow();
       });
     });
   });
@@ -248,7 +293,7 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
 
-        const tokenId = "test-token-789";
+        const tokenId = "token789ABCD12345678"; // 20 characters
         await createExchangeToken(tokenId, TEST_USER2_ID);
 
         // Sign in as USER1 to save USER2's cards
@@ -287,7 +332,7 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
 
-        const tokenId = "test-token-filter";
+        const tokenId = "filterToken1234567AB"; // 20 characters
         await createExchangeToken(tokenId, TEST_USER2_ID);
 
         // Sign in as USER1 to save USER2's cards
@@ -316,7 +361,7 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
 
-        const tokenId = "test-token-filter2";
+        const tokenId = "filter2Token123456AB"; // 20 characters
         await createExchangeToken(tokenId, TEST_USER2_ID);
 
         // Sign in as USER1 to save USER2's cards
@@ -518,7 +563,7 @@ describe("SavedCard Operations Integration Test", () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
 
-        const tokenId = "test-token-update";
+        const tokenId = "updateToken123456789"; // 20 characters
         await createExchangeToken(tokenId, TEST_USER2_ID);
 
         // Sign in as USER1 to save USER2's cards

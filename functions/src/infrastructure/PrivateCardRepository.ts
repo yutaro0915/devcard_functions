@@ -50,10 +50,20 @@ export class PrivateCardRepository implements IPrivateCardRepository {
   }
 
   async update(userId: string, data: Partial<PrivateCard>): Promise<void> {
-    const updateData = {
-      ...data,
+    // Convert empty strings to FieldValue.delete() to remove the field
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: Record<string, any> = {
       updatedAt: FieldValue.serverTimestamp(),
     };
+
+    for (const [key, value] of Object.entries(data)) {
+      if (value === "") {
+        // Empty string → delete field from Firestore
+        updateData[key] = FieldValue.delete();
+      } else if (value !== undefined) {
+        updateData[key] = value;
+      }
+    }
 
     await this.firestore.collection(this.collection).doc(userId).update(updateData);
   }

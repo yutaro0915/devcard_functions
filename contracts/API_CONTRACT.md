@@ -461,7 +461,7 @@ connectedServices: {
   phoneNumber?: string;     // 電話番号 (任意、最大50文字)
   lineId?: string;          // LINE ID (任意、最大100文字)
   discordId?: string;       // Discord ID (任意、最大100文字)
-  twitterHandle?: string;   // Twitterハンドル (任意、@付きでも可、保存時は@なしで正規化、最大15文字)
+  twitterHandle?: string;   // Twitterハンドル (任意、@付きでも可、保存時は@なしで正規化、最大15文字、空文字列でフィールド削除)
   otherContacts?: string;   // その他連絡先 (任意、最大500文字)
 }
 ```
@@ -477,6 +477,7 @@ connectedServices: {
   - 入力時に`@`付きでも可（例: `@username` または `username`）
   - 保存時は`@`なしで正規化（例: `username`）
   - 表示時はフロントエンドで`@`を追加推奨（例: `@username`）
+  - **空文字列 `""` を送信するとフィールドが削除されます**（v0.7.0）
 - `otherContacts`: 500文字以下
 
 **レスポンス**:
@@ -502,6 +503,7 @@ connectedServices: {
 - 2回目以降: 指定されたフィールドのみ部分更新（未指定フィールドは保持）
 - `displayName`, `photoURL` は `updateProfile` で更新されると自動同期されます
 - 何か一つでも変更されたら `updatedAt` が必ず更新されます
+- **v0.7.0 変更**: `twitterHandle` に空文字列 `""` を送信すると、Firestoreから該当フィールドが削除されます（`undefined` として扱われる）
 
 ---
 
@@ -556,7 +558,7 @@ connectedServices: {
 ```typescript
 {
   success: true;
-  tokenId: string;        // ランダム生成されたトークンID (20文字、英数字)
+  tokenId: string;        // ランダム生成されたトークンID (20文字、Base64URL: [A-Za-z0-9_-])
   expiresAt: string;      // トークン有効期限 (ISO 8601形式、生成から1分後)
   qrCodeData: string;     // QRコード用データ "devcard://exchange/{tokenId}"
 }
@@ -566,6 +568,8 @@ connectedServices: {
 - **有効期限**: 生成から1分間
 - **使用回数**: 1回のみ（誰かが `savePrivateCard` で使用すると無効化）
 - **保存先**: `/exchange_tokens/{tokenId}` コレクション
+- **文字セット**: Base64URL形式 `[A-Za-z0-9_-]`（URL安全、QRコード互換）
+- **セキュリティ**: `crypto.randomBytes()` による暗号学的に安全な乱数生成（120ビットのエントロピー、衝突確率 ~2^-120）
 
 **エラー**:
 - `unauthenticated`: 認証されていない場合
@@ -576,14 +580,14 @@ connectedServices: {
 ```typescript
 // 1. PrivateCard交換トークン生成
 const token = await createExchangeToken({});
-console.log(token.qrCodeData); // "devcard://exchange/abc123..."
+console.log(token.qrCodeData); // "devcard://exchange/abc-_123XYZ..."
 
 // 2. QRコードを生成して表示
 <QRCode value={token.qrCodeData} />
 
 // 3. 相手がQRコードをスキャンして savePrivateCard を実行
 // （相手側の処理）
-await savePrivateCard({ tokenId: "abc123..." });
+await savePrivateCard({ tokenId: "abc-_123XYZ..." });
 ```
 
 **注意事項**:
@@ -591,7 +595,7 @@ await savePrivateCard({ tokenId: "abc123..." });
 - トークンは1分間で自動的に期限切れになります
 - トークンは1回使用されると無効化されます
 - 自分のトークンを自分で使用することはできません（`savePrivateCard` でエラー）
-- セキュリティ: トークンIDは推測困難なランダム文字列（20文字、英数字）
+- **v0.7.0 セキュリティ強化**: トークンIDが `Math.random()` から `crypto.randomBytes()` に変更され、推測攻撃に対して安全になりました
 
 **QRコード実装推奨**:
 - `qrCodeData` の値をそのままQRコードライブラリに渡してください
@@ -610,9 +614,12 @@ await savePrivateCard({ tokenId: "abc123..." });
 **リクエスト**:
 ```typescript
 {
-  tokenId: string;  // 交換トークンID (必須)
+  tokenId: string;  // 交換トークンID (必須、20文字、Base64URL形式)
 }
 ```
+
+**バリデーション**:
+- `tokenId`: 必須、20文字、Base64URL形式 `[A-Za-z0-9_-]`
 
 **レスポンス**:
 ```typescript
@@ -626,6 +633,8 @@ await savePrivateCard({ tokenId: "abc123..." });
 - `unauthenticated`: 認証されていない場合
 - `invalid-argument`: 以下の場合
   - `tokenId` が未指定
+  - `tokenId` が Base64URL形式でない（無効な文字 `=`, `+` など）
+  - `tokenId` の長さが20文字でない（19文字以下または21文字以上）
   - トークンの所有者が自分自身（自分のトークンは使用不可）
   - トークンが期限切れ（作成から1分超過）
   - トークンが使用済み

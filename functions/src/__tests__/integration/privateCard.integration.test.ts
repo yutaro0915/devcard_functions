@@ -111,6 +111,60 @@ describe("PrivateCard Integration Test", () => {
         expect(updatedData?.phoneNumber).toBe("+81-90-1234-5678");
         expect(updatedData?.lineId).toBe("test_line");
       });
+
+      it("twitterHandle に空文字列を送信すると undefined で保存される", async () => {
+        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+        const functions = getFunctionsInstance();
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+
+        // First, create with twitterHandle
+        await updatePrivateCard({twitterHandle: "testuser"});
+
+        const firestore = getFirestoreInstance();
+        let privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        let privateCardData = privateCardDoc.data();
+        expect(privateCardData?.twitterHandle).toBe("testuser");
+
+        // Then, send empty string to delete the field
+        const result = await updatePrivateCard({twitterHandle: ""});
+        expect(result.data).toEqual({success: true});
+
+        // Verify twitterHandle is now undefined (not stored in Firestore)
+        privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        privateCardData = privateCardDoc.data();
+        expect(privateCardData?.twitterHandle).toBeUndefined();
+      });
+
+      it("twitterHandle に 'testuser' を送信すると正規化されて保存される", async () => {
+        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+        const functions = getFunctionsInstance();
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+
+        const result = await updatePrivateCard({twitterHandle: "testuser"});
+        expect(result.data).toEqual({success: true});
+
+        const firestore = getFirestoreInstance();
+        const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        const privateCardData = privateCardDoc.data();
+        expect(privateCardData?.twitterHandle).toBe("testuser");
+      });
+
+      it("twitterHandle に '@testuser' を送信すると '@' が除去されて保存される", async () => {
+        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+        const functions = getFunctionsInstance();
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+
+        const result = await updatePrivateCard({twitterHandle: "@testuser"});
+        expect(result.data).toEqual({success: true});
+
+        const firestore = getFirestoreInstance();
+        const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        const privateCardData = privateCardDoc.data();
+        expect(privateCardData?.twitterHandle).toBe("testuser");
+      });
     });
 
     describe("失敗系", () => {

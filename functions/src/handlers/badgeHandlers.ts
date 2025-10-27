@@ -336,19 +336,21 @@ export const getUserBadges = onCall(async (request) => {
     const result = await useCase.execute({userId});
 
     // Convert dates to ISO strings
-    const badges = result.badges.map((badge: {
-      badgeId: string;
-      grantedAt: Date;
-      grantedBy: string;
-      reason?: string;
-      visibility: {showOnPublicCard: boolean; showOnPrivateCard: boolean};
-    }) => ({
-      badgeId: badge.badgeId,
-      grantedAt: badge.grantedAt.toISOString(),
-      grantedBy: badge.grantedBy,
-      reason: badge.reason,
-      visibility: badge.visibility,
-    }));
+    const badges = result.badges.map(
+      (badge: {
+        badgeId: string;
+        grantedAt: Date;
+        grantedBy: string;
+        reason?: string;
+        visibility: {showOnPublicCard: boolean; showOnPrivateCard: boolean};
+      }) => ({
+        badgeId: badge.badgeId,
+        grantedAt: badge.grantedAt.toISOString(),
+        grantedBy: badge.grantedBy,
+        reason: badge.reason,
+        visibility: badge.visibility,
+      })
+    );
 
     return {
       success: true,
