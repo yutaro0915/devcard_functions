@@ -36,6 +36,9 @@ export class CreateExchangeTokenUseCase {
       throw new PrivateCardNotFoundError(input.userId);
     }
 
+    // Issue #50: Delete existing unused tokens before creating new one
+    await this.exchangeTokenRepository.deleteUnusedByOwnerId(input.userId);
+
     // Generate random tokenId
     const tokenId = this.generateTokenId();
 

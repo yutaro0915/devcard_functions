@@ -20,6 +20,7 @@ export class ExchangeTokenRepository implements IExchangeTokenRepository {
       ownerId: data.ownerId,
       createdAt: now,
       expiresAt,
+      usedBy: null, // Issue #50: Explicitly set to null for query compatibility
     };
 
     await this.firestore.collection(this.collection).doc(data.tokenId).set(tokenData);
@@ -53,6 +54,37 @@ export class ExchangeTokenRepository implements IExchangeTokenRepository {
 
     const batch = this.firestore.batch();
     expiredTokens.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+  }
+
+  /**
+   * Delete a single token by ID
+   * Issue #50: Used for immediate cleanup on expiration
+   */
+  async delete(tokenId: string): Promise<void> {
+    await this.firestore.collection(this.collection).doc(tokenId).delete();
+  }
+
+  /**
+   * Delete all unused tokens owned by a specific user
+   * Issue #50: Used for token refresh functionality
+   */
+  async deleteUnusedByOwnerId(ownerId: string): Promise<void> {
+    const tokens = await this.firestore
+      .collection(this.collection)
+      .where("ownerId", "==", ownerId)
+      .where("usedBy", "==", null) // Unused tokens only
+      .get();
+
+    if (tokens.empty) {
+      return; // No tokens to delete
+    }
+
+    const batch = this.firestore.batch();
+    tokens.docs.forEach((doc) => {
       batch.delete(doc.ref);
     });
 
