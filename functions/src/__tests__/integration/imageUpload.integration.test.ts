@@ -181,7 +181,10 @@ describe("Image Upload Integration Tests", () => {
       const getPublicCard = httpsCallable(functions, "getPublicCard");
       const getResult = await getPublicCard({userId: TEST_USER_ID});
 
-      const cardData = getResult.data as {success: boolean; publicCard: {backgroundImageUrl?: string}};
+      const cardData = getResult.data as {
+        success: boolean;
+        publicCard: {backgroundImageUrl?: string};
+      };
       expect(cardData.publicCard.backgroundImageUrl).toBe(uploadedBackgroundURL);
     });
 

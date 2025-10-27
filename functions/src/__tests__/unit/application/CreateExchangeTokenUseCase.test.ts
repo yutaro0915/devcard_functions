@@ -142,4 +142,70 @@ describe("CreateExchangeTokenUseCase", () => {
     // ExpiresAt should be a string in ISO 8601 format
     expect(typeof result.expiresAt).toBe("string");
   });
+
+  // Issue #31: Test Base64URL format for tokenId
+  it("should generate tokenId in Base64URL format (20 characters, [A-Za-z0-9_-])", async () => {
+    const userId = "user-123";
+
+    const privateCard: PrivateCard = {
+      userId: "user-123",
+      displayName: "Test User",
+      email: "test@example.com",
+      updatedAt: new Date(),
+    };
+
+    mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+    mockExchangeTokenRepository.create.mockImplementation(async (data) => ({
+      tokenId: data.tokenId,
+      ownerId: data.ownerId,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 60000),
+    }));
+
+    const useCase = new CreateExchangeTokenUseCase(
+      mockPrivateCardRepository,
+      mockExchangeTokenRepository
+    );
+
+    const result = await useCase.execute({userId});
+
+    // TokenId should be 20 characters
+    expect(result.tokenId.length).toBe(20);
+    // TokenId should only contain Base64URL characters: [A-Za-z0-9_-]
+    expect(result.tokenId).toMatch(/^[A-Za-z0-9_-]{20}$/);
+  });
+
+  // Issue #31: Test tokenId uniqueness (collision resistance)
+  it("should generate unique tokenIds (no collisions in 100 iterations)", async () => {
+    const userId = "user-123";
+
+    const privateCard: PrivateCard = {
+      userId: "user-123",
+      displayName: "Test User",
+      email: "test@example.com",
+      updatedAt: new Date(),
+    };
+
+    mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+    mockExchangeTokenRepository.create.mockImplementation(async (data) => ({
+      tokenId: data.tokenId,
+      ownerId: data.ownerId,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 60000),
+    }));
+
+    const useCase = new CreateExchangeTokenUseCase(
+      mockPrivateCardRepository,
+      mockExchangeTokenRepository
+    );
+
+    const tokenIds = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      const result = await useCase.execute({userId});
+      tokenIds.add(result.tokenId);
+    }
+
+    // All 100 tokenIds should be unique
+    expect(tokenIds.size).toBe(100);
+  });
 });

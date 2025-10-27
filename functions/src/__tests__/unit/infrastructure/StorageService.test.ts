@@ -4,7 +4,8 @@ import {ImageValidationError} from "../../../domain/errors/DomainErrors";
 describe("StorageService Unit Tests", () => {
   describe("validateImageData", () => {
     it("StorageService (Unit): Base64デコードが正常に動作する", () => {
-      const validBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      const validBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
       const buffer = StorageService.decodeBase64(validBase64);
 

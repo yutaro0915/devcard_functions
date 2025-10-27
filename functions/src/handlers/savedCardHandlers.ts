@@ -179,6 +179,15 @@ export const savePrivateCard = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "tokenId is required");
   }
 
+  // Issue #31: Validate Base64URL format (20 characters, [A-Za-z0-9_-])
+  const tokenIdPattern = /^[A-Za-z0-9_-]{20}$/;
+  if (!tokenIdPattern.test(tokenId)) {
+    throw new HttpsError(
+      "invalid-argument",
+      "tokenId must be 20 characters and contain only Base64URL characters ([A-Za-z0-9_-])"
+    );
+  }
+
   try {
     logger.info("Saving private card via token", {userId, tokenId});
 

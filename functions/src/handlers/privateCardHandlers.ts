@@ -114,8 +114,9 @@ export const updatePrivateCard = onCall(async (request) => {
       // Normalize: remove @ prefix
       normalizedTwitterHandle = normalizeTwitterHandle(twitterHandle);
     } else {
-      // Empty string is allowed (clears the field)
-      normalizedTwitterHandle = "";
+      // Empty string → delete field (set to undefined)
+      // This ensures the field is not stored in Firestore
+      normalizedTwitterHandle = undefined;
     }
   }
 
@@ -149,13 +150,20 @@ export const updatePrivateCard = onCall(async (request) => {
     const userRepository = new UserRepository(firestore);
     const useCase = new UpdatePrivateCardUseCase(privateCardRepository, userRepository);
 
+    // If twitterHandle was explicitly set to empty string, pass "" to delete it
+    // Otherwise pass the normalized value (which might be undefined)
+    const twitterHandleValue =
+      twitterHandle !== undefined && normalizedTwitterHandle === undefined
+        ? ""
+        : normalizedTwitterHandle;
+
     await useCase.execute({
       userId,
       email,
       phoneNumber,
       lineId,
       discordId,
-      twitterHandle: normalizedTwitterHandle,
+      twitterHandle: twitterHandleValue,
       otherContacts,
     });
 

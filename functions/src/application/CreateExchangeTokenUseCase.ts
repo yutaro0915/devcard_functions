@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import {IPrivateCardRepository} from "../domain/IPrivateCardRepository";
 import {IExchangeTokenRepository} from "../domain/IExchangeTokenRepository";
 import {PrivateCardNotFoundError} from "../domain/errors/DomainErrors";
@@ -52,16 +53,14 @@ export class CreateExchangeTokenUseCase {
   }
 
   /**
-   * Generate a random token ID
-   * Uses Firestore's document ID generator for consistency
+   * Generate a cryptographically secure random token ID
+   * Issue #31: Uses crypto.randomBytes() instead of Math.random()
+   * @returns 20-character Base64URL string (collision probability: ~2^-120)
    */
   private generateTokenId(): string {
-    // Generate a random ID (20 characters, alphanumeric)
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let result = "";
-    for (let i = 0; i < 20; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+    // Generate 15 bytes of random data (120 bits of entropy)
+    // Base64URL encoding creates ~20 characters
+    // Character set: [A-Za-z0-9_-] (URL-safe, QR code compatible)
+    return crypto.randomBytes(15).toString("base64url").substring(0, 20);
   }
 }
