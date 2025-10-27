@@ -1,62 +1,67 @@
 {
-  "feature_name": "badge-management-system-phase2-visibility-control",
+  "feature_name": "image-upload-profile-and-card-background",
   "status": "ready-for-review",
   "api_changes": [
     {
-      "path": "updateBadgeVisibility",
+      "path": "uploadProfileImage",
       "method": "Callable Function",
       "change_type": "new-endpoint",
       "breaking": false,
-      "details": "ユーザーが自分のバッジ表示設定を変更。パラメータ: {badgeId, showOnPublicCard: boolean, showOnPrivateCard: boolean}",
-      "reason": "ユーザーがバッジの表示/非表示を制御できるプライバシー機能"
+      "details": "プロフィール画像をBase64形式でアップロード。パラメータ: {imageData: string, contentType: string}。レスポンス: {success: true, photoURL: string}",
+      "reason": "ユーザーが独自のプロフィール画像をFirebase Storageにアップロードし、OAuth画像を上書きできるようにするため"
     },
     {
-      "path": "getUserBadges",
+      "path": "uploadCardBackground",
       "method": "Callable Function",
       "change_type": "new-endpoint",
       "breaking": false,
-      "details": "指定ユーザーの所持バッジ一覧を取得。レスポンス: {badges: UserBadge[]}。visibility設定を含む",
-      "reason": "フロントエンドでユーザーのバッジ一覧を表示するため"
+      "details": "カード背景画像をBase64形式でアップロード。パラメータ: {imageData: string, contentType: string}。レスポンス: {success: true, backgroundImageUrl: string}",
+      "reason": "ユーザーが名刺デザインをカスタマイズできるように背景画像機能を提供"
     },
     {
       "path": "getPublicCard",
       "method": "Callable Function",
       "change_type": "enhancement",
       "breaking": false,
-      "details": "レスポンスに badges?: string[] フィールド追加。showOnPublicCard=true のバッジIDのみ含む",
-      "reason": "PublicCardにバッジ情報を統合して一度のAPI呼び出しで取得可能に"
-    },
-    {
-      "path": "getPrivateCard",
-      "method": "Callable Function",
-      "change_type": "enhancement",
-      "breaking": false,
-      "details": "レスポンスに badges?: string[] フィールド追加。showOnPrivateCard=true のバッジIDのみ含む",
-      "reason": "PrivateCardにバッジ情報を統合して一度のAPI呼び出しで取得可能に"
+      "details": "レスポンスに backgroundImageUrl?: string フィールド追加。uploadCardBackgroundでアップロードした背景画像URLを返却",
+      "reason": "PublicCardに背景画像情報を統合して一度のAPI呼び出しで取得可能に"
     }
   ],
   "security_notes": [
-    "updateBadgeVisibility は認証必須、自分が所持するバッジのみ変更可能",
-    "他人のバッジ表示設定は変更不可（所持していないバッジはnot-foundエラー）",
-    "getUserBadges は全ユーザーがアクセス可能（公開情報）",
-    "バッジ表示設定の変更は即座にgetPublicCard/getPrivateCardに反映"
+    "両エンドポイントとも認証必須（request.auth 必須）",
+    "ユーザーは自分の画像のみアップロード可能（Storage Rulesで userId 検証）",
+    "画像サイズ制限: 5MB以内（Handler層とStorage Rulesの両方で検証）",
+    "Content-Type制限: image/jpeg, image/png, image/webp のみ許可",
+    "アップロード先: /user_images/{userId}/* (公開読み取り可、書き込みは本人のみ)",
+    "storage.rules の新規作成が必要",
+    "PIIやトークンは画像メタデータに含めない"
   ],
   "tests_required": [
-    "ユーザーが自分のバッジ表示設定を更新できる",
-    "未認証ユーザーはバッジ表示設定を変更できない（unauthenticated）",
-    "所持していないバッジの表示設定を変更しようとした場合エラー（not-found）",
-    "指定ユーザーの所持バッジを取得できる（複数バッジ）",
-    "getPublicCard のレスポンスに badges フィールドが含まれる",
-    "showOnPublicCard=false のバッジは getPublicCard に表示されない",
-    "getPrivateCard のレスポンスに badges フィールドが含まれる"
+    "uploadProfileImage: 認証済みユーザーが正常な画像（JPEG）をアップロードできる",
+    "uploadProfileImage: アップロード後、/users, /public_cards, /private_cards の photoURL が更新される",
+    "uploadProfileImage: 画像サイズが5MBを超える場合 invalid-argument エラー",
+    "uploadProfileImage: 不正なContent-Type（image/svg+xml）の場合 invalid-argument エラー",
+    "uploadProfileImage: 未認証ユーザーは unauthenticated エラー",
+    "uploadCardBackground: 認証済みユーザーが背景画像（PNG）をアップロードできる",
+    "uploadCardBackground: アップロード後、/public_cards の backgroundImageUrl が更新される",
+    "uploadCardBackground: getPublicCard で backgroundImageUrl が返却される",
+    "uploadCardBackground: 画像サイズ超過で invalid-argument エラー",
+    "uploadCardBackground: 未認証ユーザーは unauthenticated エラー",
+    "StorageService (Unit): Base64デコードが正常に動作する",
+    "StorageService (Unit): ファイルサイズ検証が5MB境界で正しく動作する",
+    "StorageService (Unit): Content-Type検証が許可リストと一致する"
   ],
   "client_work_items": [
-    "バッジ表示設定画面の実装（各バッジごとにPublic/Privateのトグル）",
-    "getUserBadges APIを使用してユーザープロフィールにバッジ一覧を表示",
-    "getPublicCard/getPrivateCard の badges フィールドを使用してカードにバッジを表示",
-    "updateBadgeVisibility を使用してバッジ表示設定を更新"
+    "Web: プロフィール編集画面に画像アップロード機能を追加（ファイル選択 → Base64変換 → uploadProfileImage呼び出し）",
+    "Web: カード編集画面に背景画像アップロード機能を追加",
+    "Web: クライアント側で画像を事前リサイズ（推奨: 1024x1024以下）してからアップロード",
+    "Web: アップロード中のローディング状態表示",
+    "Web: エラーハンドリング（サイズ超過、不正形式、ネットワークエラー）",
+    "iOS: UIImagePickerController で画像選択 → Base64変換 → uploadProfileImage呼び出し",
+    "iOS: 背景画像アップロード機能の実装",
+    "iOS: getPublicCard の backgroundImageUrl 対応（オプショナルフィールド）"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "この変更はすべて非破壊的な追加/拡張です。\n\nPhase 2の追加機能:\n1. ユーザーがバッジ表示を制御できるプライバシー機能（updateBadgeVisibility）\n2. ユーザーのバッジ一覧取得API（getUserBadges）\n3. getPublicCard/getPrivateCard にバッジ情報を統合（badges?: string[]）\n\n推奨UI:\n- バッジ設定画面: 各バッジごとにPublicCard/PrivateCardのトグルスイッチ\n- デフォルト: 両方表示（showOnPublicCard: true, showOnPrivateCard: true）\n- カードプレビュー: 設定変更後、即座に反映\n\n注意事項:\n- badges フィールドはオプショナル（バッジがない場合はundefined）\n- バッジIDの配列のみ返却（詳細情報はlistBadges APIで取得）\n- getSavedCards へのバッジ統合は今後対応予定",
+  "notes_for_frontend": "この変更はすべて非破壊的な追加です。\n\n新規機能:\n1. プロフィール画像アップロード（uploadProfileImage）\n2. カード背景画像アップロード（uploadCardBackground）\n3. getPublicCard に backgroundImageUrl フィールド追加（オプショナル）\n\n実装ガイド:\n- 画像はBase64形式（Data URL: 'data:image/jpeg;base64,...' または純粋なBase64文字列）で送信\n- サイズ制限: 5MB以内（クライアント側でも事前チェック推奨）\n- 対応形式: JPEG, PNG, WebP のみ\n- 推奨フロー: ファイル選択 → クライアント側リサイズ（1024x1024推奨）→ Base64変換 → API呼び出し\n- エラーハンドリング: invalid-argument（サイズ超過/不正形式）、unauthenticated（未ログイン）、internal（アップロード失敗）\n\n注意事項:\n- uploadProfileImage は /users, /public_cards, /private_cards の photoURL を一括更新\n- 同じユーザーが再度アップロードすると前の画像を上書き（削除APIは未実装）\n- backgroundImageUrl は新規フィールドなので、既存カードでは undefined",
   "backend_commit_sha": null
 }

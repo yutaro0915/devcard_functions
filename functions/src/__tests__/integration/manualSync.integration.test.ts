@@ -10,7 +10,12 @@ import {httpsCallable} from "firebase/functions";
 import {doc, getDoc} from "firebase/firestore";
 import * as admin from "firebase-admin";
 
-describe("ManualSync Integration Test - updatedAt更新", () => {
+// TODO: これは偽物の統合テストです。実際のmanualSync関数を呼ばず、Firestoreを直接操作しています。
+// 正しい統合テストに書き直すか、削除する必要があります。
+// - 実際にhttpsCallable(functions, "manualSync")を呼ぶべき
+// - GitHub APIはnockでモックする必要がある
+// - 現在のテストは統合テストの意味がない（Line 43-49でFirestoreを直接更新している）
+describe.skip("ManualSync Integration Test - updatedAt更新", () => {
   beforeAll(async () => {
     await setupTestEnvironment();
   });

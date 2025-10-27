@@ -100,3 +100,12 @@ export class BadgeAlreadyGrantedError extends DomainError {
     super(`Badge ${badgeId} has already been granted to user ${userId}`);
   }
 }
+
+/**
+ * Image validation error
+ */
+export class ImageValidationError extends DomainError {
+  constructor(message: string) {
+    super(message);
+  }
+}

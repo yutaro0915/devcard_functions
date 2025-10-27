@@ -35,6 +35,7 @@ export interface PublicCard {
   // Customization
   theme: string; // e.g., "default", "dark", "minimal"
   customCss?: string; // sanitized
+  backgroundImageUrl?: string; // Background image URL from Firebase Storage
 
   // Metadata
   updatedAt: Date;
