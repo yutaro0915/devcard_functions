@@ -74,12 +74,13 @@ describe.skip("onUserCreate Auth Trigger Integration Tests (Issue #51: requires 
 
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
+      // Contract: test-{timestamp} → test{timestamp} (remove special chars)
       const userDoc = await getDoc(doc(firestore, "users", userId));
-      // Expect sanitized email prefix (test-{timestamp} → test{timestamp})
       expect(userDoc.data()?.displayName).toMatch(/^test\d+$/);
 
       const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
-      expect(publicCardDoc.data()?.displayName).toBe("test");
+      // Both should have the same sanitized displayName
+      expect(publicCardDoc.data()?.displayName).toMatch(/^test\d+$/);
     });
 
     it("特殊文字を削除: user.name+tag@example.com → usernametag", async () => {

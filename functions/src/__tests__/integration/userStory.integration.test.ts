@@ -40,7 +40,7 @@ describe("User Story Integration Tests", () => {
 
   describe.skip("ストーリー1: 新規ユーザー登録からプロフィール設定まで (Issue #51)", () => {
     it("ユーザーが登録し、プロフィールを更新し、GitHubを連携する", async () => {
-      const email = "newuser@example.com";
+      const email = `newuser-${Date.now()}@example.com`;
       const password = "password123";
 
       // Step 1: User registers (triggers onUserCreate)
@@ -244,7 +244,7 @@ describe("User Story Integration Tests", () => {
       const savedCardId = (saveResult.data as any).savedCardId;
 
       // Verify card exists
-      let getSavedCards = httpsCallable(functions, "getSavedCards");
+      const getSavedCards = httpsCallable(functions, "getSavedCards");
       let savedCardsResult = await getSavedCards({});
       let savedCards = (savedCardsResult.data as any).savedCards;
       expect(savedCards.length).toBe(1);
