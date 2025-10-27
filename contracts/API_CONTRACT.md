@@ -1,4 +1,4 @@
-# API Contract v0.5.0
+# API Contract v0.6.0
 
 **このファイルがバックエンドAPIの唯一の真実です。**
 
@@ -13,6 +13,11 @@
 **種類**: Firebase Auth onCreate Trigger (自動実行)
 
 **説明**: 新規ユーザー登録時に自動的に実行され、ユーザープロフィールと公開名刺を作成します。
+
+**⚠️ 重要: 非同期実行**:
+- この処理はFirebase Auth Triggerであり、**バックグラウンドで非同期に実行**されます
+- ユーザー作成直後に `getPublicCard` を呼び出すと、`not-found` エラーが返される場合があります
+- **推奨対応**: フロントエンドでリトライロジックを実装してください（例: 500ms待機後に再取得、最大3回まで）
 
 **処理内容**:
 - `/users/{userId}` に非公開プロフィールを作成
@@ -230,6 +235,7 @@
     badges?: string[]; // v0.5.0+: showOnPublicCard=true のバッジIDリスト
     theme: string;
     customCss?: string;
+    backgroundImageUrl?: string; // v0.6.0+: カード背景画像URL（Firebase Storage）
     updatedAt: string; // ISO 8601形式
   }
 }
@@ -1278,9 +1284,109 @@ Firestoreパス: `/moderators/{userId}`
 
 ---
 
+## 18. Image Upload API: `uploadProfileImage`
+
+**エンドポイント**: `uploadProfileImage` (Callable Function)
+
+**認証**: 必須
+
+**説明**: プロフィール画像をFirebase Storageにアップロードし、`/users`, `/public_cards`, `/private_cards` (存在する場合) の `photoURL` を更新します。
+
+**リクエスト**:
+```typescript
+{
+  imageData: string;    // Base64エンコードされた画像データ
+  contentType: string;  // "image/jpeg" | "image/png" | "image/webp"
+}
+```
+
+**バリデーション**:
+- `imageData`: 必須、非空文字列、Base64形式（Data URL形式 `data:image/...;base64,...` または純粋なBase64）
+- `contentType`: 必須、`image/jpeg`, `image/png`, `image/webp` のいずれか
+- ファイルサイズ: 5MB以内（Handler層で検証）
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  photoURL: string;  // Firebase Storage公開URL
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない
+- `invalid-argument`:
+  - `imageData` または `contentType` が不正
+  - ファイルサイズが5MBを超える
+  - Content-Typeが許可リストに含まれない
+- `not-found`: ユーザーまたは PublicCard が存在しない
+- `internal`: アップロード失敗
+
+**保存先**: `/user_images/{userId}/profile.{ext}` (Firebase Storage)
+
+**更新対象**:
+- `/users/{userId}` の `photoURL`
+- `/public_cards/{userId}` の `photoURL`
+- `/private_cards/{userId}` の `photoURL` (存在する場合)
+
+**セキュリティ**:
+- 本人のみアップロード可能（`request.auth.uid == userId`）
+- Storage Rulesでサイズ・Content-Type検証を二重実施
+
+---
+
+## 19. Image Upload API: `uploadCardBackground`
+
+**エンドポイント**: `uploadCardBackground` (Callable Function)
+
+**認証**: 必須
+
+**説明**: カード背景画像をFirebase Storageにアップロードし、`/public_cards/{userId}` の `backgroundImageUrl` を更新します。
+
+**リクエスト**:
+```typescript
+{
+  imageData: string;    // Base64エンコードされた画像データ
+  contentType: string;  // "image/jpeg" | "image/png" | "image/webp"
+}
+```
+
+**バリデーション**:
+- `imageData`: 必須、非空文字列、Base64形式
+- `contentType`: 必須、`image/jpeg`, `image/png`, `image/webp` のいずれか
+- ファイルサイズ: 5MB以内
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  backgroundImageUrl: string;  // Firebase Storage公開URL
+}
+```
+
+**エラー**:
+- `unauthenticated`: 認証されていない
+- `invalid-argument`:
+  - `imageData` または `contentType` が不正
+  - ファイルサイズが5MBを超える
+  - Content-Typeが許可リストに含まれない
+- `not-found`: PublicCard が存在しない
+- `internal`: アップロード失敗
+
+**保存先**: `/user_images/{userId}/card_background.{ext}` (Firebase Storage)
+
+**更新対象**:
+- `/public_cards/{userId}` の `backgroundImageUrl`
+
+**セキュリティ**:
+- 本人のみアップロード可能
+- 画像は公開読み取り可能（PublicCardの一部として）
+
+---
+
 ## 備考
 
-- バージョン: **v0.5.0** (バッジ管理システム Phase 2 - Visibility Control & Integration)
+- バージョン: **v0.6.0** (画像アップロード機能 - Profile & Card Background)
 - この契約は段階的に拡張されます
 - 変更履歴は `CHANGELOG.md` を参照してください
 - 機械可読な仕様は `openapi.yaml` に記載されます（将来的に）

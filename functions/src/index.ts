@@ -34,3 +34,4 @@ export {
   updateBadgeVisibility,
   getUserBadges,
 } from "./handlers/badgeHandlers";
+export {uploadProfileImage, uploadCardBackground} from "./handlers/imageUploadHandlers";

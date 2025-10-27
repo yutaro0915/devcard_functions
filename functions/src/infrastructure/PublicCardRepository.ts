@@ -64,6 +64,7 @@ export class PublicCardRepository implements IPublicCardRepository {
       connectedServices: data.connectedServices || {},
       theme: data.theme || "default",
       customCss: data.customCss || undefined,
+      backgroundImageUrl: data.backgroundImageUrl || undefined,
       updatedAt: data.updatedAt instanceof Date ? data.updatedAt : data.updatedAt.toDate(),
     };
   }

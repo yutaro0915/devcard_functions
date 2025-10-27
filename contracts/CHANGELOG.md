@@ -11,6 +11,55 @@
 
 ---
 
+## [0.6.0] - 2025-10-27
+
+### Added
+- **Image Upload Feature** (Issue #MVP-ImageUpload)
+  - **Callable Function: `uploadProfileImage`** (認証必須)
+    - プロフィール画像をFirebase Storageにアップロード
+    - `/users`, `/public_cards`, `/private_cards` (存在する場合) の `photoURL` を更新
+    - パラメータ: `{imageData: string (Base64), contentType: string}`
+    - レスポンス: `{success: true, photoURL: string}`
+    - 対応形式: JPEG, PNG, WebP
+    - サイズ制限: 5MB以内
+  - **Callable Function: `uploadCardBackground`** (認証必須)
+    - カード背景画像をFirebase Storageにアップロード
+    - `/public_cards` の `backgroundImageUrl` を更新
+    - パラメータ: `{imageData: string (Base64), contentType: string}`
+    - レスポンス: `{success: true, backgroundImageUrl: string}`
+    - 対応形式: JPEG, PNG, WebP
+    - サイズ制限: 5MB以内
+
+### Changed
+- **`getPublicCard` API拡張**
+  - レスポンスに `backgroundImageUrl?: string` フィールド追加
+  - `uploadCardBackground` でアップロードした背景画像URLを返却
+- **Domain Model拡張**
+  - `PublicCard` インターフェースに `backgroundImageUrl?: string` 追加
+- **Firebase Storage設定追加**
+  - `storage.rules` 新規作成
+  - `/user_images/{userId}/*` パスで画像を公開保存
+  - 本人のみ書き込み可、全員読み取り可
+
+### Technical
+- StorageService新規作成:
+  - Base64デコード、画像検証（サイズ・Content-Type）
+  - Firebase Storageへのアップロード
+  - 公開URL生成
+- UploadProfileImageUseCase/UploadCardBackgroundUseCase新規作成
+- PublicCardRepositoryのマッパーに `backgroundImageUrl` 対応追加
+- 統合テスト追加: 10テストケース（画像アップロード機能）
+- ユニットテスト追加: 3テストケース（StorageService）
+
+### Security
+- 画像アップロードは認証必須
+- 本人のみ自分の画像をアップロード可能（Storage Rules検証）
+- 画像サイズ・Content-TypeをHandler層とStorage Rulesで二重検証
+- 許可Content-Type: `image/jpeg`, `image/png`, `image/webp` のみ
+- PIIやトークンは画像メタデータに含めない
+
+---
+
 ## [0.5.0] - 2025-10-27
 
 ### Added

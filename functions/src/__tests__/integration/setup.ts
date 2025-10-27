@@ -23,11 +23,13 @@ export async function setupTestEnvironment(): Promise<void> {
   // Set environment variables for Admin SDK to use emulators
   process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
   process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
+  process.env.FIREBASE_STORAGE_EMULATOR_HOST = "127.0.0.1:9199";
   process.env.GCLOUD_PROJECT = "dev-card-ae929";
 
   // Initialize Admin SDK for creating custom tokens
   adminApp = admin.initializeApp({
     projectId: "dev-card-ae929",
+    storageBucket: "dev-card-ae929.appspot.com",
   });
 
   // Initialize Firebase app
