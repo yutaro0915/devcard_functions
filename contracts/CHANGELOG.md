@@ -11,6 +11,47 @@
 
 ---
 
+## [0.5.0] - 2025-10-27
+
+### Added
+- **Badge Management System - Phase 2** (Issue #33)
+  - **Callable Function: `updateBadgeVisibility`** (認証必須)
+    - ユーザーが自分のバッジ表示設定を変更
+    - PublicCard/PrivateCardごとに表示/非表示を制御
+    - パラメータ: `{badgeId, showOnPublicCard: boolean, showOnPrivateCard: boolean}`
+  - **Callable Function: `getUserBadges`** (公開)
+    - 指定ユーザーの所持バッジ一覧を取得
+    - visibility設定を含む
+    - パラメータ: `{userId}`
+
+### Changed
+- **`getPublicCard` API拡張**
+  - レスポンスに `badges?: string[]` フィールド追加
+  - `showOnPublicCard=true` のバッジIDのみ含まれる
+  - バッジがない場合は `undefined`
+- **`getPrivateCard` API拡張**
+  - レスポンスに `badges?: string[]` フィールド追加
+  - `showOnPrivateCard=true` のバッジIDのみ含まれる
+  - バッジがない場合は `undefined`
+- **Domain Model拡張**
+  - `PublicCard` インターフェースに `badges?: string[]` 追加
+  - `PrivateCard` インターフェースに `badges?: string[]` 追加
+
+### Technical
+- BadgeRepositoryに新メソッド追加:
+  - `findUserBadges(userId)`: ユーザーの全バッジ取得
+  - `updateVisibility(userId, badgeId, visibility)`: バッジ表示設定更新
+  - `getBadgeIdsForPublicCard(userId)`: PublicCard表示用バッジID取得
+  - `getBadgeIdsForPrivateCard(userId)`: PrivateCard表示用バッジID取得
+- GetPublicCardUseCase/GetPrivateCardUseCaseにバッジ統合ロジック追加
+- 統合テスト追加: 7テストケース（Phase 2機能）
+
+### Note
+- `getSavedCards` へのバッジ統合は今後対応予定
+- 既存APIへの非破壊的な拡張のみ（後方互換性あり）
+
+---
+
 ## [0.4.0] - 2025-10-27
 
 ### Added

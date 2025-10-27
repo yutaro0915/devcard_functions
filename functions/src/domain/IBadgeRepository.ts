@@ -40,4 +40,28 @@ export interface IBadgeRepository {
    * Check if a user already has a badge
    */
   hasUserBadge(userId: string, badgeId: string): Promise<boolean>;
+
+  /**
+   * Find all badges for a user
+   */
+  findUserBadges(userId: string): Promise<UserBadge[]>;
+
+  /**
+   * Update badge visibility for a user
+   */
+  updateVisibility(
+    userId: string,
+    badgeId: string,
+    visibility: {showOnPublicCard: boolean; showOnPrivateCard: boolean}
+  ): Promise<void>;
+
+  /**
+   * Get badge IDs that should be shown on public card
+   */
+  getBadgeIdsForPublicCard(userId: string): Promise<string[]>;
+
+  /**
+   * Get badge IDs that should be shown on private card
+   */
+  getBadgeIdsForPrivateCard(userId: string): Promise<string[]>;
 }

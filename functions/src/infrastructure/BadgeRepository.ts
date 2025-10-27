@@ -171,4 +171,67 @@ export class BadgeRepository implements IBadgeRepository {
 
     return doc.exists;
   }
+
+  /**
+   * Find all badges for a user
+   */
+  async findUserBadges(userId: string): Promise<UserBadge[]> {
+    const snapshot = await this.firestore
+      .collection("users")
+      .doc(userId)
+      .collection("badges")
+      .get();
+
+    return snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        badgeId: data.badgeId,
+        grantedAt: data.grantedAt.toDate(),
+        grantedBy: data.grantedBy,
+        reason: data.reason || undefined,
+        visibility: data.visibility,
+      };
+    });
+  }
+
+  /**
+   * Update badge visibility for a user
+   */
+  async updateVisibility(
+    userId: string,
+    badgeId: string,
+    visibility: {showOnPublicCard: boolean; showOnPrivateCard: boolean}
+  ): Promise<void> {
+    await this.firestore.collection("users").doc(userId).collection("badges").doc(badgeId).update({
+      visibility,
+    });
+  }
+
+  /**
+   * Get badge IDs that should be shown on public card
+   */
+  async getBadgeIdsForPublicCard(userId: string): Promise<string[]> {
+    const snapshot = await this.firestore
+      .collection("users")
+      .doc(userId)
+      .collection("badges")
+      .where("visibility.showOnPublicCard", "==", true)
+      .get();
+
+    return snapshot.docs.map((doc) => doc.data().badgeId);
+  }
+
+  /**
+   * Get badge IDs that should be shown on private card
+   */
+  async getBadgeIdsForPrivateCard(userId: string): Promise<string[]> {
+    const snapshot = await this.firestore
+      .collection("users")
+      .doc(userId)
+      .collection("badges")
+      .where("visibility.showOnPrivateCard", "==", true)
+      .get();
+
+    return snapshot.docs.map((doc) => doc.data().badgeId);
+  }
 }
