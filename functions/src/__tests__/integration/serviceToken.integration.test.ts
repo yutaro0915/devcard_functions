@@ -72,9 +72,7 @@ describe("saveGitHubToken Integration Tests", () => {
       // Don't create test user - no authentication
       const saveGitHubToken = httpsCallable(functions, "saveGitHubToken");
 
-      await expect(
-        saveGitHubToken({accessToken: "gho_test123"})
-      ).rejects.toThrow();
+      await expect(saveGitHubToken({accessToken: "gho_test123"})).rejects.toThrow();
     });
   });
 

@@ -65,7 +65,7 @@ async function testAuthTrigger() {
       const sanitized = expectedPrefix.replace(/[^a-zA-Z0-9]/g, ""); // Remove "-"
 
       if (userData?.displayName !== sanitized) {
-        console.warn(`⚠️  DisplayName mismatch:`);
+        console.warn("⚠️  DisplayName mismatch:");
         console.warn(`   Expected (sanitized): ${sanitized}`);
         console.warn(`   Actual: ${userData?.displayName}\n`);
       } else {
@@ -88,14 +88,14 @@ async function testAuthTrigger() {
 
       // Verify contract compliance
       if (publicCardData?.theme !== "default") {
-        console.error(`❌ Theme mismatch:`);
-        console.error(`   Expected: "default"`);
+        console.error("❌ Theme mismatch:");
+        console.error("   Expected: default");
         console.error(`   Actual: ${publicCardData?.theme}\n`);
       }
 
       if (JSON.stringify(publicCardData?.connectedServices) !== "{}") {
-        console.error(`❌ ConnectedServices mismatch:`);
-        console.error(`   Expected: {}`);
+        console.error("❌ ConnectedServices mismatch:");
+        console.error("   Expected: {}");
         console.error(`   Actual: ${JSON.stringify(publicCardData?.connectedServices)}\n`);
       }
     }

@@ -86,6 +86,7 @@ export async function cleanupTestData(): Promise<void> {
   if (!adminApp) return;
 
   const adminFirestore = adminApp.firestore();
+  const adminAuth = adminApp.auth();
 
   // Clear subcollections FIRST (before deleting parent documents)
   const usersSnapshot = await adminFirestore.collection("users").get();
@@ -113,6 +114,16 @@ export async function cleanupTestData(): Promise<void> {
   for (const collectionName of collections) {
     const snapshot = await adminFirestore.collection(collectionName).get();
     await Promise.all(snapshot.docs.map((d) => d.ref.delete()));
+  }
+
+  // Clean up Auth Emulator users (Fix for Issue #51)
+  try {
+    const listUsersResult = await adminAuth.listUsers();
+    const deletePromises = listUsersResult.users.map((user) => adminAuth.deleteUser(user.uid));
+    await Promise.all(deletePromises);
+  } catch (error) {
+    // Ignore errors in Auth Emulator cleanup (emulator may not support listUsers fully)
+    console.warn("Auth cleanup warning:", error);
   }
 
   // Sign out if signed in

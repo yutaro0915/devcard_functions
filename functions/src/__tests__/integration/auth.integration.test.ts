@@ -13,7 +13,7 @@ import {
 import {createUserWithEmailAndPassword} from "firebase/auth";
 import {doc, getDoc} from "firebase/firestore";
 
-describe.skip("onUserCreate Auth Trigger Integration Tests (Issue #51: requires auth cleanup)", () => {
+describe("onUserCreate Auth Trigger Integration Tests", () => {
   let firestore: ReturnType<typeof getFirestoreInstance>;
   let auth: ReturnType<typeof getAuthInstance>;
 

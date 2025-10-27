@@ -38,7 +38,7 @@ describe("User Story Integration Tests", () => {
     await teardownTestEnvironment();
   });
 
-  describe.skip("ストーリー1: 新規ユーザー登録からプロフィール設定まで (Issue #51)", () => {
+  describe("ストーリー1: 新規ユーザー登録からプロフィール設定まで", () => {
     it("ユーザーが登録し、プロフィールを更新し、GitHubを連携する", async () => {
       const email = `newuser-${Date.now()}@example.com`;
       const password = "password123";
@@ -51,7 +51,8 @@ describe("User Story Integration Tests", () => {
       // Verify: /users and /public_cards created per contract
       const userDoc = await getDoc(doc(firestore, "users", userId));
       expect(userDoc.exists()).toBe(true);
-      expect(userDoc.data()?.displayName).toBe("newuser");
+      // Contract line 29: email "newuser-{timestamp}@example.com" → sanitized to "newuser{timestamp}" (- removed)
+      expect(userDoc.data()?.displayName).toMatch(/^newuser\d+$/);
 
       const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
       expect(publicCardDoc.exists()).toBe(true);
@@ -132,7 +133,7 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー3: プライベート名刺の作成と交換", () => {
-    it.skip("ユーザーAがプライベート名刺を作成し、トークンでユーザーBと交換する (Firestore rules issue)", async () => {
+    it.skip("ユーザーAがプライベート名刺を作成し、トークンでユーザーBと交換する (Firestore rules: private_cards read permission)", async () => {
       const userA = "userA-story3";
       const userB = "userB-story3";
 
@@ -144,7 +145,7 @@ describe("User Story Integration Tests", () => {
       await updatePrivateCard({
         email: "alice@company.com",
         phoneNumber: "123-456-7890",
-        company: "Alice Corp",
+        lineId: "alice_line",
       });
 
       // Verify: private card created per contract
@@ -188,7 +189,7 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー4: 名刺の更新通知", () => {
-    it.skip("保存した名刺が更新されると hasUpdate フラグで通知される (needs investigation)", async () => {
+    it.skip("保存した名刺が更新されると hasUpdate フラグで通知される (Issue #53: hasUpdate always true)", async () => {
       const userA = "userA-story4";
       const userB = "userB-story4";
 
@@ -230,7 +231,7 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー5: 保存済み名刺の削除", () => {
-    it.skip("ユーザーが保存した名刺を削除できる (Firestore rules issue)", async () => {
+    it.skip("ユーザーが保存した名刺を削除できる (Firestore rules: saved_cards subcollection read permission)", async () => {
       const userA = "userA-story5";
       const userB = "userB-story5";
 
@@ -260,9 +261,7 @@ describe("User Story Integration Tests", () => {
       expect(savedCards.length).toBe(0);
 
       // Verify Firestore document deleted
-      const savedCardDoc = await getDoc(
-        doc(firestore, `users/${userA}/saved_cards`, savedCardId)
-      );
+      const savedCardDoc = await getDoc(doc(firestore, `users/${userA}/saved_cards`, savedCardId));
       expect(savedCardDoc.exists()).toBe(false);
     });
   });
@@ -432,6 +431,317 @@ describe("User Story Integration Tests", () => {
       const allCardsResult = await getSavedCards({});
       const allCards = (allCardsResult.data as any).savedCards;
       expect(allCards.length).toBe(2);
+    });
+  });
+
+  describe("ストーリー10: プロフィール更新のトランザクション", () => {
+    it("displayName 更新時に users/public_cards/private_cards が同期更新される", async () => {
+      const userId = "user-story10";
+
+      await createTestUser(userId, "user@example.com");
+
+      // Create private card first
+      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+      await updatePrivateCard({email: "contact@example.com"});
+
+      // Update profile
+      const updateProfile = httpsCallable(functions, "updateProfile");
+      await updateProfile({
+        displayName: "New Display Name",
+        bio: "Updated bio",
+      });
+
+      // Verify: all 3 documents updated per contract (lines 150-204)
+      const userDoc = await getDoc(doc(firestore, "users", userId));
+      expect(userDoc.data()?.displayName).toBe("New Display Name");
+
+      const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
+      expect(publicCardDoc.data()?.displayName).toBe("New Display Name");
+      expect(publicCardDoc.data()?.bio).toBe("Updated bio");
+
+      const privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
+      expect(privateCardDoc.data()?.displayName).toBe("New Display Name");
+      // bio should NOT be in private card (only in public card)
+      expect(privateCardDoc.data()?.bio).toBeUndefined();
+    });
+  });
+
+  describe("ストーリー11: PrivateCard の初回作成", () => {
+    it("初回 updatePrivateCard 実行時に displayName/photoURL が User から自動コピーされる", async () => {
+      const userId = "user-story11";
+
+      await createTestUser(userId, "user@example.com");
+
+      // Update user profile first
+      const updateProfile = httpsCallable(functions, "updateProfile");
+      await updateProfile({
+        displayName: "John Smith",
+        photoURL: "https://example.com/photo.jpg",
+      });
+
+      // First call to updatePrivateCard (should create doc)
+      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+      await updatePrivateCard({
+        email: "john@company.com",
+        phoneNumber: "555-1234",
+      });
+
+      // Verify: displayName/photoURL copied from User per contract (lines 502-503)
+      const privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
+      expect(privateCardDoc.exists()).toBe(true);
+      expect(privateCardDoc.data()?.displayName).toBe("John Smith");
+      expect(privateCardDoc.data()?.photoURL).toBe("https://example.com/photo.jpg");
+      expect(privateCardDoc.data()?.email).toBe("john@company.com");
+      expect(privateCardDoc.data()?.phoneNumber).toBe("555-1234");
+
+      // Second call (should only update specified fields)
+      await updatePrivateCard({
+        email: "john.new@company.com",
+      });
+
+      const updatedDoc = await getDoc(doc(firestore, "private_cards", userId));
+      expect(updatedDoc.data()?.email).toBe("john.new@company.com");
+      expect(updatedDoc.data()?.phoneNumber).toBe("555-1234"); // Preserved per contract
+      expect(updatedDoc.data()?.displayName).toBe("John Smith"); // Unchanged
+    });
+  });
+
+  describe("ストーリー12: ページネーション", () => {
+    it("30件以上の名刺を保存して startAfter でページネーションできる", async () => {
+      const mainUser = "mainuser-story12";
+      const numCards = 35;
+
+      // Setup main user
+      await createTestUser(mainUser, "mainuser@example.com");
+
+      // Create and save 35 cards
+      const saveCard = httpsCallable(functions, "saveCard");
+      for (let i = 0; i < numCards; i++) {
+        const cardUserId = `card-${i}-story12`;
+        await createTestUser(cardUserId, `card${i}@example.com`);
+        await createTestUser(mainUser, "mainuser@example.com");
+        await saveCard({cardUserId});
+      }
+
+      // First page (default limit=20 per contract v0.3.0)
+      const getSavedCards = httpsCallable(functions, "getSavedCards");
+      const firstPageResult = await getSavedCards({limit: 20});
+      const firstPage = (firstPageResult.data as any).savedCards;
+      expect(firstPage.length).toBe(20);
+
+      // Second page using startAfter
+      const lastCardId = firstPage[firstPage.length - 1].savedCardId;
+      const secondPageResult = await getSavedCards({
+        limit: 20,
+        startAfter: lastCardId,
+      });
+      const secondPage = (secondPageResult.data as any).savedCards;
+      expect(secondPage.length).toBe(15); // 35 - 20 = 15 remaining
+
+      // Verify no duplicates
+      const firstPageIds = firstPage.map((card: any) => card.savedCardId);
+      const secondPageIds = secondPage.map((card: any) => card.savedCardId);
+      const intersection = firstPageIds.filter((id: string) => secondPageIds.includes(id));
+      expect(intersection.length).toBe(0);
+    });
+  });
+
+  describe("ストーリー13: 同じユーザーの名刺を複数回保存 (イベント別)", () => {
+    it("同じユーザーの名刺を異なる eventId で複数回保存できる", async () => {
+      const mainUser = "mainuser-story13";
+      const targetUser = "target-story13";
+
+      // Setup
+      await createTestUser(mainUser, "mainuser@example.com");
+      await createTestUser(targetUser, "target@example.com");
+      await createTestUser(mainUser, "mainuser@example.com");
+
+      // Save same user's card 3 times with different eventIds
+      const saveCard = httpsCallable(functions, "saveCard");
+      await saveCard({
+        cardUserId: targetUser,
+        eventId: "conference-2024",
+        memo: "Met at conference",
+      });
+      await saveCard({
+        cardUserId: targetUser,
+        eventId: "meetup-2024",
+        memo: "Met at meetup",
+      });
+      await saveCard({
+        cardUserId: targetUser,
+        eventId: "hackathon-2024",
+        memo: "Team member",
+      });
+
+      // Verify: 3 separate saved cards exist per contract (lines 101, 141-146)
+      const getSavedCards = httpsCallable(functions, "getSavedCards");
+      const allCardsResult = await getSavedCards({});
+      const allCards = (allCardsResult.data as any).savedCards;
+      expect(allCards.length).toBe(3);
+
+      // All cards point to same user
+      allCards.forEach((card: any) => {
+        expect(card.cardUserId).toBe(targetUser);
+      });
+
+      // Filter by eventId
+      const conferenceResult = await getSavedCards({eventId: "conference-2024"});
+      const conferenceCards = (conferenceResult.data as any).savedCards;
+      expect(conferenceCards.length).toBe(1);
+      expect(conferenceCards[0].memo).toBe("Met at conference");
+    });
+  });
+
+  describe("ストーリー14: エラーハンドリング - 不正な入力", () => {
+    it("各エンドポイントが不正な入力に対してエラーを返す", async () => {
+      const userId = "user-story14";
+      await createTestUser(userId, "user@example.com");
+
+      // saveCard: cardUserId missing (contract line 135)
+      const saveCard = httpsCallable(functions, "saveCard");
+      await expect(saveCard({})).rejects.toThrow();
+
+      // updateProfile: all fields missing (contract line 196)
+      const updateProfile = httpsCallable(functions, "updateProfile");
+      await expect(updateProfile({})).rejects.toThrow();
+
+      // updateProfile: displayName too long (contract line 184)
+      await expect(updateProfile({displayName: "a".repeat(101)})).rejects.toThrow();
+
+      // updateProfile: bio too long (contract line 185)
+      await expect(updateProfile({bio: "a".repeat(501)})).rejects.toThrow();
+
+      // updateProfile: photoURL not HTTPS (contract line 186)
+      await expect(updateProfile({photoURL: "http://example.com/photo.jpg"})).rejects.toThrow();
+
+      // updatePrivateCard: all fields missing (contract line 493)
+      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+      await expect(updatePrivateCard({})).rejects.toThrow();
+
+      // updatePrivateCard: invalid email format (contract line 471)
+      await expect(updatePrivateCard({email: "invalid-email"})).rejects.toThrow();
+
+      // getSavedCards: invalid cardType (contract line 330)
+      const getSavedCards = httpsCallable(functions, "getSavedCards");
+      await expect(getSavedCards({cardType: "invalid"})).rejects.toThrow();
+
+      // getSavedCards: invalid limit (contract line 331)
+      await expect(getSavedCards({limit: 0})).rejects.toThrow();
+      await expect(getSavedCards({limit: 501})).rejects.toThrow();
+
+      // getPublicCard: empty userId (contract line 245)
+      const getPublicCard = httpsCallable(functions, "getPublicCard");
+      await expect(getPublicCard({userId: ""})).rejects.toThrow();
+
+      // savePrivateCard: invalid tokenId length (contract line 637)
+      const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+      await expect(savePrivateCard({tokenId: "short"})).rejects.toThrow();
+
+      // savePrivateCard: invalid Base64URL characters (contract line 636)
+      await expect(savePrivateCard({tokenId: "invalid+chars=here12"})).rejects.toThrow();
+    });
+  });
+
+  describe("ストーリー15: エラーハンドリング - リソース not-found", () => {
+    it("存在しないリソースに対して not-found エラーを返す", async () => {
+      const userId = "user-story15";
+      await createTestUser(userId, "user@example.com");
+
+      // saveCard: non-existent cardUserId (contract line 136)
+      const saveCard = httpsCallable(functions, "saveCard");
+      await expect(saveCard({cardUserId: "non-existent-user-12345"})).rejects.toThrow();
+
+      // getPublicCard: non-existent userId (contract line 246)
+      const getPublicCard = httpsCallable(functions, "getPublicCard");
+      await expect(getPublicCard({userId: "non-existent-user-12345"})).rejects.toThrow();
+
+      // markAsViewed: non-existent savedCardId (contract line 694)
+      const markAsViewed = httpsCallable(functions, "markAsViewed");
+      await expect(markAsViewed({savedCardId: "non-existent-card-12345"})).rejects.toThrow();
+
+      // deleteSavedCard: non-existent savedCardId (contract line 737)
+      const deleteSavedCard = httpsCallable(functions, "deleteSavedCard");
+      await expect(deleteSavedCard({savedCardId: "non-existent-card-12345"})).rejects.toThrow();
+
+      // savePrivateCard: non-existent tokenId (contract line 641)
+      const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+      await expect(savePrivateCard({tokenId: "abcdefghij1234567890"})).rejects.toThrow();
+
+      // createExchangeToken: PrivateCard not created yet (contract line 576)
+      const createExchangeToken = httpsCallable(functions, "createExchangeToken");
+      await expect(createExchangeToken({})).rejects.toThrow();
+    });
+  });
+
+  describe("ストーリー16: Twitter Handle のサニタイゼーション", () => {
+    it("twitterHandle の @ を削除して保存し、空文字列で削除できる", async () => {
+      const userId = "user-story16";
+      await createTestUser(userId, "user@example.com");
+
+      // Create private card with @username format
+      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+      await updatePrivateCard({
+        twitterHandle: "@johndoe",
+      });
+
+      // Verify: @ removed per contract (lines 474-479)
+      let privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
+      expect(privateCardDoc.data()?.twitterHandle).toBe("johndoe");
+
+      // Update without @ (should work)
+      await updatePrivateCard({
+        twitterHandle: "janedoe",
+      });
+
+      privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
+      expect(privateCardDoc.data()?.twitterHandle).toBe("janedoe");
+
+      // Delete by sending empty string per contract (line 480, 506)
+      await updatePrivateCard({
+        twitterHandle: "",
+      });
+
+      privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
+      expect(privateCardDoc.data()?.twitterHandle).toBeUndefined();
+    });
+  });
+
+  describe("ストーリー17: markAsViewed による lastKnownUpdatedAt の更新 (Issue #53)", () => {
+    it.skip("markAsViewed を呼び出すと lastKnownUpdatedAt が更新される (Issue #53: Contract uses <= not <)", async () => {
+      const userA = "userA-story17";
+      const userB = "userB-story17";
+
+      // Setup
+      await createTestUser(userA, "userA@example.com");
+      await createTestUser(userB, "userB@example.com");
+
+      // User A saves User B's card
+      await createTestUser(userA, "userA@example.com");
+      const saveCard = httpsCallable(functions, "saveCard");
+      const saveResult = await saveCard({cardUserId: userB});
+      const savedCardId = (saveResult.data as any).savedCardId;
+
+      // Initial state: hasUpdate should be true (never viewed)
+      const getSavedCards = httpsCallable(functions, "getSavedCards");
+      let savedCardsResult = await getSavedCards({});
+      let savedCards = (savedCardsResult.data as any).savedCards;
+      expect(savedCards[0].hasUpdate).toBe(true);
+
+      // Mark as viewed per contract (lines 669-709)
+      const markAsViewed = httpsCallable(functions, "markAsViewed");
+      await markAsViewed({savedCardId});
+
+      // Verify: lastViewedAt and lastKnownUpdatedAt updated
+      savedCardsResult = await getSavedCards({});
+      savedCards = (savedCardsResult.data as any).savedCards;
+      expect(savedCards[0].lastViewedAt).toBeDefined();
+      expect(savedCards[0].lastKnownUpdatedAt).toBeDefined();
+
+      // Issue #53: Contract line 323 uses <= not <, so hasUpdate stays true even after viewing
+      // This is a contract bug - hasUpdate should be false after markAsViewed
+      // Skipping test until contract is fixed
+      // expect(savedCards[0].hasUpdate).toBe(false);
     });
   });
 });
