@@ -1,6 +1,6 @@
 {
   "feature_name": "getSavedCards契約の明確化: サインアップ直後の空配列動作を文書化",
-  "status": "in_progress",
+  "status": "completed",
   "api_changes": [
     {
       "endpoint": "getSavedCards",
@@ -16,14 +16,14 @@
     {
       "test_file": "savedCard.integration.test.ts",
       "test_name": "サインアップ直後（saved_cards空）でgetSavedCardsを呼ぶと空配列を返す",
-      "status": "to_be_created",
-      "action": "新規作成"
+      "status": "completed",
+      "action": "新規作成済み"
     },
     {
       "test_file": "savedCard.integration.test.ts",
       "test_name": "フィルタ適用時に結果が0件の場合も空配列を返す",
-      "status": "to_be_created",
-      "action": "新規作成"
+      "status": "completed",
+      "action": "新規作成済み"
     }
   ],
   "client_work_items": [
@@ -63,8 +63,8 @@
   ],
   "breaking_changes": false,
   "notes_for_frontend": "getSavedCardsは、サインアップ直後（まだ1枚も名刺を保存していない場合）に空配列 [] を返します。これはエラーではなく正常な動作です。クライアント側では必ず savedCards.length をチェックしてから配列要素にアクセスしてください。また、空の場合は「まだ名刺を保存していません」のような適切なメッセージをUIに表示することを推奨します。",
-  "backend_commit_sha": null,
-  "pr_url": null,
+  "backend_commit_sha": "0be60b20e54115d222eb85f77c88763f53faf16b",
+  "pr_url": "https://github.com/yutaro0915/devcard_functions/pull/61",
   "related_issues": [],
   "estimated_effort": "30分（契約文書の追記 + テスト2件追加）"
 }
