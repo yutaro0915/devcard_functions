@@ -228,8 +228,8 @@ describe("GetSavedCardsUseCase", () => {
     const result = await useCase.execute(userId);
 
     expect(result).toHaveLength(1);
-    // Issue #20: Should return true when timestamps are equal (<=)
-    expect(result[0].hasUpdate).toBe(true);
+    // Issue #53: Fixed to use < instead of <=. When timestamps are equal, hasUpdate should be false (viewed)
+    expect(result[0].hasUpdate).toBe(false);
   });
 
   it("should calculate hasUpdate=true when lastKnownUpdatedAt is undefined", async () => {

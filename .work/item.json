@@ -1,68 +1,70 @@
 {
-  "feature_name": "Issue #53修正: hasUpdateロジックを<=から<に変更",
+  "feature_name": "getSavedCards契約の明確化: サインアップ直後の空配列動作を文書化",
   "status": "completed",
   "api_changes": [
     {
       "endpoint": "getSavedCards",
-      "change_type": "logic_fix",
-      "field": "hasUpdate",
-      "before": "lastKnownUpdatedAt <= master.updatedAt",
-      "after": "lastKnownUpdatedAt < master.updatedAt",
+      "change_type": "documentation_clarification",
+      "field": "savedCards",
+      "before": "空配列の場合について記載なし",
+      "after": "サインアップ直後は空配列を返すことを明記。レスポンス例を追加。",
       "breaking": false,
-      "reason": "markAsViewed後もhasUpdate=trueになるバグを修正"
+      "reason": "クライアント開発者が空配列を想定せずエラー処理を実装していた可能性。契約の不備を修正。"
     }
   ],
   "tests_required": [
     {
       "test_file": "savedCard.integration.test.ts",
-      "test_name": "更新検知ロジック - マスターのupdatedAtが同じ場合 hasUpdate=false",
-      "status": "already_exists_skipped",
-      "action": "enable"
+      "test_name": "サインアップ直後（saved_cards空）でgetSavedCardsを呼ぶと空配列を返す",
+      "status": "completed",
+      "action": "新規作成済み"
     },
     {
       "test_file": "savedCard.integration.test.ts",
-      "test_name": "markAsViewed 後、次回getSavedCardsでhasUpdate=falseになる",
-      "status": "already_exists_skipped",
-      "action": "enable"
-    },
-    {
-      "test_file": "userStory.integration.test.ts",
-      "test_name": "保存した名刺が更新されると hasUpdate フラグで通知される",
-      "status": "skipped_infrastructure_limitation",
-      "action": "skipped (covered by other tests)"
-    },
-    {
-      "test_file": "userStory.integration.test.ts",
-      "test_name": "markAsViewed を呼び出すと lastKnownUpdatedAt が更新される",
-      "status": "already_exists_skipped",
-      "action": "enable"
+      "test_name": "フィルタ適用時に結果が0件の場合も空配列を返す",
+      "status": "completed",
+      "action": "新規作成済み"
     }
   ],
   "client_work_items": [
     {
       "platform": "web",
-      "task": "リリースノート確認",
-      "description": "閲覧済み名刺の「最新版があります」バッジが正しく消えることを確認",
+      "task": "空配列チェックの追加",
+      "description": "getSavedCardsのレスポンスで savedCards.length === 0 の場合の処理を追加。配列の要素に直接アクセスする前に長さチェック。",
       "breaking": false,
-      "code_change_required": false
+      "code_change_required": true
+    },
+    {
+      "platform": "web",
+      "task": "空の場合のUI表示",
+      "description": "「まだ名刺を保存していません」などの適切なメッセージを表示",
+      "breaking": false,
+      "code_change_required": true
     },
     {
       "platform": "ios",
-      "task": "リリースノート確認",
-      "description": "閲覧済み名刺の「最新版があります」バッジが正しく消えることを確認",
+      "task": "空配列チェックの追加",
+      "description": "getSavedCardsのレスポンスで savedCards.count == 0 の場合の処理を追加",
       "breaking": false,
-      "code_change_required": false
+      "code_change_required": true
+    },
+    {
+      "platform": "ios",
+      "task": "空の場合のUI表示",
+      "description": "「まだ名刺を保存していません」などの適切なメッセージを表示",
+      "breaking": false,
+      "code_change_required": true
     }
   ],
   "security_notes": [
     "認証・認可への影響なし",
-    "入力バリデーションへの影響なし",
-    "純粋なロジック修正"
+    "Firestore Rulesは既に正しく設定されている",
+    "空のサブコレクションへのクエリは認証済みユーザーのみ可能"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "この修正により、markAsViewed後にhasUpdate=falseになります。これはバグ修正であり、期待通りの動作です。コード変更は不要ですが、閲覧済み名刺のバッジが正しく消えることを確認してください。",
-  "backend_commit_sha": "f531a316a2bab89b0082b6246b06f0fdac74e45d",
-  "pr_url": "https://github.com/yutaro0915/devcard_functions/pull/58",
-  "related_issues": ["#53"],
-  "estimated_effort": "10分（契約1行 + 実装1行 + テスト有効化5箇所）"
+  "notes_for_frontend": "getSavedCardsは、サインアップ直後（まだ1枚も名刺を保存していない場合）に空配列 [] を返します。これはエラーではなく正常な動作です。クライアント側では必ず savedCards.length をチェックしてから配列要素にアクセスしてください。また、空の場合は「まだ名刺を保存していません」のような適切なメッセージをUIに表示することを推奨します。",
+  "backend_commit_sha": "0be60b20e54115d222eb85f77c88763f53faf16b",
+  "pr_url": "https://github.com/yutaro0915/devcard_functions/pull/61",
+  "related_issues": [],
+  "estimated_effort": "30分（契約文書の追記 + テスト2件追加）"
 }

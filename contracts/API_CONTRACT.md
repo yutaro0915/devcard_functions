@@ -265,6 +265,11 @@
 
 **⚠️ 破壊的変更 (v0.2.0)**: レスポンス構造が大幅に変更されました。
 
+**⚠️ サインアップ直後の動作**:
+- サインアップ直後（まだ1枚も名刺を保存していない場合）、`savedCards`は**空配列 `[]` を返します**
+- これはエラーではなく、正常な動作です
+- クライアント側は空配列を適切に処理する必要があります（例: "まだ名刺を保存していません"というメッセージを表示）
+
 **リクエスト**:
 ```typescript
 {
@@ -279,7 +284,7 @@
 ```typescript
 {
   success: true;
-  savedCards: Array<{
+  savedCards: Array<{  // ⚠️ 空配列の場合あり（サインアップ直後など）
     // SavedCard metadata (全cardTypeで共通)
     savedCardId: string;               // ランダム生成されたID
     cardUserId: string;
@@ -318,6 +323,34 @@
 }
 ```
 
+**レスポンス例（空の場合）**:
+```json
+{
+  "success": true,
+  "savedCards": []
+}
+```
+
+**レスポンス例（データがある場合）**:
+```json
+{
+  "success": true,
+  "savedCards": [
+    {
+      "savedCardId": "abc123",
+      "cardUserId": "user123",
+      "cardType": "public",
+      "savedAt": "2025-01-15T10:30:00Z",
+      "hasUpdate": false,
+      "displayName": "山田太郎",
+      "photoURL": "https://example.com/photo.jpg",
+      "updatedAt": "2025-01-15T10:00:00Z",
+      "bio": "Software Engineer"
+    }
+  ]
+}
+```
+
 **更新検知ロジック**:
 ```typescript
 hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt < master.updatedAt
@@ -333,6 +366,8 @@ hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt < master.updatedAt
   - `limit` が1未満または500超
   - `startAfter` が文字列以外の型 (v0.3.0)
 - `internal`: サーバー内部エラー
+
+**💡 重要**: 空の`saved_cards`サブコレクションへのクエリは**エラーにならず**、空配列を返します。クライアント側では`savedCards.length`をチェックしてから配列要素にアクセスしてください。
 
 **ページネーション (v0.3.0) ✨**:
 - `startAfter`: 前回取得した最後のカードの `savedCardId` を指定

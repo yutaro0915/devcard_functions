@@ -289,6 +289,25 @@ describe("SavedCard Operations Integration Test", () => {
 
   describe("getSavedCards", () => {
     describe("成功系", () => {
+      it("サインアップ直後（saved_cards空）は空配列を返す", async () => {
+        // Setup: User with no saved cards
+        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+
+        const functions = getFunctionsInstance();
+        const getSavedCards = httpsCallable(functions, "getSavedCards");
+
+        // Call getSavedCards with empty saved_cards subcollection
+        const result = await getSavedCards({});
+
+        // Verify: Returns empty array (not error)
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
+        expect(Array.isArray(cards)).toBe(true);
+        expect(cards.length).toBe(0);
+        expect(cards).toEqual([]);
+      });
+
       it("PublicCardとPrivateCardの両方を同じユーザーから保存できる", async () => {
         await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
         await createPrivateCardDirectly(TEST_USER2_ID, "user2@example.com");
@@ -405,6 +424,29 @@ describe("SavedCard Operations Integration Test", () => {
 
         expect(cards.length).toBe(1);
         expect(cards[0].eventId).toBe("event-123");
+      });
+
+      it("フィルタ適用時に結果が0件の場合も空配列を返す", async () => {
+        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+        await createTestUser(TEST_USER2_ID, TEST_EMAIL2);
+
+        const functions = getFunctionsInstance();
+        const saveCard = httpsCallable(functions, "saveCard");
+        const getSavedCards = httpsCallable(functions, "getSavedCards");
+
+        // Save a public card only
+        await saveCard({cardUserId: TEST_USER2_ID});
+
+        // Filter by cardType='private' (no matches)
+        const result = await getSavedCards({cardType: "private"});
+        expect(result.data).toHaveProperty("success", true);
+        expect(result.data).toHaveProperty("savedCards");
+        const cards = (result.data as any).savedCards as any[];
+
+        // Verify: Empty array (not error)
+        expect(Array.isArray(cards)).toBe(true);
+        expect(cards.length).toBe(0);
+        expect(cards).toEqual([]);
       });
 
       it("getSavedCardsでlimit指定が動作", async () => {
