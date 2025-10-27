@@ -18,6 +18,9 @@ export interface PrivateCard {
   twitterHandle?: string;
   otherContacts?: string; // Free-form text for additional contacts
 
+  // Badges
+  badges?: string[]; // Badge IDs where showOnPrivateCard=true
+
   // Metadata
   updatedAt: Date;
   isDeleted?: boolean; // Soft delete flag

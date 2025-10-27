@@ -1,82 +1,62 @@
 {
-  "feature_name": "badge-management-system-phase1-foundation",
+  "feature_name": "badge-management-system-phase2-visibility-control",
   "status": "ready-for-review",
   "api_changes": [
     {
-      "path": "addModerator",
-      "method": "Callable Function (Internal)",
-      "change_type": "new-endpoint",
-      "breaking": false,
-      "details": "管理者が新しいモデレータを追加。Custom Claims を設定。パラメータ: {userId, role, permissions}",
-      "reason": "モデレータ権限の管理、運用チームの拡大"
-    },
-    {
-      "path": "createBadge",
+      "path": "updateBadgeVisibility",
       "method": "Callable Function",
       "change_type": "new-endpoint",
       "breaking": false,
-      "details": "モデレータがバッジを作成。パラメータ: {name, description, iconUrl?, color?, priority, isActive}",
-      "reason": "プラットフォーム全体のバッジ管理を実現。ユーザーエンゲージメント向上"
+      "details": "ユーザーが自分のバッジ表示設定を変更。パラメータ: {badgeId, showOnPublicCard: boolean, showOnPrivateCard: boolean}",
+      "reason": "ユーザーがバッジの表示/非表示を制御できるプライバシー機能"
     },
     {
-      "path": "listBadges",
+      "path": "getUserBadges",
       "method": "Callable Function",
       "change_type": "new-endpoint",
       "breaking": false,
-      "details": "全ユーザーが利用可能なバッジ一覧を取得。isActive=trueのみ返却。レスポンス: {badges: Badge[]}",
-      "reason": "フロントエンドでのバッジ情報表示、バッジ選択UI"
+      "details": "指定ユーザーの所持バッジ一覧を取得。レスポンス: {badges: UserBadge[]}。visibility設定を含む",
+      "reason": "フロントエンドでユーザーのバッジ一覧を表示するため"
     },
     {
-      "path": "grantBadge",
+      "path": "getPublicCard",
       "method": "Callable Function",
-      "change_type": "new-endpoint",
+      "change_type": "enhancement",
       "breaking": false,
-      "details": "モデレータが指定ユーザーにバッジを付与。パラメータ: {badgeId, targetUserId, reason?}。デフォルトで両カードに表示（visibility: {showOnPublicCard: true, showOnPrivateCard: true}）",
-      "reason": "手動バッジ付与によるユーザー認定・インセンティブ付与"
+      "details": "レスポンスに badges?: string[] フィールド追加。showOnPublicCard=true のバッジIDのみ含む",
+      "reason": "PublicCardにバッジ情報を統合して一度のAPI呼び出しで取得可能に"
     },
     {
-      "path": "revokeBadge",
+      "path": "getPrivateCard",
       "method": "Callable Function",
-      "change_type": "new-endpoint",
+      "change_type": "enhancement",
       "breaking": false,
-      "details": "モデレータがバッジを失効。パラメータ: {badgeId, targetUserId}",
-      "reason": "不正取得バッジの削除、条件不適合バッジの失効"
+      "details": "レスポンスに badges?: string[] フィールド追加。showOnPrivateCard=true のバッジIDのみ含む",
+      "reason": "PrivateCardにバッジ情報を統合して一度のAPI呼び出しで取得可能に"
     }
   ],
   "security_notes": [
-    "モデレータ権限はFirebase Auth Custom Claims で管理（moderator: true）",
-    "addModerator は admin のみ実行可能（最高権限）",
-    "createBadge, grantBadge, revokeBadge は moderator または admin のみ実行可能",
-    "listBadges は全ユーザーがアクセス可能（公開情報）",
-    "バッジ付与は監査ログとして /users/{userId}/badges/{badgeId} に記録",
-    "Custom Claims の検証は Handler 層で実施（request.auth.token.moderator）"
+    "updateBadgeVisibility は認証必須、自分が所持するバッジのみ変更可能",
+    "他人のバッジ表示設定は変更不可（所持していないバッジはnot-foundエラー）",
+    "getUserBadges は全ユーザーがアクセス可能（公開情報）",
+    "バッジ表示設定の変更は即座にgetPublicCard/getPrivateCardに反映"
   ],
   "tests_required": [
-    "admin が addModerator でモデレータを追加できる",
-    "一般ユーザーは addModerator を実行できない（permission-denied）",
-    "モデレータが有効なバッジを作成できる",
-    "一般ユーザーはバッジを作成できない（permission-denied）",
-    "未認証ユーザーはバッジを作成できない（unauthenticated）",
-    "バッジの優先度を指定できる",
-    "バッジ名が空の場合エラー（invalid-argument）",
-    "バッジ名が50文字を超える場合エラー（invalid-argument）",
-    "モデレータが指定ユーザーにバッジを付与できる",
-    "バッジ付与後、デフォルトで visibility: {showOnPublicCard: true, showOnPrivateCard: true} が設定される",
-    "バッジ付与時に理由を記録できる",
-    "存在しないバッジIDを付与しようとした場合エラー（not-found）",
-    "存在しないユーザーにバッジを付与しようとした場合エラー（not-found）",
-    "既に付与されているバッジを再付与しようとした場合エラー（already-exists）",
-    "モデレータがバッジを失効できる",
-    "全ユーザーがバッジ一覧を取得できる",
-    "非アクティブなバッジは一覧に表示されない"
+    "ユーザーが自分のバッジ表示設定を更新できる",
+    "未認証ユーザーはバッジ表示設定を変更できない（unauthenticated）",
+    "所持していないバッジの表示設定を変更しようとした場合エラー（not-found）",
+    "指定ユーザーの所持バッジを取得できる（複数バッジ）",
+    "getPublicCard のレスポンスに badges フィールドが含まれる",
+    "showOnPublicCard=false のバッジは getPublicCard に表示されない",
+    "getPrivateCard のレスポンスに badges フィールドが含まれる"
   ],
   "client_work_items": [
-    "バッジ一覧画面の実装（listBadges APIを使用）",
-    "モデレータ管理画面の実装（バッジ作成・付与UI）",
-    "バッジ付与フォームの実装（対象ユーザー選択、バッジ選択、理由入力）",
-    "バッジアイコンの表示優先度に従ったソート処理"
+    "バッジ表示設定画面の実装（各バッジごとにPublic/Privateのトグル）",
+    "getUserBadges APIを使用してユーザープロフィールにバッジ一覧を表示",
+    "getPublicCard/getPrivateCard の badges フィールドを使用してカードにバッジを表示",
+    "updateBadgeVisibility を使用してバッジ表示設定を更新"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "この変更はすべて非破壊的な追加です。\n\nPhase 1の追加機能:\n1. バッジ管理システムの基盤（モデレータのみ作成・付与可能）\n2. バッジ一覧取得API（listBadges）\n3. バッジはアイコンURL、色、優先度を持ち、フロントエンドで自由にデザイン可能\n\n注意事項:\n- モデレータUIは管理者専用画面として実装\n- Custom Claims（moderator: true）の確認はバックエンドで実施済み\n- Phase 2でバッジ表示制御（updateBadgeVisibility）と既存API統合（getPublicCard等）を実装予定\n- バッジアイコンは外部URLまたはFirebase Storageを想定",
+  "notes_for_frontend": "この変更はすべて非破壊的な追加/拡張です。\n\nPhase 2の追加機能:\n1. ユーザーがバッジ表示を制御できるプライバシー機能（updateBadgeVisibility）\n2. ユーザーのバッジ一覧取得API（getUserBadges）\n3. getPublicCard/getPrivateCard にバッジ情報を統合（badges?: string[]）\n\n推奨UI:\n- バッジ設定画面: 各バッジごとにPublicCard/PrivateCardのトグルスイッチ\n- デフォルト: 両方表示（showOnPublicCard: true, showOnPrivateCard: true）\n- カードプレビュー: 設定変更後、即座に反映\n\n注意事項:\n- badges フィールドはオプショナル（バッジがない場合はundefined）\n- バッジIDの配列のみ返却（詳細情報はlistBadges APIで取得）\n- getSavedCards へのバッジ統合は今後対応予定",
   "backend_commit_sha": null
 }

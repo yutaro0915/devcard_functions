@@ -29,6 +29,9 @@ export interface PublicCard {
   // Connected services (loosely coupled, extensible)
   connectedServices: Record<string, ConnectedService>;
 
+  // Badges
+  badges?: string[]; // Badge IDs where showOnPublicCard=true
+
   // Customization
   theme: string; // e.g., "default", "dark", "minimal"
   customCss?: string; // sanitized

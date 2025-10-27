@@ -523,4 +523,233 @@ describe("Badge Management Integration Test", () => {
       expect(badges[0].name).toBe("Active Badge");
     });
   });
+
+  describe("updateBadgeVisibility (Phase 2)", () => {
+    it("ユーザーが自分のバッジ表示設定を更新できる", async () => {
+      await createTestUser(MODERATOR_USER_ID, MODERATOR_EMAIL);
+      await createTestUser(REGULAR_USER_ID, REGULAR_EMAIL);
+      await setCustomClaimsAndReauth(MODERATOR_USER_ID, {moderator: true});
+
+      const functions = getFunctionsInstance();
+      const createBadge = httpsCallable(functions, "createBadge");
+      const grantBadge = httpsCallable(functions, "grantBadge");
+
+      // Create and grant badge
+      const badgeResult = await createBadge({
+        name: "Test Badge",
+        description: "Test",
+        priority: 1,
+        isActive: true,
+      });
+      const badgeId = (badgeResult.data as any).badge.badgeId;
+
+      await grantBadge({
+        badgeId,
+        targetUserId: REGULAR_USER_ID,
+      });
+
+      // Re-auth as regular user
+      await setCustomClaimsAndReauth(REGULAR_USER_ID, {});
+
+      // Update visibility
+      const updateBadgeVisibility = httpsCallable(functions, "updateBadgeVisibility");
+      const result = await updateBadgeVisibility({
+        badgeId,
+        showOnPublicCard: false,
+        showOnPrivateCard: true,
+      });
+
+      expect(result.data).toEqual({success: true});
+
+      // Verify using getUserBadges
+      const getUserBadges = httpsCallable(functions, "getUserBadges");
+      const badgesResult = await getUserBadges({userId: REGULAR_USER_ID});
+      const badges = (badgesResult.data as any).badges;
+
+      expect(badges.length).toBe(1);
+      expect(badges[0].visibility).toEqual({
+        showOnPublicCard: false,
+        showOnPrivateCard: true,
+      });
+    });
+
+    it("未認証ユーザーはバッジ表示設定を変更できない", async () => {
+      const {getAuth} = await import("firebase/auth");
+      const auth = getAuth();
+      await auth.signOut();
+
+      const functions = getFunctionsInstance();
+      const updateBadgeVisibility = httpsCallable(functions, "updateBadgeVisibility");
+
+      await expect(
+        updateBadgeVisibility({
+          badgeId: "some-badge",
+          showOnPublicCard: true,
+          showOnPrivateCard: true,
+        })
+      ).rejects.toThrow();
+    });
+
+    it("所持していないバッジの表示設定を変更しようとした場合エラー", async () => {
+      await createTestUser(REGULAR_USER_ID, REGULAR_EMAIL);
+      await setCustomClaimsAndReauth(REGULAR_USER_ID, {});
+
+      const functions = getFunctionsInstance();
+      const updateBadgeVisibility = httpsCallable(functions, "updateBadgeVisibility");
+
+      await expect(
+        updateBadgeVisibility({
+          badgeId: "non-existent-badge",
+          showOnPublicCard: true,
+          showOnPrivateCard: true,
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("getUserBadges (Phase 2)", () => {
+    it("指定ユーザーの所持バッジを取得できる", async () => {
+      await createTestUser(MODERATOR_USER_ID, MODERATOR_EMAIL);
+      await createTestUser(REGULAR_USER_ID, REGULAR_EMAIL);
+      await setCustomClaimsAndReauth(MODERATOR_USER_ID, {moderator: true});
+
+      const functions = getFunctionsInstance();
+      const createBadge = httpsCallable(functions, "createBadge");
+      const grantBadge = httpsCallable(functions, "grantBadge");
+
+      // Create two badges
+      const badge1Result = await createBadge({
+        name: "Badge 1",
+        description: "First badge",
+        priority: 1,
+        isActive: true,
+      });
+      const badge1Id = (badge1Result.data as any).badge.badgeId;
+
+      const badge2Result = await createBadge({
+        name: "Badge 2",
+        description: "Second badge",
+        priority: 2,
+        isActive: true,
+      });
+      const badge2Id = (badge2Result.data as any).badge.badgeId;
+
+      // Grant both badges
+      await grantBadge({badgeId: badge1Id, targetUserId: REGULAR_USER_ID});
+      await grantBadge({badgeId: badge2Id, targetUserId: REGULAR_USER_ID});
+
+      // Get user badges
+      const getUserBadges = httpsCallable(functions, "getUserBadges");
+      const result = await getUserBadges({userId: REGULAR_USER_ID});
+      const badges = (result.data as any).badges;
+
+      expect(badges.length).toBe(2);
+      expect(badges.map((b: any) => b.badgeId).sort()).toEqual([badge1Id, badge2Id].sort());
+    });
+  });
+
+  describe("getPublicCard with badges (Phase 2)", () => {
+    it("getPublicCard のレスポンスに badges フィールドが含まれる", async () => {
+      await createTestUser(MODERATOR_USER_ID, MODERATOR_EMAIL);
+      await createTestUser(REGULAR_USER_ID, REGULAR_EMAIL);
+      await setCustomClaimsAndReauth(MODERATOR_USER_ID, {moderator: true});
+
+      const functions = getFunctionsInstance();
+      const createBadge = httpsCallable(functions, "createBadge");
+      const grantBadge = httpsCallable(functions, "grantBadge");
+      const getPublicCard = httpsCallable(functions, "getPublicCard");
+
+      // Create and grant badge
+      const badgeResult = await createBadge({
+        name: "Public Badge",
+        description: "Visible on public card",
+        priority: 1,
+        isActive: true,
+      });
+      const badgeId = (badgeResult.data as any).badge.badgeId;
+
+      await grantBadge({badgeId, targetUserId: REGULAR_USER_ID});
+
+      // Get public card
+      const cardResult = await getPublicCard({userId: REGULAR_USER_ID});
+      const publicCard = (cardResult.data as any).publicCard;
+
+      expect(publicCard.badges).toBeDefined();
+      expect(publicCard.badges).toContain(badgeId);
+    });
+
+    it("showOnPublicCard=false のバッジは getPublicCard に表示されない", async () => {
+      await createTestUser(MODERATOR_USER_ID, MODERATOR_EMAIL);
+      await createTestUser(REGULAR_USER_ID, REGULAR_EMAIL);
+      await setCustomClaimsAndReauth(MODERATOR_USER_ID, {moderator: true});
+
+      const functions = getFunctionsInstance();
+      const createBadge = httpsCallable(functions, "createBadge");
+      const grantBadge = httpsCallable(functions, "grantBadge");
+      const getPublicCard = httpsCallable(functions, "getPublicCard");
+
+      // Create and grant badge
+      const badgeResult = await createBadge({
+        name: "Hidden Badge",
+        description: "Not visible on public card",
+        priority: 1,
+        isActive: true,
+      });
+      const badgeId = (badgeResult.data as any).badge.badgeId;
+
+      await grantBadge({badgeId, targetUserId: REGULAR_USER_ID});
+
+      // Update visibility to hide from public card
+      await setCustomClaimsAndReauth(REGULAR_USER_ID, {});
+      const updateBadgeVisibility = httpsCallable(functions, "updateBadgeVisibility");
+      await updateBadgeVisibility({
+        badgeId,
+        showOnPublicCard: false,
+        showOnPrivateCard: true,
+      });
+
+      // Get public card
+      const cardResult = await getPublicCard({userId: REGULAR_USER_ID});
+      const publicCard = (cardResult.data as any).publicCard;
+
+      // When no badges are visible, badges field should be undefined or falsy
+      expect(publicCard.badges).toBeFalsy();
+    });
+  });
+
+  describe("getPrivateCard with badges (Phase 2)", () => {
+    it("getPrivateCard のレスポンスに badges フィールドが含まれる", async () => {
+      await createTestUser(MODERATOR_USER_ID, MODERATOR_EMAIL);
+      await createTestUser(REGULAR_USER_ID, REGULAR_EMAIL);
+      await setCustomClaimsAndReauth(MODERATOR_USER_ID, {moderator: true});
+
+      const functions = getFunctionsInstance();
+      const createBadge = httpsCallable(functions, "createBadge");
+      const grantBadge = httpsCallable(functions, "grantBadge");
+
+      // Create and grant badge
+      const badgeResult = await createBadge({
+        name: "Private Badge",
+        description: "Visible on private card",
+        priority: 1,
+        isActive: true,
+      });
+      const badgeId = (badgeResult.data as any).badge.badgeId;
+
+      await grantBadge({badgeId, targetUserId: REGULAR_USER_ID});
+
+      // Create private card and get it as regular user
+      await setCustomClaimsAndReauth(REGULAR_USER_ID, {});
+      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+      await updatePrivateCard({email: "regular@example.com"});
+
+      const getPrivateCard = httpsCallable(functions, "getPrivateCard");
+      const cardResult = await getPrivateCard({});
+      const privateCard = cardResult.data as any;
+
+      expect(privateCard).not.toBeNull();
+      expect(privateCard.badges).toBeDefined();
+      expect(privateCard.badges).toContain(badgeId);
+    });
+  });
 });

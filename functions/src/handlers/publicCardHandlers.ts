@@ -2,6 +2,7 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
 import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
+import {BadgeRepository} from "../infrastructure/BadgeRepository";
 import {GetPublicCardUseCase} from "../application/GetPublicCardUseCase";
 
 const firestore = getFirestore();
@@ -23,7 +24,8 @@ export const getPublicCard = onCall(async (request) => {
 
     // Initialize dependencies
     const publicCardRepository = new PublicCardRepository(firestore);
-    const getPublicCardUseCase = new GetPublicCardUseCase(publicCardRepository);
+    const badgeRepository = new BadgeRepository(firestore);
+    const getPublicCardUseCase = new GetPublicCardUseCase(publicCardRepository, badgeRepository);
 
     // Execute use case
     const publicCard = await getPublicCardUseCase.execute(userId);

@@ -26,4 +26,11 @@ export {
 export {getPublicCard} from "./handlers/publicCardHandlers";
 export {manualSync} from "./handlers/syncHandlers";
 export {addModerator} from "./handlers/moderatorHandlers";
-export {createBadge, listBadges, grantBadge, revokeBadge} from "./handlers/badgeHandlers";
+export {
+  createBadge,
+  listBadges,
+  grantBadge,
+  revokeBadge,
+  updateBadgeVisibility,
+  getUserBadges,
+} from "./handlers/badgeHandlers";

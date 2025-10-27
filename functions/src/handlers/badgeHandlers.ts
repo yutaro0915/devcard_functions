@@ -265,3 +265,96 @@ export const revokeBadge = onCall(async (request) => {
     throw new HttpsError("internal", "Failed to revoke badge");
   }
 });
+
+/**
+ * Update badge visibility
+ * User can control whether a badge is shown on their PublicCard/PrivateCard
+ */
+export const updateBadgeVisibility = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  const userId = request.auth.uid;
+  const {badgeId, showOnPublicCard, showOnPrivateCard} = request.data;
+
+  // Validate input
+  if (!badgeId || typeof badgeId !== "string") {
+    throw new HttpsError("invalid-argument", "badgeId is required and must be a string");
+  }
+  if (typeof showOnPublicCard !== "boolean") {
+    throw new HttpsError("invalid-argument", "showOnPublicCard must be a boolean");
+  }
+  if (typeof showOnPrivateCard !== "boolean") {
+    throw new HttpsError("invalid-argument", "showOnPrivateCard must be a boolean");
+  }
+
+  const {UpdateBadgeVisibilityUseCase} = await import(
+    "../application/UpdateBadgeVisibilityUseCase.js"
+  );
+  const {BadgeRepository} = await import("../infrastructure/BadgeRepository.js");
+
+  const badgeRepository = new BadgeRepository(firestore);
+  const useCase = new UpdateBadgeVisibilityUseCase(badgeRepository);
+
+  try {
+    await useCase.execute({
+      userId,
+      badgeId,
+      showOnPublicCard,
+      showOnPrivateCard,
+    });
+
+    return {success: true};
+  } catch (error) {
+    if (error instanceof BadgeNotFoundError) {
+      throw new HttpsError("not-found", `User does not have badge ${error.badgeId}`);
+    }
+    throw new HttpsError("internal", "Failed to update badge visibility");
+  }
+});
+
+/**
+ * Get user badges
+ * Returns all badges granted to a user
+ */
+export const getUserBadges = onCall(async (request) => {
+  const {userId} = request.data;
+
+  // Validate input
+  if (!userId || typeof userId !== "string") {
+    throw new HttpsError("invalid-argument", "userId is required and must be a string");
+  }
+
+  const {GetUserBadgesUseCase} = await import("../application/GetUserBadgesUseCase.js");
+  const {BadgeRepository} = await import("../infrastructure/BadgeRepository.js");
+
+  const badgeRepository = new BadgeRepository(firestore);
+  const useCase = new GetUserBadgesUseCase(badgeRepository);
+
+  try {
+    const result = await useCase.execute({userId});
+
+    // Convert dates to ISO strings
+    const badges = result.badges.map((badge: {
+      badgeId: string;
+      grantedAt: Date;
+      grantedBy: string;
+      reason?: string;
+      visibility: {showOnPublicCard: boolean; showOnPrivateCard: boolean};
+    }) => ({
+      badgeId: badge.badgeId,
+      grantedAt: badge.grantedAt.toISOString(),
+      grantedBy: badge.grantedBy,
+      reason: badge.reason,
+      visibility: badge.visibility,
+    }));
+
+    return {
+      success: true,
+      badges,
+    };
+  } catch (error) {
+    throw new HttpsError("internal", "Failed to get user badges");
+  }
+});

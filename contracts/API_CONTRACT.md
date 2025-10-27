@@ -1,4 +1,4 @@
-# API Contract v0.4.0
+# API Contract v0.5.0
 
 **このファイルがバックエンドAPIの唯一の真実です。**
 
@@ -1170,9 +1170,113 @@ Firestoreパス: `/moderators/{userId}`
 
 ---
 
+## 16. バッジ表示設定更新: `updateBadgeVisibility`
+
+**種類**: Callable Function (認証必須)
+
+**説明**: ユーザーが自分のバッジをPublicCard/PrivateCardに表示するか個別に設定します。
+
+**権限**: 認証必須（自分のバッジのみ変更可能）
+
+**リクエスト**:
+```typescript
+{
+  badgeId: string;              // バッジID
+  showOnPublicCard: boolean;    // PublicCardに表示するか
+  showOnPrivateCard: boolean;   // PrivateCardに表示するか
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 未認証
+- `invalid-argument`: 入力パラメータが不正
+- `not-found`: ユーザーが指定されたバッジを所持していない
+- `internal`: サーバーエラー
+
+---
+
+## 17. ユーザーバッジ取得: `getUserBadges`
+
+**種類**: Callable Function (公開)
+
+**説明**: 指定ユーザーの所持バッジ一覧を取得します。
+
+**権限**: なし（公開エンドポイント）
+
+**リクエスト**:
+```typescript
+{
+  userId: string;  // バッジを取得するユーザーID
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  badges: Array<{
+    badgeId: string;
+    grantedAt: string;        // ISO 8601形式
+    grantedBy: string;        // 付与者のuserId
+    reason?: string;          // 付与理由（任意）
+    visibility: {
+      showOnPublicCard: boolean;
+      showOnPrivateCard: boolean;
+    };
+  }>;
+}
+```
+
+**エラー**:
+- `invalid-argument`: 入力パラメータが不正
+- `internal`: サーバーエラー
+
+---
+
+## 既存APIの拡張 (Phase 2)
+
+### getPublicCard の拡張
+
+**追加フィールド**:
+```typescript
+{
+  // ... 既存フィールド
+  badges?: string[];  // showOnPublicCard=true のバッジIDリスト
+}
+```
+
+- `showOnPublicCard=true` のバッジのみ含まれる
+- バッジがない場合は `undefined` または未定義
+
+### getPrivateCard の拡張
+
+**追加フィールド**:
+```typescript
+{
+  // ... 既存フィールド
+  badges?: string[];  // showOnPrivateCard=true のバッジIDリスト
+}
+```
+
+- `showOnPrivateCard=true` のバッジのみ含まれる
+- バッジがない場合は `undefined` または未定義
+
+### getSavedCards の拡張 (今後対応予定)
+
+各保存されたカード情報に `badges?: string[]` フィールドが追加される予定です。
+
+---
+
 ## 備考
 
-- バージョン: **v0.4.0** (バッジ管理システム Phase 1)
+- バージョン: **v0.5.0** (バッジ管理システム Phase 2 - Visibility Control & Integration)
 - この契約は段階的に拡張されます
 - 変更履歴は `CHANGELOG.md` を参照してください
 - 機械可読な仕様は `openapi.yaml` に記載されます（将来的に）

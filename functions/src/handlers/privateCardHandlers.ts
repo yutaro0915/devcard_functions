@@ -197,8 +197,10 @@ export const getPrivateCard = onCall(async (request) => {
     logger.info("getPrivateCard called", {userId});
 
     // Execute use case
+    const {BadgeRepository} = await import("../infrastructure/BadgeRepository.js");
     const privateCardRepository = new PrivateCardRepository(firestore);
-    const useCase = new GetPrivateCardUseCase(privateCardRepository);
+    const badgeRepository = new BadgeRepository(firestore);
+    const useCase = new GetPrivateCardUseCase(privateCardRepository, badgeRepository);
 
     const privateCard = await useCase.execute(userId);
 
