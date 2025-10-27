@@ -318,11 +318,13 @@
 }
 ```
 
-**更新検知ロジック (v0.3.0で改善)**:
+**更新検知ロジック**:
 ```typescript
-hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt <= master.updatedAt
+hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt < master.updatedAt
 ```
-⚠️ v0.3.0変更: 境界条件を `<` から `<=` に変更。同じミリ秒での更新も検知可能に。
+- `lastKnownUpdatedAt`が未設定（初回）の場合: `hasUpdate = true`
+- `lastKnownUpdatedAt < master.updatedAt`の場合: `hasUpdate = true` (更新あり)
+- `lastKnownUpdatedAt == master.updatedAt`の場合: `hasUpdate = false` (閲覧済み・最新)
 
 **エラー**:
 - `unauthenticated`: 認証されていない場合

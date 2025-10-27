@@ -1,56 +1,68 @@
 {
-  "feature_name": "fix-security-and-private-card-validation",
-  "status": "ready-for-review",
+  "feature_name": "Issue #53修正: hasUpdateロジックを<=から<に変更",
+  "status": "completed",
   "api_changes": [
     {
-      "path": "createExchangeToken",
-      "method": "Callable Function",
-      "change_type": "security-fix",
+      "endpoint": "getSavedCards",
+      "change_type": "logic_fix",
+      "field": "hasUpdate",
+      "before": "lastKnownUpdatedAt <= master.updatedAt",
+      "after": "lastKnownUpdatedAt < master.updatedAt",
       "breaking": false,
-      "details": "トークンID生成を Math.random() から crypto.randomBytes() に変更。文字セットを [A-Za-z0-9] から Base64URL [A-Za-z0-9_-] に拡張。",
-      "reason": "Math.random() は暗号学的に安全ではなく、攻撃者がトークンIDを推測できる脆弱性がある（Issue #31 - CRITICAL）"
+      "reason": "markAsViewed後もhasUpdate=trueになるバグを修正"
+    }
+  ],
+  "tests_required": [
+    {
+      "test_file": "savedCard.integration.test.ts",
+      "test_name": "更新検知ロジック - マスターのupdatedAtが同じ場合 hasUpdate=false",
+      "status": "already_exists_skipped",
+      "action": "enable"
     },
     {
-      "path": "savePrivateCard",
-      "method": "Callable Function",
-      "change_type": "validation-update",
-      "breaking": false,
-      "details": "tokenId バリデーションパターンを /^[A-Za-z0-9]{20}$/ から /^[A-Za-z0-9_-]{20}$/ に更新（Base64URL対応）",
-      "reason": "createExchangeToken の文字セット拡張に伴う整合性維持"
+      "test_file": "savedCard.integration.test.ts",
+      "test_name": "markAsViewed 後、次回getSavedCardsでhasUpdate=falseになる",
+      "status": "already_exists_skipped",
+      "action": "enable"
     },
     {
-      "path": "updatePrivateCard",
-      "method": "Callable Function",
-      "change_type": "validation-fix",
-      "breaking": true,
-      "details": "twitterHandle に空文字列 '' を送信した場合、Firestore に '' を保存せず undefined（フィールド削除）に変更",
-      "reason": "データ一貫性の向上。空文字列 vs undefined の曖昧さを排除し、オプショナルフィールドの標準動作に統一"
+      "test_file": "userStory.integration.test.ts",
+      "test_name": "保存した名刺が更新されると hasUpdate フラグで通知される",
+      "status": "skipped_infrastructure_limitation",
+      "action": "skipped (covered by other tests)"
+    },
+    {
+      "test_file": "userStory.integration.test.ts",
+      "test_name": "markAsViewed を呼び出すと lastKnownUpdatedAt が更新される",
+      "status": "already_exists_skipped",
+      "action": "enable"
+    }
+  ],
+  "client_work_items": [
+    {
+      "platform": "web",
+      "task": "リリースノート確認",
+      "description": "閲覧済み名刺の「最新版があります」バッジが正しく消えることを確認",
+      "breaking": false,
+      "code_change_required": false
+    },
+    {
+      "platform": "ios",
+      "task": "リリースノート確認",
+      "description": "閲覧済み名刺の「最新版があります」バッジが正しく消えることを確認",
+      "breaking": false,
+      "code_change_required": false
     }
   ],
   "security_notes": [
-    "crypto.randomBytes(15) で120ビットのエントロピーを生成（衝突確率: 2^-120）",
-    "Base64URLエンコードによりURL/QRコード安全な文字列を生成",
-    "OSのエントロピープールを使用した予測不可能な乱数生成（CSPRNG）",
-    "twitterHandle の空文字列処理により、不要なフィールドが Firestore に保存されなくなる"
+    "認証・認可への影響なし",
+    "入力バリデーションへの影響なし",
+    "純粋なロジック修正"
   ],
-  "tests_required": [
-    "CreateExchangeTokenUseCase (Unit): 生成されたtokenIdが20文字のBase64URL形式であること",
-    "CreateExchangeTokenUseCase (Unit): 100回生成して重複がないこと",
-    "CreateExchangeTokenUseCase (Unit): Math.random() が使用されていないことを確認",
-    "savePrivateCard (Integration): Base64URL文字セット（-と_含む）のtokenIdを受け入れること",
-    "updatePrivateCard (Integration): twitterHandle に '' を送信すると undefined で保存される",
-    "updatePrivateCard (Integration): twitterHandle に 'testuser' を送信すると 'testuser' で保存される",
-    "updatePrivateCard (Integration): twitterHandle に '@testuser' を送信すると 'testuser' で保存される",
-    "getPrivateCard (Integration): twitterHandle が undefined の場合、レスポンスに含まれない"
-  ],
-  "client_work_items": [
-    "Web: QRコード読み取り後のtokenId処理で Base64URL文字（-と_）を正しく扱うことを確認",
-    "iOS: 同様に、QRコード読み取り後のURL解析で Base64URL文字を正しく扱うことを確認",
-    "Web: twitterHandle のチェックを `=== ''` から `!twitterHandle` または `=== undefined` に変更（該当箇所がある場合）",
-    "iOS: 同様に、twitterHandle の空チェックを調整",
-    "Web/iOS: PrivateCard 編集画面で「X アカウントを削除」する場合、空文字列 '' を送信する仕様を維持（サーバー側で undefined に変換される）"
-  ],
-  "breaking_changes": true,
-  "notes_for_frontend": "この変更には1つのセキュリティ修正と1つの軽微な破壊的変更が含まれます。\n\n## 変更1: トークンIDのセキュリティ強化（非破壊的）\n- createExchangeToken で生成される tokenId の文字セットが [A-Za-z0-9] から [A-Za-z0-9_-] に拡張\n- tokenId の長さ（20文字）は変更なし\n- QRコード読み取り後のURL解析で `-` と `_` を含む tokenId を正しく処理できることを確認してください\n\n## 変更2: twitterHandle の空文字列処理（軽微な破壊的変更）\n\n### 変更内容\n- updatePrivateCard で `twitterHandle: ''` を送信すると、Firestore に `''` が保存される代わりに、フィールドが削除（undefined）されます\n\n### 影響\n- クライアントが `privateCard.twitterHandle === ''` でチェックしている場合、動作が変わります\n- 修正推奨: `!privateCard.twitterHandle` または `privateCard.twitterHandle === undefined` に変更\n\n### 移行方法\n1. 既存の `twitterHandle: ''` データは残りますが、次回更新時に削除されます\n2. クライアント側で空チェックを調整してください\n\n### 動作例\n```typescript\n// X アカウントを削除する場合（変更前後で同じ操作）\nawait updatePrivateCard({ twitterHandle: '' });\n\n// 変更前: privateCard.twitterHandle === ''\n// 変更後: privateCard.twitterHandle === undefined\n```",
-  "backend_commit_sha": null
+  "breaking_changes": false,
+  "notes_for_frontend": "この修正により、markAsViewed後にhasUpdate=falseになります。これはバグ修正であり、期待通りの動作です。コード変更は不要ですが、閲覧済み名刺のバッジが正しく消えることを確認してください。",
+  "backend_commit_sha": "f531a316a2bab89b0082b6246b06f0fdac74e45d",
+  "pr_url": "https://github.com/yutaro0915/devcard_functions/pull/58",
+  "related_issues": ["#53"],
+  "estimated_effort": "10分（契約1行 + 実装1行 + テスト有効化5箇所）"
 }
