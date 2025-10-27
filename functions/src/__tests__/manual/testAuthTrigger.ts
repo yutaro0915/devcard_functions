@@ -60,13 +60,14 @@ async function testAuthTrigger() {
       const userData = userDoc.data();
       console.log("   Data:", JSON.stringify(userData, null, 2));
 
-      // Verify contract compliance
-      const expectedPrefix = testEmail.split("@")[0]; // "test-{timestamp}"
-      const sanitized = expectedPrefix.replace(/[^a-zA-Z0-9]/g, ""); // Remove "-"
+      // Verify contract compliance (API_CONTRACT.md line 29)
+      // Contract: email "test-{timestamp}@..." → sanitized to "test{timestamp}" (special chars removed)
+      const emailPrefix = testEmail.split("@")[0]; // "test-{timestamp}"
+      const expectedDisplayName = emailPrefix.replace(/[^a-zA-Z0-9]/g, ""); // "test{timestamp}"
 
-      if (userData?.displayName !== sanitized) {
+      if (userData?.displayName !== expectedDisplayName) {
         console.warn("⚠️  DisplayName mismatch:");
-        console.warn(`   Expected (sanitized): ${sanitized}`);
+        console.warn(`   Expected (sanitized per contract): ${expectedDisplayName}`);
         console.warn(`   Actual: ${userData?.displayName}\n`);
       } else {
         console.log(`   DisplayName correctly sanitized: ${userData?.displayName}\n`);
