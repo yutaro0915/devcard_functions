@@ -60,13 +60,14 @@ async function testAuthTrigger() {
       const userData = userDoc.data();
       console.log("   Data:", JSON.stringify(userData, null, 2));
 
-      // Verify contract compliance
-      const expectedPrefix = testEmail.split("@")[0]; // "test-{timestamp}"
-      const sanitized = expectedPrefix.replace(/[^a-zA-Z0-9]/g, ""); // Remove "-"
+      // Verify contract compliance (API_CONTRACT.md line 29)
+      // Contract: email "test-{timestamp}@..." → sanitized to "test{timestamp}" (special chars removed)
+      const emailPrefix = testEmail.split("@")[0]; // "test-{timestamp}"
+      const expectedDisplayName = emailPrefix.replace(/[^a-zA-Z0-9]/g, ""); // "test{timestamp}"
 
-      if (userData?.displayName !== sanitized) {
-        console.warn(`⚠️  DisplayName mismatch:`);
-        console.warn(`   Expected (sanitized): ${sanitized}`);
+      if (userData?.displayName !== expectedDisplayName) {
+        console.warn("⚠️  DisplayName mismatch:");
+        console.warn(`   Expected (sanitized per contract): ${expectedDisplayName}`);
         console.warn(`   Actual: ${userData?.displayName}\n`);
       } else {
         console.log(`   DisplayName correctly sanitized: ${userData?.displayName}\n`);
@@ -88,14 +89,14 @@ async function testAuthTrigger() {
 
       // Verify contract compliance
       if (publicCardData?.theme !== "default") {
-        console.error(`❌ Theme mismatch:`);
-        console.error(`   Expected: "default"`);
+        console.error("❌ Theme mismatch:");
+        console.error("   Expected: default");
         console.error(`   Actual: ${publicCardData?.theme}\n`);
       }
 
       if (JSON.stringify(publicCardData?.connectedServices) !== "{}") {
-        console.error(`❌ ConnectedServices mismatch:`);
-        console.error(`   Expected: {}`);
+        console.error("❌ ConnectedServices mismatch:");
+        console.error("   Expected: {}");
         console.error(`   Actual: ${JSON.stringify(publicCardData?.connectedServices)}\n`);
       }
     }
