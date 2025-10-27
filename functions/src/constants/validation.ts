@@ -54,3 +54,14 @@ export function isValidTwitterHandle(handle: string): boolean {
   const twitterHandleRegex = /^[A-Za-z0-9_]{1,15}$/;
   return twitterHandleRegex.test(normalized);
 }
+
+/**
+ * Validation constants for badges
+ */
+export const BADGE_VALIDATION = {
+  NAME_MIN_LENGTH: 1,
+  NAME_MAX_LENGTH: 50,
+  DESCRIPTION_MIN_LENGTH: 1,
+  DESCRIPTION_MAX_LENGTH: 500,
+  PRIORITY_MIN: 0,
+} as const;

@@ -1,4 +1,4 @@
-# API Contract v0.3.0
+# API Contract v0.4.0
 
 **このファイルがバックエンドAPIの唯一の真実です。**
 
@@ -918,9 +918,261 @@ interface ConnectedService {
 
 ---
 
+## 11. モデレーター追加: `addModerator`
+
+**種類**: Callable Function (Admin専用)
+
+**説明**: 管理者がモデレーターまたは新しい管理者を追加します。
+
+**権限**: Adminのみ（Custom Claims: `admin: true`）
+
+**リクエスト**:
+```typescript
+{
+  userId: string;          // モデレーターに昇格させるユーザーID
+  role: "admin" | "moderator"; // ロール
+  permissions: string[];   // 権限リスト（例: ["badge:create", "badge:grant"]）
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  moderator: {
+    userId: string;
+    role: "admin" | "moderator";
+    permissions: string[];
+    createdAt: string; // ISO 8601形式
+  };
+}
+```
+
+**エラー**:
+- `unauthenticated`: 未認証
+- `permission-denied`: Admin権限がない
+- `invalid-argument`: 入力パラメータが不正
+- `not-found`: 指定されたユーザーが存在しない
+- `internal`: サーバーエラー
+
+---
+
+## 12. バッジ作成: `createBadge`
+
+**種類**: Callable Function (Moderator/Admin専用)
+
+**説明**: モデレーターまたは管理者が新しいバッジを作成します。
+
+**権限**: ModeratorまたはAdmin（Custom Claims: `moderator: true` または `admin: true`）
+
+**リクエスト**:
+```typescript
+{
+  name: string;              // バッジ名（1-50文字）
+  description: string;       // 説明（1-500文字）
+  iconUrl?: string;          // アイコンURL（HTTPS）
+  color?: string;            // カラーコード（例: "#FFD700"）
+  priority: number;          // 表示優先度（0以上、小さいほど優先）
+  isActive: boolean;         // アクティブフラグ
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  badge: {
+    badgeId: string;
+    name: string;
+    description: string;
+    iconUrl?: string;
+    color?: string;
+    priority: number;
+    isActive: boolean;
+    createdAt: string;       // ISO 8601形式
+    createdBy: string;       // 作成者のuserId
+  };
+}
+```
+
+**エラー**:
+- `unauthenticated`: 未認証
+- `permission-denied`: Moderator/Admin権限がない
+- `invalid-argument`: 入力パラメータが不正
+- `internal`: サーバーエラー
+
+---
+
+## 13. バッジ一覧取得: `listBadges`
+
+**種類**: Callable Function (公開)
+
+**説明**: すべてのアクティブなバッジを取得します。
+
+**権限**: なし（公開エンドポイント）
+
+**リクエスト**: なし
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  badges: Array<{
+    badgeId: string;
+    name: string;
+    description: string;
+    iconUrl?: string;
+    color?: string;
+    priority: number;
+    createdAt: string;       // ISO 8601形式
+  }>;
+}
+```
+
+**エラー**:
+- `internal`: サーバーエラー
+
+---
+
+## 14. バッジ付与: `grantBadge`
+
+**種類**: Callable Function (Moderator/Admin専用)
+
+**説明**: モデレーターまたは管理者がユーザーにバッジを付与します。
+
+**権限**: ModeratorまたはAdmin（Custom Claims: `moderator: true` または `admin: true`）
+
+**リクエスト**:
+```typescript
+{
+  badgeId: string;           // 付与するバッジID
+  targetUserId: string;      // 付与先ユーザーID
+  reason?: string;           // 付与理由（任意）
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+  userBadge: {
+    badgeId: string;
+    grantedAt: string;       // ISO 8601形式
+    grantedBy: string;       // 付与者のuserId
+    reason?: string;
+    visibility: {
+      showOnPublicCard: boolean;   // デフォルト: true
+      showOnPrivateCard: boolean;  // デフォルト: true
+    };
+  };
+}
+```
+
+**エラー**:
+- `unauthenticated`: 未認証
+- `permission-denied`: Moderator/Admin権限がない
+- `invalid-argument`: 入力パラメータが不正
+- `not-found`: バッジまたはユーザーが存在しない
+- `already-exists`: 既に付与済み
+- `internal`: サーバーエラー
+
+---
+
+## 15. バッジ剥奪: `revokeBadge`
+
+**種類**: Callable Function (Moderator/Admin専用)
+
+**説明**: モデレーターまたは管理者がユーザーからバッジを剥奪します。
+
+**権限**: ModeratorまたはAdmin（Custom Claims: `moderator: true` または `admin: true`）
+
+**リクエスト**:
+```typescript
+{
+  badgeId: string;           // 剥奪するバッジID
+  targetUserId: string;      // 剥奪対象ユーザーID
+}
+```
+
+**レスポンス**:
+```typescript
+{
+  success: true;
+}
+```
+
+**エラー**:
+- `unauthenticated`: 未認証
+- `permission-denied`: Moderator/Admin権限がない
+- `invalid-argument`: 入力パラメータが不正
+- `not-found`: バッジまたはユーザーが存在しない
+- `internal`: サーバーエラー
+
+---
+
+## データモデル
+
+### Badge（バッジ）
+
+```typescript
+{
+  badgeId: string;
+  name: string;              // 1-50文字
+  description: string;       // 1-500文字
+  iconUrl?: string;          // HTTPS URL
+  color?: string;            // カラーコード
+  priority: number;          // 表示優先度（0以上）
+  isActive: boolean;         // アクティブフラグ
+  createdAt: Timestamp;
+  createdBy: string;         // 作成者のuserId
+}
+```
+
+Firestoreパス: `/badges/{badgeId}`
+
+### UserBadge（ユーザーバッジ）
+
+```typescript
+{
+  badgeId: string;
+  grantedAt: Timestamp;
+  grantedBy: string;         // 付与者のuserId
+  reason?: string;           // 付与理由
+  visibility: {
+    showOnPublicCard: boolean;   // デフォルト: true
+    showOnPrivateCard: boolean;  // デフォルト: true
+  };
+}
+```
+
+Firestoreパス: `/users/{userId}/badges/{badgeId}`
+
+### Moderator（モデレーター）
+
+```typescript
+{
+  userId: string;
+  role: "admin" | "moderator";
+  permissions: string[];     // 例: ["badge:create", "badge:grant"]
+  createdAt: Timestamp;
+}
+```
+
+Firestoreパス: `/moderators/{userId}`
+
+**Custom Claims**: モデレーター権限はFirebase AuthのCustom Claimsで管理
+```typescript
+{
+  moderator: boolean;        // モデレーターまたはAdminの場合true
+  admin: boolean;            // Adminの場合true
+}
+```
+
+---
+
 ## 備考
 
-- バージョン: **v0.2.0** (PrivateCard機能とSavedCard統合)
+- バージョン: **v0.4.0** (バッジ管理システム Phase 1)
 - この契約は段階的に拡張されます
 - 変更履歴は `CHANGELOG.md` を参照してください
 - 機械可読な仕様は `openapi.yaml` に記載されます（将来的に）

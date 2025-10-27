@@ -1,68 +1,82 @@
 {
-  "feature_name": "developer-feedback-fixes-and-api-completion",
-  "status": "draft",
+  "feature_name": "badge-management-system-phase1-foundation",
+  "status": "ready-for-review",
   "api_changes": [
     {
-      "path": "getSavedCards",
-      "method": "Callable Function",
-      "change_type": "enhancement",
+      "path": "addModerator",
+      "method": "Callable Function (Internal)",
+      "change_type": "new-endpoint",
       "breaking": false,
-      "details": "startAfter パラメータ追加（ページネーション）、limit デフォルト値変更（100 → 20）、cardType マイグレーション修正（undefined → 'public'）、hasUpdate 境界条件修正（< → <=）",
-      "reason": "Issue #24, #25, #20 対応。無限スクロール実現、既存データ互換性確保、更新検知の正確性向上"
+      "details": "管理者が新しいモデレータを追加。Custom Claims を設定。パラメータ: {userId, role, permissions}",
+      "reason": "モデレータ権限の管理、運用チームの拡大"
     },
     {
-      "path": "createExchangeToken",
+      "path": "createBadge",
       "method": "Callable Function",
       "change_type": "new-endpoint",
       "breaking": false,
-      "details": "PrivateCard交換用トークン生成API。パラメータなし、レスポンス: {tokenId, expiresAt, qrCodeData}。1分間有効、1回限り使用",
-      "reason": "Issue #23 対応。QRコード交換フローの完成、savePrivateCard API との連携"
+      "details": "モデレータがバッジを作成。パラメータ: {name, description, iconUrl?, color?, priority, isActive}",
+      "reason": "プラットフォーム全体のバッジ管理を実現。ユーザーエンゲージメント向上"
     },
     {
-      "path": "SavedCardRepository.save()",
-      "method": "Infrastructure",
-      "change_type": "fix-bug",
+      "path": "listBadges",
+      "method": "Callable Function",
+      "change_type": "new-endpoint",
       "breaking": false,
-      "details": "savedCardId 重複チェック追加（最大3回リトライ）、.set() → .create() で既存データ保護",
-      "reason": "Issue #21 (Critical) 対応。データ破壊リスクの排除"
+      "details": "全ユーザーが利用可能なバッジ一覧を取得。isActive=trueのみ返却。レスポンス: {badges: Badge[]}",
+      "reason": "フロントエンドでのバッジ情報表示、バッジ選択UI"
     },
     {
-      "path": "ManualSyncUseCase / GitHubApiClient",
-      "method": "Application/Infrastructure",
-      "change_type": "refactor",
+      "path": "grantBadge",
+      "method": "Callable Function",
+      "change_type": "new-endpoint",
       "breaking": false,
-      "details": "カスタムエラークラス導入（UserNotFoundError, PublicCardNotFoundError等）、null/空文字列の明示的ハンドリング",
-      "reason": "Issue #17, #18 対応。エラーハンドリングの保守性向上、データ正規化の明確化"
+      "details": "モデレータが指定ユーザーにバッジを付与。パラメータ: {badgeId, targetUserId, reason?}。デフォルトで両カードに表示（visibility: {showOnPublicCard: true, showOnPrivateCard: true}）",
+      "reason": "手動バッジ付与によるユーザー認定・インセンティブ付与"
+    },
+    {
+      "path": "revokeBadge",
+      "method": "Callable Function",
+      "change_type": "new-endpoint",
+      "breaking": false,
+      "details": "モデレータがバッジを失効。パラメータ: {badgeId, targetUserId}",
+      "reason": "不正取得バッジの削除、条件不適合バッジの失効"
     }
   ],
   "security_notes": [
-    "createExchangeToken: 認証必須、自分のPrivateCardからのみトークン生成可能",
-    "トークンは1分間有効、1回限り使用（セキュリティ境界の明確化）",
-    "savedCardId重複チェックによるデータ破壊防止（Critical対応）",
-    "カスタムエラークラスによるエラー情報の漏洩防止"
+    "モデレータ権限はFirebase Auth Custom Claims で管理（moderator: true）",
+    "addModerator は admin のみ実行可能（最高権限）",
+    "createBadge, grantBadge, revokeBadge は moderator または admin のみ実行可能",
+    "listBadges は全ユーザーがアクセス可能（公開情報）",
+    "バッジ付与は監査ログとして /users/{userId}/badges/{badgeId} に記録",
+    "Custom Claims の検証は Handler 層で実施（request.auth.token.moderator）"
   ],
   "tests_required": [
-    "Issue #24: cardType未定義の既存データが 'public' にフォールバックする",
-    "Issue #23: createExchangeToken が正しくトークンを生成する",
-    "Issue #23: PrivateCard未作成の場合、not-foundエラーになる",
-    "Issue #25: startAfter なしで先頭から取得",
-    "Issue #25: startAfter ありで指定位置から取得",
-    "Issue #25: 存在しない startAfter で invalid-argument",
-    "Issue #21: savedCardId が重複しない場合、正常保存",
-    "Issue #21: savedCardId が重複した場合、リトライして保存",
-    "Issue #21: 3回リトライしても重複する場合、エラー",
-    "Issue #20: lastKnownUpdatedAt === masterUpdatedAt で hasUpdate=true",
-    "Issue #17: UserNotFoundError / PublicCardNotFoundError の型判定",
-    "Issue #18: GitHub API の null/空文字列が undefined に変換される"
+    "admin が addModerator でモデレータを追加できる",
+    "一般ユーザーは addModerator を実行できない（permission-denied）",
+    "モデレータが有効なバッジを作成できる",
+    "一般ユーザーはバッジを作成できない（permission-denied）",
+    "未認証ユーザーはバッジを作成できない（unauthenticated）",
+    "バッジの優先度を指定できる",
+    "バッジ名が空の場合エラー（invalid-argument）",
+    "バッジ名が50文字を超える場合エラー（invalid-argument）",
+    "モデレータが指定ユーザーにバッジを付与できる",
+    "バッジ付与後、デフォルトで visibility: {showOnPublicCard: true, showOnPrivateCard: true} が設定される",
+    "バッジ付与時に理由を記録できる",
+    "存在しないバッジIDを付与しようとした場合エラー（not-found）",
+    "存在しないユーザーにバッジを付与しようとした場合エラー（not-found）",
+    "既に付与されているバッジを再付与しようとした場合エラー（already-exists）",
+    "モデレータがバッジを失効できる",
+    "全ユーザーがバッジ一覧を取得できる",
+    "非アクティブなバッジは一覧に表示されない"
   ],
   "client_work_items": [
-    "getSavedCards の limit デフォルト値変更（100 → 20）に対応。必要に応じて limit: 100 を明示",
-    "createExchangeToken を使用して QRコード交換フローを実装",
-    "startAfter を使用して無限スクロールを実装（オプショナル）",
-    "cardType が常に定義されることを前提にUI実装（undefined チェック不要に）",
-    "hasUpdate の更新検知がより正確になったことを確認"
+    "バッジ一覧画面の実装（listBadges APIを使用）",
+    "モデレータ管理画面の実装（バッジ作成・付与UI）",
+    "バッジ付与フォームの実装（対象ユーザー選択、バッジ選択、理由入力）",
+    "バッジアイコンの表示優先度に従ったソート処理"
   ],
   "breaking_changes": false,
-  "notes_for_frontend": "この変更はすべて後方互換性があります。\n\n主な改善点:\n1. createExchangeToken API が追加され、PrivateCard交換フローが完成します\n2. getSavedCards にページネーション（startAfter）が追加され、無限スクロールが可能になります\n3. limit のデフォルト値が 100 → 20 に変更されますが、明示的に limit: 100 を指定すれば既存動作を維持できます\n4. cardType が常に定義されるようになり、undefined チェックが不要になります\n5. 内部品質が向上し、エラーハンドリングとデータ整合性が改善されます\n\n注意事項:\n- QRコード交換フローの実装には createExchangeToken → QRコード表示 → savePrivateCard の流れが必要です\n- 無限スクロールを実装する場合は startAfter パラメータを使用してください\n- デフォルト取得件数が変わるため、一覧画面での表示確認を推奨します",
+  "notes_for_frontend": "この変更はすべて非破壊的な追加です。\n\nPhase 1の追加機能:\n1. バッジ管理システムの基盤（モデレータのみ作成・付与可能）\n2. バッジ一覧取得API（listBadges）\n3. バッジはアイコンURL、色、優先度を持ち、フロントエンドで自由にデザイン可能\n\n注意事項:\n- モデレータUIは管理者専用画面として実装\n- Custom Claims（moderator: true）の確認はバックエンドで実施済み\n- Phase 2でバッジ表示制御（updateBadgeVisibility）と既存API統合（getPublicCard等）を実装予定\n- バッジアイコンは外部URLまたはFirebase Storageを想定",
   "backend_commit_sha": null
 }

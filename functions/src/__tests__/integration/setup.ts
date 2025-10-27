@@ -88,14 +88,26 @@ export async function cleanupTestData(): Promise<void> {
   // Clear subcollections FIRST (before deleting parent documents)
   const usersSnapshot = await adminFirestore.collection("users").get();
   for (const userDoc of usersSnapshot.docs) {
+    // Clear saved_cards subcollection
     const savedCardsSnapshot = await adminFirestore
       .collection(`users/${userDoc.id}/saved_cards`)
       .get();
     await Promise.all(savedCardsSnapshot.docs.map((d) => d.ref.delete()));
+
+    // Clear badges subcollection
+    const badgesSnapshot = await adminFirestore.collection(`users/${userDoc.id}/badges`).get();
+    await Promise.all(badgesSnapshot.docs.map((d) => d.ref.delete()));
   }
 
   // Then clear all top-level collections using Admin SDK
-  const collections = ["users", "public_cards", "private_cards", "exchange_tokens"];
+  const collections = [
+    "users",
+    "public_cards",
+    "private_cards",
+    "exchange_tokens",
+    "badges",
+    "moderators",
+  ];
   for (const collectionName of collections) {
     const snapshot = await adminFirestore.collection(collectionName).get();
     await Promise.all(snapshot.docs.map((d) => d.ref.delete()));
