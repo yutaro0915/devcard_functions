@@ -12,6 +12,7 @@ import {
 } from "./setup";
 import {createUserWithEmailAndPassword} from "firebase/auth";
 import {doc, getDoc} from "firebase/firestore";
+import {TEST_CONFIG} from "../../constants/validation";
 
 describe("onUserCreate Auth Trigger Integration Tests", () => {
   let firestore: ReturnType<typeof getFirestoreInstance>;
@@ -39,8 +40,8 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const userId = userCredential.user.uid;
 
-      // Wait for async trigger to complete
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Wait for async trigger to complete (Issue #56)
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       // Contract: /users/{userId} must exist
       const userDoc = await getDoc(doc(firestore, "users", userId));
@@ -72,7 +73,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, "password123");
       const userId = userCredential.user.uid;
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       // Contract: test-{timestamp} → test{timestamp} (remove special chars)
       const userDoc = await getDoc(doc(firestore, "users", userId));
@@ -88,7 +89,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, "password123");
       const userId = userCredential.user.uid;
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       const userDoc = await getDoc(doc(firestore, "users", userId));
       expect(userDoc.data()?.displayName).toBe("usernametag");
@@ -99,7 +100,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, "password123");
       const userId = userCredential.user.uid;
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       const userDoc = await getDoc(doc(firestore, "users", userId));
       expect(userDoc.data()?.displayName).toBe("tanaka");
@@ -110,7 +111,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, "password123");
       const userId = userCredential.user.uid;
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       const userDoc = await getDoc(doc(firestore, "users", userId));
       expect(userDoc.data()?.displayName).toBe("user");
@@ -127,7 +128,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       // We just verify the call doesn't throw
 
       // After waiting, it should exist
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
       const delayedDoc = await getDoc(doc(firestore, "users", userId));
       expect(delayedDoc.exists()).toBe(true);
     });
@@ -139,7 +140,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, "password123");
       const userId = userCredential.user.uid;
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
       expect(publicCardDoc.data()?.connectedServices).toEqual({});
@@ -150,7 +151,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const userCredential = await createUserWithEmailAndPassword(auth, email, "password123");
       const userId = userCredential.user.uid;
 
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
       expect(publicCardDoc.data()?.theme).toBe("default");

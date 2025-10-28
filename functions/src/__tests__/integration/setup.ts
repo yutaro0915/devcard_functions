@@ -122,8 +122,9 @@ export async function cleanupTestData(): Promise<void> {
     const deletePromises = listUsersResult.users.map((user) => adminAuth.deleteUser(user.uid));
     await Promise.all(deletePromises);
   } catch (error) {
-    // Ignore errors in Auth Emulator cleanup (emulator may not support listUsers fully)
-    console.warn("Auth cleanup warning:", error);
+    // Ignore errors in Auth Emulator cleanup (Issue #51: emulator may not support listUsers fully)
+    // This is expected behavior when the emulator does not implement the listUsers() API
+    console.warn("Auth Emulator cleanup failed (Issue #51):", error);
   }
 
   // Sign out if signed in

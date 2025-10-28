@@ -11,6 +11,7 @@ import {initializeApp} from "firebase/app";
 import {getAuth, createUserWithEmailAndPassword, connectAuthEmulator} from "firebase/auth";
 import {getFirestore, doc, getDoc, connectFirestoreEmulator} from "firebase/firestore";
 import {getFunctions, httpsCallable, connectFunctionsEmulator} from "firebase/functions";
+import {TEST_CONFIG} from "../../constants/validation";
 
 // Initialize Firebase (simulating frontend)
 const app = initializeApp({
@@ -54,9 +55,9 @@ async function simulateFrontendFlow() {
       console.log("   This is normal - trigger is async\n");
     }
 
-    // Step 3: Wait and retry (contract recommends 500ms wait, 3 retries)
+    // Step 3: Wait and retry (Issue #55: contract recommends 500ms wait, 3 retries)
     console.log("Step 3: Retry with exponential backoff");
-    const maxRetries = 3;
+    const maxRetries = TEST_CONFIG.MAX_RETRIES;
     let success = false;
 
     for (let i = 0; i < maxRetries; i++) {
