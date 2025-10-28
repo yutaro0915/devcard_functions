@@ -43,6 +43,8 @@ export class SavePrivateCardUseCase {
     // 4. Check if token is expired (1 minute validity)
     const now = new Date();
     if (now > token.expiresAt) {
+      // Issue #50: Delete expired token immediately
+      await this.exchangeTokenRepository.delete(tokenId);
       throw new Error("Token has expired");
     }
 

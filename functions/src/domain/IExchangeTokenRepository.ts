@@ -24,4 +24,17 @@ export interface IExchangeTokenRepository {
    * Delete expired tokens (cleanup)
    */
   deleteExpired(): Promise<void>;
+
+  /**
+   * Delete a single token by ID
+   * Issue #50: Used for immediate cleanup on expiration
+   */
+  delete(tokenId: string): Promise<void>;
+
+  /**
+   * Delete all unused tokens owned by a specific user
+   * Issue #50: Used for token refresh functionality
+   * @param ownerId - The owner user ID
+   */
+  deleteUnusedByOwnerId(ownerId: string): Promise<void>;
 }

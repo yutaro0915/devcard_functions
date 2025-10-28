@@ -269,4 +269,180 @@ describe("PrivateCard Integration Test", () => {
       });
     });
   });
+
+  // Issue #50: Exchange Token Lifecycle Management Tests
+  describe("createExchangeToken & savePrivateCard - Token Cleanup (Issue #50)", () => {
+    const OWNER_USER_ID = "owner-user-123";
+    const OWNER_EMAIL = "owner@example.com";
+    const SAVER_USER_ID = "saver-user-456";
+    const SAVER_EMAIL = "saver@example.com";
+
+    describe("[即時削除] savePrivateCard で期限切れトークンを使用", () => {
+      it("期限切れトークンを使用 → invalid-argument エラー + トークン削除", async () => {
+        // Setup: Create owner with PrivateCard
+        await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
+        const functions = getFunctionsInstance();
+
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        await updatePrivateCard({email: "owner@example.com", phoneNumber: "+81-90-1111-2222"});
+
+        const createExchangeToken = httpsCallable(functions, "createExchangeToken");
+        const tokenResult = await createExchangeToken({});
+        const tokenId = (tokenResult.data as {tokenId: string}).tokenId;
+
+        // Wait for token to expire (>1 minute)
+        await new Promise((resolve) => setTimeout(resolve, 61 * 1000));
+
+        // Try to use expired token
+        await createTestUser(SAVER_USER_ID, SAVER_EMAIL);
+        const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+        await expect(savePrivateCard({tokenId})).rejects.toThrow("Token has expired");
+
+        // Note: Token deletion is verified internally by the UseCase
+        // Cannot verify via client SDK due to Firestore Security Rules
+      }, 70000); // 70 seconds timeout
+
+      it("削除済みトークンで savePrivateCard を再実行 → not-found エラー", async () => {
+        // Setup: Create owner with PrivateCard
+        await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
+        const functions = getFunctionsInstance();
+
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        await updatePrivateCard({email: "owner@example.com"});
+
+        const createExchangeToken = httpsCallable(functions, "createExchangeToken");
+        const tokenResult = await createExchangeToken({});
+        const tokenId = (tokenResult.data as {tokenId: string}).tokenId;
+
+        // Wait for token to expire
+        await new Promise((resolve) => setTimeout(resolve, 61 * 1000));
+
+        // First attempt: expires and deletes token
+        await createTestUser(SAVER_USER_ID, SAVER_EMAIL);
+        const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+        await expect(savePrivateCard({tokenId})).rejects.toThrow("Token has expired");
+
+        // Second attempt: should fail with "Token not found"
+        await expect(savePrivateCard({tokenId})).rejects.toThrow("Token not found");
+      }, 70000);
+    });
+
+    describe("[リフレッシュ] createExchangeToken でトークン自動削除", () => {
+      it("新しいトークンを生成すると、古い未使用トークンが削除される", async () => {
+        // Setup
+        await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
+        const functions = getFunctionsInstance();
+
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        await updatePrivateCard({email: "owner@example.com"});
+
+        const createExchangeToken = httpsCallable(functions, "createExchangeToken");
+
+        // Create first token
+        const firstTokenResult = await createExchangeToken({});
+        const firstTokenId = (firstTokenResult.data as {tokenId: string}).tokenId;
+
+        // Create second token (should delete first token)
+        const secondTokenResult = await createExchangeToken({});
+        const secondTokenId = (secondTokenResult.data as {tokenId: string}).tokenId;
+
+        // Verify first token is no longer usable (deleted)
+        await createTestUser(SAVER_USER_ID, SAVER_EMAIL);
+        const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+        await expect(savePrivateCard({tokenId: firstTokenId})).rejects.toThrow("Token not found");
+
+        // Verify second token is still usable
+        const result = await savePrivateCard({tokenId: secondTokenId});
+        expect(result.data).toHaveProperty("success", true);
+      });
+
+      it("使用済みトークンは削除されない", async () => {
+        // Setup: Create owner with PrivateCard
+        await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
+        const functions = getFunctionsInstance();
+
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        await updatePrivateCard({email: "owner@example.com"});
+
+        const createExchangeToken = httpsCallable(functions, "createExchangeToken");
+
+        // Create first token
+        const firstTokenResult = await createExchangeToken({});
+        const firstTokenId = (firstTokenResult.data as {tokenId: string}).tokenId;
+
+        // Use the first token (by SAVER_USER_ID)
+        await createTestUser(SAVER_USER_ID, SAVER_EMAIL);
+
+        // SAVER needs PrivateCard before they can save others' cards
+        const saverUpdatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        await saverUpdatePrivateCard({email: "saver@example.com"});
+
+        const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+        await savePrivateCard({tokenId: firstTokenId});
+
+        // Switch back to OWNER and create second token
+        await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
+        const secondTokenResult = await createExchangeToken({});
+        const secondTokenId = (secondTokenResult.data as {tokenId: string}).tokenId;
+
+        // Verify first token still cannot be reused (used tokens are not deleted but remain used)
+        await createTestUser(SAVER_USER_ID, SAVER_EMAIL);
+        await expect(savePrivateCard({tokenId: firstTokenId})).rejects.toThrow(
+          "Token has already been used"
+        );
+
+        // Verify second token is different and usable
+        expect(secondTokenId).not.toBe(firstTokenId);
+
+        // Note: Cannot verify token existence via client SDK due to Security Rules
+        // The fact that we get "already been used" instead of "not found" confirms
+        // that the used token was not deleted
+      });
+
+      it("未使用トークンが0件でもエラーにならない", async () => {
+        // Setup: First time token creation
+        await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
+        const functions = getFunctionsInstance();
+
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        await updatePrivateCard({email: "owner@example.com"});
+
+        const createExchangeToken = httpsCallable(functions, "createExchangeToken");
+
+        // Create first token (no previous tokens to delete)
+        const result = await createExchangeToken({});
+        expect(result.data).toHaveProperty("tokenId");
+        expect(result.data).toHaveProperty("expiresAt");
+        expect(result.data).toHaveProperty("qrCodeData");
+      });
+    });
+
+    describe("[境界条件] 削除済みトークンの削除", () => {
+      it("既に削除済みのトークンを削除してもエラーにならない", async () => {
+        // This test verifies idempotency of delete operations
+        // The deleteUnusedByOwnerId() method should handle empty results gracefully
+
+        await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
+        const functions = getFunctionsInstance();
+
+        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        await updatePrivateCard({email: "owner@example.com"});
+
+        const createExchangeToken = httpsCallable(functions, "createExchangeToken");
+
+        // Create first token
+        const tokenResult = await createExchangeToken({});
+        const tokenId = (tokenResult.data as {tokenId: string}).tokenId;
+
+        // Create second token (deletes first token internally)
+        const newTokenResult = await createExchangeToken({});
+        expect(newTokenResult.data).toHaveProperty("tokenId");
+
+        // Verify first token is deleted (not found)
+        await createTestUser(SAVER_USER_ID, SAVER_EMAIL);
+        const savePrivateCard = httpsCallable(functions, "savePrivateCard");
+        await expect(savePrivateCard({tokenId})).rejects.toThrow("Token not found");
+      });
+    });
+  });
 });

@@ -16,6 +16,8 @@ const mockExchangeTokenRepository: jest.Mocked<IExchangeTokenRepository> = {
   findById: jest.fn(),
   markAsUsed: jest.fn(),
   deleteExpired: jest.fn(),
+  delete: jest.fn(), // Issue #50: New method
+  deleteUnusedByOwnerId: jest.fn(), // Issue #50: New method
 };
 
 describe("CreateExchangeTokenUseCase", () => {
@@ -207,5 +209,75 @@ describe("CreateExchangeTokenUseCase", () => {
 
     // All 100 tokenIds should be unique
     expect(tokenIds.size).toBe(100);
+  });
+
+  // Issue #50: Test deleteUnusedByOwnerId call
+  describe("[Issue #50] リフレッシュ機能: 古い未使用トークンの削除", () => {
+    it("トークン生成前に deleteUnusedByOwnerId() を呼び出す", async () => {
+      const userId = "user-123";
+
+      const privateCard: PrivateCard = {
+        userId: "user-123",
+        displayName: "Test User",
+        email: "test@example.com",
+        updatedAt: new Date(),
+      };
+
+      mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+      mockExchangeTokenRepository.deleteUnusedByOwnerId.mockResolvedValue();
+      mockExchangeTokenRepository.create.mockResolvedValue({
+        tokenId: "new-token-123",
+        ownerId: userId,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 60000),
+      });
+
+      const useCase = new CreateExchangeTokenUseCase(
+        mockPrivateCardRepository,
+        mockExchangeTokenRepository
+      );
+
+      await useCase.execute({userId});
+
+      // Verify deleteUnusedByOwnerId was called with correct userId
+      expect(mockExchangeTokenRepository.deleteUnusedByOwnerId).toHaveBeenCalledWith(userId);
+      expect(mockExchangeTokenRepository.deleteUnusedByOwnerId).toHaveBeenCalledTimes(1);
+
+      // Verify new token was created
+      expect(mockExchangeTokenRepository.create).toHaveBeenCalled();
+    });
+
+    it("deleteUnusedByOwnerId が失敗した場合、エラーをスローする", async () => {
+      const userId = "user-123";
+
+      const privateCard: PrivateCard = {
+        userId: "user-123",
+        displayName: "Test User",
+        email: "test@example.com",
+        updatedAt: new Date(),
+      };
+
+      mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+      mockExchangeTokenRepository.deleteUnusedByOwnerId.mockRejectedValue(
+        new Error("Firestore error")
+      );
+      mockExchangeTokenRepository.create.mockResolvedValue({
+        tokenId: "new-token-123",
+        ownerId: userId,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 60000),
+      });
+
+      const useCase = new CreateExchangeTokenUseCase(
+        mockPrivateCardRepository,
+        mockExchangeTokenRepository
+      );
+
+      // Should throw the delete error (not continue to create)
+      await expect(useCase.execute({userId})).rejects.toThrow("Firestore error");
+
+      expect(mockExchangeTokenRepository.deleteUnusedByOwnerId).toHaveBeenCalled();
+      expect(mockExchangeTokenRepository.create).not.toHaveBeenCalled();
+    });
   });
 });

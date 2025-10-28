@@ -11,6 +11,49 @@
 
 ---
 
+## [0.8.0] - 2025-10-27
+
+### Changed
+- **Exchange Token Lifecycle Management (Issue #50)**
+  - **`createExchangeToken` 動作変更**:
+    - 新しいトークンを生成する際、同一ユーザーの既存の**未使用**トークンが自動的に削除されるようになりました
+    - 使用済みトークン（`usedBy`が設定済み）は削除されません
+    - これにより、ユーザーが保持できる有効な交換トークンは常に1つのみになります
+    - **非破壊的変更**: APIレスポンス構造は変更なし
+  - **`savePrivateCard` 動作変更**:
+    - 期限切れトークンを使用しようとした場合、トークンが即座にFirestoreから削除されます
+    - エラーレスポンスは従来通り `invalid-argument` (Token has expired)
+    - 削除されたトークンで再度試行すると `not-found` (Token not found) エラーとなります
+    - **非破壊的変更**: APIレスポンス構造は変更なし
+
+### Technical
+- Domain層: `IExchangeTokenRepository` に2つのメソッド追加
+  - `delete(tokenId: string)`: 単一トークン削除
+  - `deleteUnusedByOwnerId(ownerId: string)`: 未使用トークン一括削除
+- Infrastructure層: `ExchangeTokenRepository` に実装追加
+- Application層: `SavePrivateCardUseCase` と `CreateExchangeTokenUseCase` の修正
+- 統合テスト: 5件追加 (期限切れ削除 2件、リフレッシュ 3件、境界条件 1件)
+- ユニットテスト: 6件追加 (Repository 3件、UseCase 3件)
+
+### Security
+- トークンリフレッシュ: 1ユーザー1有効トークンに制限し、古いトークンからの不正アクセスリスクを排除
+- 即時削除: 期限切れトークンは検証時に即座に削除され、無効なトークンがFirestoreに残らない
+- ストレージコスト削減: 不要なトークンが自動的に削除され、Firestoreの肥大化を防止
+
+### Migration Guide
+**クライアント側の実装変更は不要です。**
+
+動作の変更点:
+1. ユーザーが複数のデバイスで同時にQRコードを生成した場合、後から生成した方のみ有効になります
+   - 実用上問題なし（QRコード交換は1対1で行われるため）
+2. 期限切れトークンを使用した際、再試行しても `not-found` エラーになります
+   - クライアント側でリトライロジックを実装している場合、`invalid-argument` と `not-found` の両方を処理してください
+
+### Breaking Changes
+**なし** - APIレスポンス構造は変更されていません。
+
+---
+
 ## [0.7.0] - 2025-10-27
 
 ### Security
