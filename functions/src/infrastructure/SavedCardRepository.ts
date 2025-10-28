@@ -2,6 +2,7 @@ import {Firestore, DocumentData, Query, QueryDocumentSnapshot} from "firebase-ad
 import {ISavedCardRepository, FindSavedCardsOptions} from "../domain/ISavedCardRepository";
 import {SavedCard, SaveCardData} from "../domain/SavedCard";
 import {SavedCardIdCollisionError} from "../domain/errors/DomainErrors";
+import {CARD_TYPE} from "../constants/validation";
 
 /**
  * Firestore implementation of ISavedCardRepository
@@ -143,7 +144,8 @@ export class SavedCardRepository implements ISavedCardRepository {
       savedCardId: data.savedCardId,
       cardUserId: data.cardUserId,
       // Issue #24: Default to "public" for existing data without cardType
-      cardType: data.cardType || "public",
+      // Issue #28: Use constant instead of magic string
+      cardType: data.cardType || CARD_TYPE.DEFAULT,
       savedAt: data.savedAt instanceof Date ? data.savedAt : data.savedAt.toDate(),
       lastKnownUpdatedAt: data.lastKnownUpdatedAt
         ? data.lastKnownUpdatedAt instanceof Date

@@ -32,6 +32,16 @@ export const SAVED_CARD_VALIDATION = {
 } as const;
 
 /**
+ * Card type constants
+ * Issue #28: Centralize card type literals to avoid magic strings
+ */
+export const CARD_TYPE = {
+  PUBLIC: "public" as const,
+  PRIVATE: "private" as const,
+  DEFAULT: "public" as const, // Issue #24: Default type for legacy data
+} as const;
+
+/**
  * Normalizes a Twitter handle by removing the leading @ if present
  * @param handle - Twitter handle (with or without @)
  * @returns Normalized handle without @
@@ -64,4 +74,15 @@ export const BADGE_VALIDATION = {
   DESCRIPTION_MIN_LENGTH: 1,
   DESCRIPTION_MAX_LENGTH: 500,
   PRIORITY_MIN: 0,
+} as const;
+
+/**
+ * Test configuration constants
+ * Issue #55, #56: Centralize magic numbers used in integration tests
+ */
+export const TEST_CONFIG = {
+  /** Wait time for async auth trigger completion (Issue #56) */
+  AUTH_TRIGGER_WAIT_MS: 2000,
+  /** Maximum number of retries for async operations (Issue #55, per contract) */
+  MAX_RETRIES: 3,
 } as const;

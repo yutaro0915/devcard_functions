@@ -17,6 +17,7 @@ import {
 import {httpsCallable} from "firebase/functions";
 import {doc, getDoc} from "firebase/firestore";
 import {createUserWithEmailAndPassword} from "firebase/auth";
+import {TEST_CONFIG} from "../../constants/validation";
 
 describe("User Story Integration Tests", () => {
   let functions: ReturnType<typeof getFunctionsInstance>;
@@ -46,7 +47,7 @@ describe("User Story Integration Tests", () => {
       // Step 1: User registers (triggers onUserCreate)
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const userId = userCredential.user.uid;
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       // Verify: /users and /public_cards created per contract
       const userDoc = await getDoc(doc(firestore, "users", userId));
