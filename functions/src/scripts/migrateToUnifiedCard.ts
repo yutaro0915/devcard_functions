@@ -44,23 +44,10 @@ export async function migrateToUnifiedCard() {
       const privateCardData = privateCardDoc.exists ? privateCardDoc.data() : undefined;
 
       // Build unified Card with flat structure
-      const unifiedCard: Card = {
+      const unifiedCard: Partial<Card> = {
         userId,
         displayName: publicCardData.displayName,
-        photoURL: publicCardData.photoURL,
-        bio: publicCardData.bio,
-        backgroundImageUrl: publicCardData.backgroundImageUrl,
         theme: publicCardData.theme || "default",
-        customCss: publicCardData.customCss,
-        badges: publicCardData.badges,
-        // Flatten private contact fields from PrivateCard
-        ...(privateCardData && {
-          email: privateCardData.email,
-          phoneNumber: privateCardData.phoneNumber,
-          line: privateCardData.lineId,
-          discord: privateCardData.discordId,
-          x: privateCardData.twitterHandle,
-        }),
         visibility: {
           bio: "public",
           backgroundImageUrl: "public",
@@ -68,6 +55,23 @@ export async function migrateToUnifiedCard() {
         },
         updatedAt: publicCardData.updatedAt || new Date(),
       };
+
+      // Add optional fields only if they exist
+      if (publicCardData.photoURL) unifiedCard.photoURL = publicCardData.photoURL;
+      if (publicCardData.bio) unifiedCard.bio = publicCardData.bio;
+      if (publicCardData.backgroundImageUrl)
+        unifiedCard.backgroundImageUrl = publicCardData.backgroundImageUrl;
+      if (publicCardData.customCss) unifiedCard.customCss = publicCardData.customCss;
+      if (publicCardData.badges) unifiedCard.badges = publicCardData.badges;
+
+      // Flatten private contact fields from PrivateCard (only if defined)
+      if (privateCardData) {
+        if (privateCardData.email) unifiedCard.email = privateCardData.email;
+        if (privateCardData.phoneNumber) unifiedCard.phoneNumber = privateCardData.phoneNumber;
+        if (privateCardData.lineId) unifiedCard.line = privateCardData.lineId;
+        if (privateCardData.discordId) unifiedCard.discord = privateCardData.discordId;
+        if (privateCardData.twitterHandle) unifiedCard.x = privateCardData.twitterHandle;
+      }
 
       // Create /cards document
       await firestore.collection("cards").doc(userId).set(unifiedCard);

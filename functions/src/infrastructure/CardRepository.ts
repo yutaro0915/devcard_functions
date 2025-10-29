@@ -1,4 +1,4 @@
-import {Firestore} from "firebase-admin/firestore";
+import {Firestore, FieldValue} from "firebase-admin/firestore";
 import {Card, CreateCardData, UpdateCardData} from "../domain/Card";
 import {ICardRepository} from "../domain/ICardRepository";
 
@@ -38,9 +38,6 @@ export class CardRepository implements ICardRepository {
     const updateData: Record<string, any> = {
       updatedAt: new Date(),
     };
-
-    // Import FieldValue for deleting fields
-    const {FieldValue} = await import("firebase-admin/firestore");
 
     // All fields are flat, just check undefined
     const fields: (keyof UpdateCardData)[] = [
@@ -105,15 +102,16 @@ export class CardRepository implements ICardRepository {
       }
     }
 
-    // Check if document exists before updating
-    const docRef = this.firestore.collection(this.collection).doc(userId);
-    const docSnap = await docRef.get();
-
-    if (!docSnap.exists) {
-      throw new Error(`Card not found for user ${userId}`);
+    // Firestore update() will throw an error if document doesn't exist
+    try {
+      await this.firestore.collection(this.collection).doc(userId).update(updateData);
+    } catch (error: unknown) {
+      // Convert Firestore "document not found" error to domain error
+      if (error instanceof Error && error.message.includes("NOT_FOUND")) {
+        throw new Error(`Card not found for user ${userId}`);
+      }
+      throw error;
     }
-
-    await docRef.update(updateData);
   }
 
   async delete(userId: string): Promise<void> {
