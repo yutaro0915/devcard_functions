@@ -7,7 +7,7 @@
       "method": "N/A",
       "change_type": "major-refactor",
       "breaking": true,
-      "details": "PublicCard/PrivateCardを単一のCardエンティティに統合。/public_cards, /private_cardsコレクションを/cardsに統合。可視性フラグ(visibility)で公開範囲を制御。",
+      "details": "PublicCard/PrivateCardを単一のCardエンティティに統合。/public_cards, /private_cardsコレクションを/cardsに統合。フラット構造で全フィールド(email, phoneNumber, line, discord, x, github, linkedin等)を管理。可視性フラグ(visibility)で公開範囲を制御。",
       "reason": "displayName/photoURL等の共通フィールドが3箇所に重複しており、プロフィール更新時にトランザクションで同期が必要。単一モデル化により保守性・拡張性が大幅に向上。"
     },
     {
@@ -39,16 +39,16 @@
       "method": "Callable Function",
       "change_type": "change-response",
       "breaking": true,
-      "details": "/cardsからプライベート情報を含めて返却。privateContactsフィールドがネストされたオブジェクト（{email?, phoneNumber?, lineId?, ...}）になる。",
-      "reason": "プライベート連絡先情報を構造化して管理。"
+      "details": "/cardsからプライベート情報を含めて返却。フラット構造で全フィールド(email, phoneNumber, line, discord, x等)を返す。",
+      "reason": "単一Cardモデルから可視性に応じた情報を返却。"
     },
     {
       "path": "updatePrivateCard",
       "method": "Callable Function",
       "change_type": "change-request",
       "breaking": true,
-      "details": "privateContactsフィールドをネストされたオブジェクトとして受け取る。リクエスト例: {privateContacts: {email: 'test@example.com', phoneNumber: '090-1234-5678'}}",
-      "reason": "新しいデータ構造に対応。"
+      "details": "フラットフィールドとして受け取る。新フィールド名(line, discord, x)を優先、旧名(lineId, discordId, twitterHandle)も後方互換性のため受付。リクエスト例: {email: 'test@example.com', phoneNumber: '090-1234-5678', line: 'line_id'}",
+      "reason": "新しいフラット構造に対応。後方互換性維持。"
     },
     {
       "path": "getSavedCards",
@@ -81,7 +81,7 @@
     "Firestore Rules: /cardsコレクションは読み取り公開、書き込みは本人のみ（allow read: if true; allow write: if request.auth.uid == userId;）",
     "可視性制御: バックエンド側（Application層）でフィルタリング実施。Firestore Rulesでは制御しない。",
     "マイグレーション: 既存データの可視性はデフォルトで'public'に設定（既存の動作を維持）",
-    "プライベート情報の保護: privateContactsフィールドはvisibility='private'の場合のみ返却"
+    "プライベート情報の保護: email, phoneNumber, line, discord等のフィールドはデフォルトでvisibility='private'、可視性に応じてフィルタリング"
   ],
   "tests_required": [
     "[Domain] Card エンティティの生成が正しく動作する",
@@ -91,7 +91,7 @@
     "[Infrastructure] CardRepository.create() が /cards にドキュメントを作成",
     "[Infrastructure] CardRepository.findById() がカードを取得",
     "[Infrastructure] CardRepository.update() が部分更新を実行（displayName, bio等）",
-    "[Infrastructure] CardRepository.update() が privateContacts をネスト構造で更新",
+    "[Infrastructure] CardRepository.update() がフラットフィールド(email, line, discord等)を更新",
     "[Application] UpdateCardUseCase が1回の書き込みでプロフィール更新",
     "[Application] GetCardUseCase が公開情報のみを返す（visibility='public'）",
     "[Application] GetCardUseCase がプライベート情報を含む（visibility='private'）",
@@ -100,34 +100,34 @@
     "[Integration] updateProfile が /cards のみ更新（トランザクション不要、3箇所同期なし）",
     "[Integration] getPublicCard が公開情報のみを返却（bio, backgroundImageUrl等）",
     "[Integration] getPublicCard が visibility='hidden' のフィールドを返却しない",
-    "[Integration] getPrivateCard が本人のプライベート情報を返却（privateContactsを含む）",
+    "[Integration] getPrivateCard が本人のプライベート情報を返却（フラット構造）",
     "[Integration] getPrivateCard が他人のカードを取得できない（permission-denied）",
-    "[Integration] updatePrivateCard が privateContacts をネスト構造で更新",
+    "[Integration] updatePrivateCard がフラットフィールドを更新（後方互換性あり）",
     "[Integration] getSavedCards が /cards から情報を取得（cardType='public'/'private'）",
     "[Integration] uploadCardBackground が /cards.backgroundImageUrl を更新",
     "[Integration] uploadProfileImage が /cards.photoURL と /users.photoURL を更新",
     "[Integration] マイグレーションスクリプトが既存データを正しく移行（/public_cards + /private_cards → /cards）",
     "[Integration] マイグレーション後、旧APIが正しく動作する（互換性レイヤー）",
     "[Validation] visibility に不正な値（'public', 'private', 'hidden' 以外）を指定 → invalid-argument",
-    "[Validation] privateContacts.email に不正なメール形式 → invalid-argument",
+    "[Validation] email に不正なメール形式 → invalid-argument",
     "[Auth] 未認証で updateCard を呼び出し → unauthenticated",
     "[Auth] 他人のカードを updateCard → permission-denied",
     "[Error] 存在しない userId で getCard → not-found",
     "[Migration] 既に /cards が存在するユーザーを再マイグレーション → 上書きせずスキップ",
-    "[Migration] /private_cards が存在しないユーザーを移行 → privateContacts: undefined で作成"
+    "[Migration] /private_cards が存在しないユーザーを移行 → プライベートフィールドなしで作成"
   ],
   "client_work_items": [
     "【破壊的変更】全カード関連APIのレスポンス構造変更に対応（段階的移行期間あり）",
     "【Web】getPublicCard のレスポンス変更（visibilityに応じた動的フィールド）に対応",
-    "【Web】getPrivateCard のレスポンス変更（privateContactsがネスト構造: {email?, phoneNumber?, ...}）に対応",
-    "【Web】updatePrivateCard のリクエスト変更（privateContactsをネストで送信: {privateContacts: {email: '...', phoneNumber: '...'}}）に対応",
+    "【Web】getPrivateCard のレスポンス変更（フラット構造: email, phoneNumber, line, discord, x等が直接返却）に対応",
+    "【Web】updatePrivateCard のリクエスト変更（フラット構造で送信: {email: '...', line: '...', discord: '...'}。旧フィールド名も使用可）に対応",
     "【iOS】上記3つの変更に対応",
     "【共通】マイグレーション期間中（v0.9.0〜v1.0.0）の旧API/新APIの併用サポート",
     "【共通】v1.0.0リリース時に旧API削除の確認とクライアント側の最終移行",
     "【任意】visibility設定UI（将来的にユーザーが公開範囲を変更できる機能）"
   ],
   "breaking_changes": true,
-  "notes_for_frontend": "PublicCard/PrivateCardを統合した新しいCardモデルに移行します。主な変更点: (1) getPublicCard/getPrivateCardのレスポンス構造変更（privateContactsがネスト構造に）、(2) updatePrivateCardのリクエスト構造変更（privateContactsをネストで送信）。段階的移行を予定しており、v0.9.0で互換性レイヤーを実装し、v0.9.x期間中に新APIへ移行、v1.0.0で旧API削除。フロントエンド/iOSチームと詳細スケジュールを調整します。この変更により、将来的な機能追加（背景画像の公開範囲設定、bioの公開/非公開切り替え等）が容易になります。",
+  "notes_for_frontend": "PublicCard/PrivateCardを統合した新しいCardモデルに移行します。主な変更点: (1) フラット構造: 全フィールドが直接返却される（ネストなし）、(2) フィールド名変更: lineId→line, discordId→discord, twitterHandle→x（旧名も後方互換性あり）、(3) connectedServicesオブジェクト削除、SNSフィールドが直接プロパティに。APIインターフェースは後方互換性を維持しているため、既存コードはそのまま動作します。この変更により、将来的な機能追加（各フィールドの公開範囲設定等）が容易になります。",
   "backend_commit_sha": null,
   "related_issues": ["#68"],
   "estimated_effort": "2-3日（全レイヤーの書き直し: Domain 4ファイル削除+2ファイル新規作成、Infrastructure 3ファイル削除+2ファイル新規作成、Application 5ファイル修正、Handler 8ファイル修正、マイグレーションスクリプト作成、統合テスト31件、ユニットテスト20件程度）",

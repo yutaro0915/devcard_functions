@@ -113,10 +113,9 @@ describe("SavePrivateCardUseCase", () => {
       const card: Card = {
         userId: ownerId,
         displayName: "Owner User",
-        connectedServices: {},
         theme: "default",
-        visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-        privateContacts: {email: "owner@example.com"},
+        visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+        email: "test@example.com",
         updatedAt: new Date(),
       };
 

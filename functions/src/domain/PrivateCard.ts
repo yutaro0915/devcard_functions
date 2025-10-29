@@ -13,9 +13,9 @@ export interface PrivateCard {
   // Private contact information
   email?: string;
   phoneNumber?: string;
-  lineId?: string;
-  discordId?: string;
-  twitterHandle?: string;
+  line?: string;
+  discord?: string;
+  x?: string;
   otherContacts?: string; // Free-form text for additional contacts
 
   // Badges
@@ -35,8 +35,8 @@ export interface CreatePrivateCardData {
   photoURL?: string;
   email?: string;
   phoneNumber?: string;
-  lineId?: string;
-  discordId?: string;
-  twitterHandle?: string;
+  line?: string;
+  discord?: string;
+  x?: string;
   otherContacts?: string;
 }

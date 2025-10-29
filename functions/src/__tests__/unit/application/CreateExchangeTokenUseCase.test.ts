@@ -33,13 +33,10 @@ describe("CreateExchangeTokenUseCase", () => {
     const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-      privateContacts: {
-        email: "test@example.com",
-        phoneNumber: "+81-90-1234-5678",
-      },
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+      email: "test@example.com",
+      phoneNumber: "+81-90-1234-5678",
       updatedAt: new Date(),
     };
 
@@ -90,9 +87,8 @@ describe("CreateExchangeTokenUseCase", () => {
     const card: Card = {
       userId,
       displayName: "Test User",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       updatedAt: new Date(),
       // No privateContacts
     };
@@ -112,10 +108,9 @@ describe("CreateExchangeTokenUseCase", () => {
     const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-      privateContacts: {email: "test@example.com"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+      email: "test@example.com",
       updatedAt: new Date(),
     };
 
@@ -145,10 +140,9 @@ describe("CreateExchangeTokenUseCase", () => {
     const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-      privateContacts: {email: "test@example.com"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+      email: "test@example.com",
       updatedAt: new Date(),
     };
 
@@ -176,10 +170,9 @@ describe("CreateExchangeTokenUseCase", () => {
     const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-      privateContacts: {email: "test@example.com"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+      email: "test@example.com",
       updatedAt: new Date(),
     };
 
@@ -208,10 +201,9 @@ describe("CreateExchangeTokenUseCase", () => {
     const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-      privateContacts: {email: "test@example.com"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+      email: "test@example.com",
       updatedAt: new Date(),
     };
 
@@ -243,10 +235,9 @@ describe("CreateExchangeTokenUseCase", () => {
       const card: Card = {
         userId: "user-123",
         displayName: "Test User",
-        connectedServices: {},
         theme: "default",
-        visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-        privateContacts: {email: "test@example.com"},
+        visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+        email: "test@example.com",
         updatedAt: new Date(),
       };
 
@@ -280,10 +271,9 @@ describe("CreateExchangeTokenUseCase", () => {
       const card: Card = {
         userId: "user-123",
         displayName: "Test User",
-        connectedServices: {},
         theme: "default",
-        visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-        privateContacts: {email: "test@example.com"},
+        visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+        email: "test@example.com",
         updatedAt: new Date(),
       };
 

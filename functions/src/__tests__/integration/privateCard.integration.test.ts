@@ -36,7 +36,7 @@ describe("PrivateCard Integration Test", () => {
         const result = await updatePrivateCard({
           email: "private@example.com",
           phoneNumber: "+81-90-1234-5678",
-          lineId: "test_line_id",
+          line: "test_line_id",
         });
 
         expect(result.data).toEqual({success: true});
@@ -46,9 +46,9 @@ describe("PrivateCard Integration Test", () => {
         const privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const privateCardData = privateCardDoc.data();
 
-        expect(privateCardData?.privateContacts?.email).toBe("private@example.com");
-        expect(privateCardData?.privateContacts?.phoneNumber).toBe("+81-90-1234-5678");
-        expect(privateCardData?.privateContacts?.lineId).toBe("test_line_id");
+        expect(privateCardData?.email).toBe("private@example.com");
+        expect(privateCardData?.phoneNumber).toBe("+81-90-1234-5678");
+        expect(privateCardData?.line).toBe("test_line_id");
         expect(privateCardData?.updatedAt).toBeDefined();
         expect(privateCardData?.displayName).toBe("Test User");
         expect(privateCardData?.photoURL).toBe("https://example.com/photo.jpg");
@@ -79,7 +79,7 @@ describe("PrivateCard Integration Test", () => {
         const updatedDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const updatedData = updatedDoc.data();
 
-        expect(updatedData?.privateContacts?.email).toBe("updated@example.com");
+        expect(updatedData?.email).toBe("updated@example.com");
         expect(updatedData?.updatedAt.toMillis()).toBeGreaterThan(initialUpdatedAt.toMillis());
       });
 
@@ -93,7 +93,7 @@ describe("PrivateCard Integration Test", () => {
         await updatePrivateCard({
           email: "test@example.com",
           phoneNumber: "+81-90-1234-5678",
-          lineId: "test_line",
+          line: "test_line",
         });
 
         // Partial update - only email
@@ -106,10 +106,10 @@ describe("PrivateCard Integration Test", () => {
         const updatedData = updatedDoc.data();
 
         // Email should be updated
-        expect(updatedData?.privateContacts?.email).toBe("new@example.com");
+        expect(updatedData?.email).toBe("new@example.com");
         // Other fields should remain
-        expect(updatedData?.privateContacts?.phoneNumber).toBe("+81-90-1234-5678");
-        expect(updatedData?.privateContacts?.lineId).toBe("test_line");
+        expect(updatedData?.phoneNumber).toBe("+81-90-1234-5678");
+        expect(updatedData?.line).toBe("test_line");
       });
 
       it("twitterHandle に空文字列を送信すると undefined で保存される", async () => {
@@ -124,7 +124,7 @@ describe("PrivateCard Integration Test", () => {
         const firestore = getFirestoreInstance();
         let privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         let privateCardData = privateCardDoc.data();
-        expect(privateCardData?.privateContacts?.twitterHandle).toBe("testuser");
+        expect(privateCardData?.x).toBe("testuser");
 
         // Then, send empty string to delete the field
         const result = await updatePrivateCard({twitterHandle: ""});
@@ -133,7 +133,7 @@ describe("PrivateCard Integration Test", () => {
         // Verify twitterHandle is now undefined (not stored in Firestore)
         privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         privateCardData = privateCardDoc.data();
-        expect(privateCardData?.privateContacts?.twitterHandle).toBeUndefined();
+        expect(privateCardData?.x).toBeUndefined();
       });
 
       it("twitterHandle に 'testuser' を送信すると正規化されて保存される", async () => {
@@ -148,7 +148,7 @@ describe("PrivateCard Integration Test", () => {
         const firestore = getFirestoreInstance();
         const privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const privateCardData = privateCardDoc.data();
-        expect(privateCardData?.privateContacts?.twitterHandle).toBe("testuser");
+        expect(privateCardData?.x).toBe("testuser");
       });
 
       it("twitterHandle に '@testuser' を送信すると '@' が除去されて保存される", async () => {
@@ -163,7 +163,7 @@ describe("PrivateCard Integration Test", () => {
         const firestore = getFirestoreInstance();
         const privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const privateCardData = privateCardDoc.data();
-        expect(privateCardData?.privateContacts?.twitterHandle).toBe("testuser");
+        expect(privateCardData?.x).toBe("testuser");
       });
     });
 
@@ -203,8 +203,8 @@ describe("PrivateCard Integration Test", () => {
         // phoneNumber max: 50
         await expect(updatePrivateCard({phoneNumber: "a".repeat(51)})).rejects.toThrow();
 
-        // lineId max: 100
-        await expect(updatePrivateCard({lineId: "a".repeat(101)})).rejects.toThrow();
+        // line max: 100
+        await expect(updatePrivateCard({line: "a".repeat(101)})).rejects.toThrow();
 
         // otherContacts max: 1000
         await expect(updatePrivateCard({otherContacts: "a".repeat(1001)})).rejects.toThrow();
@@ -225,8 +225,8 @@ describe("PrivateCard Integration Test", () => {
         await updatePrivateCard({
           email: "test@example.com",
           phoneNumber: "+81-90-1234-5678",
-          lineId: "test_line",
-          discordId: "test_discord",
+          line: "test_line",
+          discord: "test_discord",
           twitterHandle: "@test",
           otherContacts: "Slack: test_slack",
         });
@@ -240,9 +240,9 @@ describe("PrivateCard Integration Test", () => {
           photoURL: "https://example.com/photo.jpg",
           email: "test@example.com",
           phoneNumber: "+81-90-1234-5678",
-          lineId: "test_line",
-          discordId: "test_discord",
-          twitterHandle: "test", // Note: @ prefix is removed by normalization
+          line: "test_line",
+          discord: "test_discord",
+          x: "test", // Note: @ prefix is removed by normalization
           otherContacts: "Slack: test_slack",
         });
         expect(result.data).toHaveProperty("updatedAt");

@@ -21,7 +21,8 @@
 ### Changed
 - **データモデルの統合**:
   - `/public_cards` と `/private_cards` コレクションを単一の `/cards` コレクションに統合
-  - プライベート連絡先情報は `/cards/{userId}.privateContacts` に格納（ネスト構造）
+  - **フラット構造**: すべてのフィールド（公開/非公開）をルートレベルで管理（email, phoneNumber, line, discord, x, github, linkedin等）
+  - デフォルト可視性: 連絡先/メッセージングフィールド='private'、SNSフィールド='public'
   - 可視性設定を `/cards/{userId}.visibility` で管理（将来の機能拡張用）
 
 - **パフォーマンス向上**:
@@ -34,12 +35,12 @@
 
 ### Technical Details
 - **Domain Layer**:
-  - 新規: `Card`, `CardVisibility`, `PrivateContacts`, `ICardRepository`, `CardVisibilityFilter`
+  - 新規: `Card` (フラット構造), `VisibilityLevel`, `ICardRepository`, `CardVisibilityFilter`
+  - 新規: `/constants/visibility.ts` でデフォルト可視性ルールを定義
   - 削除: `PublicCard`, `IPublicCardRepository`, `PrivateCard`, `IPrivateCardRepository`
 
 - **Infrastructure Layer**:
-  - 新規: `CardRepository` (`/cards` コレクション管理)
-  - 既存レポジトリとの互換性維持（`PublicCardRepository`, `PrivateCardRepository` は非推奨だが動作継続）
+  - 新規: `CardRepository` (`/cards` コレクション管理、フラットフィールド対応)
 
 - **Application Layer**:
   - `UpdateProfileUseCase`: トランザクション処理を削除、`CardRepository` を使用
@@ -50,7 +51,8 @@
 
 - **Handler Layer**:
   - すべてのハンドラーで `CardRepository` を使用
-  - レスポンス構造は従来通り（後方互換性維持）
+  - フィールド名の後方互換性: `lineId`/`line`, `discordId`/`discord`, `twitterHandle`/`x` 両方を受付（新名優先）
+  - レスポンスはフラット構造で返却
 
 - **Tests**:
   - ユニットテスト: 83件すべて成功
@@ -69,7 +71,8 @@
 
 ### Backward Compatibility
 - ✅ すべての既存APIエンドポイントが正常動作
-- ✅ リクエスト/レスポンス構造に変更なし
+- ✅ 旧フィールド名（`lineId`, `discordId`, `twitterHandle`）も引き続き受付可能
+- ✅ レスポンスはフラット構造だが、既存フィールド名で互換性維持
 - ✅ クライアント側の実装変更は不要
 
 ---

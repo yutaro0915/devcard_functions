@@ -41,8 +41,7 @@ describe("SaveCardUseCase", () => {
     const publicCard: Card = {
       userId: input.cardUserId,
       displayName: "Card User",
-      connectedServices: {},
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };

@@ -52,18 +52,16 @@ describe("GetSavedCardsUseCase", () => {
     const publicCard1: Card = {
       userId: "card-user-1",
       displayName: "User 1",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       updatedAt: new Date(),
     };
 
     const publicCard2: Card = {
       userId: "card-user-2",
       displayName: "User 2",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       updatedAt: new Date(),
     };
 
@@ -108,9 +106,8 @@ describe("GetSavedCardsUseCase", () => {
     const publicCard1: Card = {
       userId: "card-user-1",
       displayName: "User 1",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       updatedAt: new Date(),
     };
 
@@ -157,9 +154,8 @@ describe("GetSavedCardsUseCase", () => {
     const publicCard: Card = {
       userId: "card-user-1",
       displayName: "User 1",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       updatedAt: newDate,
     };
 
@@ -191,9 +187,8 @@ describe("GetSavedCardsUseCase", () => {
     const publicCard: Card = {
       userId: "card-user-1",
       displayName: "User 1",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       updatedAt: sameDate, // Same timestamp (boundary condition)
     };
 
@@ -225,9 +220,8 @@ describe("GetSavedCardsUseCase", () => {
     const publicCard: Card = {
       userId: "card-user-1",
       displayName: "User 1",
-      connectedServices: {},
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       updatedAt: now,
     };
 

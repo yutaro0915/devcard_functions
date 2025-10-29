@@ -14,7 +14,11 @@ interface GetPublicCardResponse {
     displayName: string;
     photoURL?: string;
     bio?: string;
-    connectedServices: Record<string, unknown>;
+    github?: {
+      serviceName: string;
+      username: string;
+      profileUrl: string;
+    };
     theme: string;
     customCss?: string;
     updatedAt: string;
@@ -44,7 +48,11 @@ describe("getPublicCard Integration Test", () => {
     displayName?: string;
     photoURL?: string;
     bio?: string;
-    connectedServices?: Record<string, unknown>;
+    github?: {
+      serviceName: string;
+      username: string;
+      profileUrl: string;
+    };
     theme?: string;
     customCss?: string | null;
     updatedAt?: Date;
@@ -60,20 +68,25 @@ describe("getPublicCard Integration Test", () => {
     const adminFirestore = adminApp.firestore();
     const now = new Date();
 
+    const cardData: any = {
+      userId,
+      displayName: data.displayName ?? "Test User",
+      photoURL: data.photoURL ?? "https://example.com/photo.jpg",
+      bio: data.bio ?? "Test bio",
+      theme: data.theme ?? "default",
+      customCss: data.customCss ?? null,
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
+      updatedAt: data.updatedAt ?? now,
+    };
+
+    if (data.github) {
+      cardData.github = data.github;
+    }
+
     await adminFirestore
       .collection("cards")
       .doc(userId)
-      .set({
-        userId,
-        displayName: data.displayName ?? "Test User",
-        photoURL: data.photoURL ?? "https://example.com/photo.jpg",
-        bio: data.bio ?? "Test bio",
-        connectedServices: data.connectedServices ?? {},
-        theme: data.theme ?? "default",
-        customCss: data.customCss ?? null,
-        visibility: {bio: "public", backgroundImage: "public", badges: "public"},
-        updatedAt: data.updatedAt ?? now,
-      });
+      .set(cardData);
   }
 
   describe("成功系", () => {
@@ -101,12 +114,10 @@ describe("getPublicCard Integration Test", () => {
         displayName: "John Doe",
         photoURL: "https://example.com/john.jpg",
         bio: "Software Engineer",
-        connectedServices: {
-          github: {
-            serviceName: "github",
-            username: "johndoe",
-            profileUrl: "https://github.com/johndoe",
-          },
+        github: {
+          serviceName: "github",
+          username: "johndoe",
+          profileUrl: "https://github.com/johndoe",
         },
         theme: "dark",
       });
@@ -120,7 +131,6 @@ describe("getPublicCard Integration Test", () => {
       // Verify: Required fields
       expect(publicCard).toHaveProperty("userId");
       expect(publicCard).toHaveProperty("displayName");
-      expect(publicCard).toHaveProperty("connectedServices");
       expect(publicCard).toHaveProperty("theme");
       expect(publicCard).toHaveProperty("updatedAt");
 
@@ -132,7 +142,11 @@ describe("getPublicCard Integration Test", () => {
       expect(publicCard.displayName).toBe("John Doe");
       expect(publicCard.photoURL).toBe("https://example.com/john.jpg");
       expect(publicCard.bio).toBe("Software Engineer");
-      expect(publicCard.connectedServices).toHaveProperty("github");
+      expect(publicCard.github).toEqual({
+        serviceName: "github",
+        username: "johndoe",
+        profileUrl: "https://github.com/johndoe",
+      });
       expect(publicCard.theme).toBe("dark");
     });
 

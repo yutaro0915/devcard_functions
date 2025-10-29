@@ -61,13 +61,8 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const cardData = cardDoc.data();
       expect(cardData?.userId).toBe(userId);
       expect(cardData?.displayName).toBeDefined();
-      expect(cardData?.connectedServices).toEqual({});
       expect(cardData?.theme).toBe("default");
-      expect(cardData?.visibility).toEqual({
-        bio: "public",
-        backgroundImage: "public",
-        badges: "public",
-      });
+      // visibility is optional in the new schema, so we don't check for exact values
       expect(cardData?.updatedAt).toBeDefined();
     });
   });
@@ -140,7 +135,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
   });
 
   describe("Contract: card structure", () => {
-    it("connectedServices は初期状態で空オブジェクト", async () => {
+    it("github フィールドは初期状態で存在しない", async () => {
       const email = "services@example.com";
       const userCredential = await createUserWithEmailAndPassword(auth, email, "password123");
       const userId = userCredential.user.uid;
@@ -148,7 +143,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
       const publicCardDoc = await getDoc(doc(firestore, "cards", userId));
-      expect(publicCardDoc.data()?.connectedServices).toEqual({});
+      expect(publicCardDoc.data()?.github).toBeUndefined();
     });
 
     it("theme は 'default' に設定される", async () => {

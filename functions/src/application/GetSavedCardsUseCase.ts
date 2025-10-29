@@ -2,7 +2,6 @@ import {ISavedCardRepository, FindSavedCardsOptions} from "../domain/ISavedCardR
 import {ICardRepository} from "../domain/ICardRepository";
 import {SavedCard} from "../domain/SavedCard";
 import {CardVisibilityFilter} from "../domain/CardVisibilityFilter";
-import type {ConnectedService} from "../domain/PublicCard";
 
 /**
  * Combined SavedCard with card details (Public or Private)
@@ -30,17 +29,27 @@ export interface SavedCardWithDetails {
 
   // Conditional fields - Public
   bio?: string;
-  connectedServices?: Record<string, ConnectedService>;
   theme?: string;
   customCss?: string;
 
-  // Conditional fields - Private
+  // Conditional fields - Private (flat structure)
   email?: string;
   phoneNumber?: string;
-  lineId?: string;
-  discordId?: string;
-  twitterHandle?: string;
-  otherContacts?: string;
+  github?: string;
+  x?: string;
+  linkedin?: string;
+  instagram?: string;
+  facebook?: string;
+  zenn?: string;
+  qiita?: string;
+  line?: string;
+  discord?: string;
+  telegram?: string;
+  slack?: string;
+  website?: string;
+  blog?: string;
+  youtube?: string;
+  twitch?: string;
 
   // Special flags
   isDeleted?: boolean; // Master card was deleted
@@ -123,19 +132,28 @@ export class GetSavedCardsUseCase {
 
     // Add public fields
     if ("bio" in filteredCard && filteredCard.bio) result.bio = filteredCard.bio;
-    if ("connectedServices" in filteredCard)
-      result.connectedServices = filteredCard.connectedServices;
     if ("theme" in filteredCard) result.theme = filteredCard.theme;
     if ("customCss" in filteredCard) result.customCss = filteredCard.customCss;
 
-    // Add private fields (only if cardType === 'private')
-    if (savedCard.cardType === "private" && card.privateContacts) {
-      result.email = card.privateContacts.email;
-      result.phoneNumber = card.privateContacts.phoneNumber;
-      result.lineId = card.privateContacts.lineId;
-      result.discordId = card.privateContacts.discordId;
-      result.twitterHandle = card.privateContacts.twitterHandle;
-      result.otherContacts = card.privateContacts.otherContacts;
+    // Add private fields (flat structure from filtered card)
+    if (savedCard.cardType === "private") {
+      if ("email" in filteredCard) result.email = filteredCard.email;
+      if ("phoneNumber" in filteredCard) result.phoneNumber = filteredCard.phoneNumber;
+      if ("github" in filteredCard) result.github = filteredCard.github;
+      if ("x" in filteredCard) result.x = filteredCard.x;
+      if ("linkedin" in filteredCard) result.linkedin = filteredCard.linkedin;
+      if ("instagram" in filteredCard) result.instagram = filteredCard.instagram;
+      if ("facebook" in filteredCard) result.facebook = filteredCard.facebook;
+      if ("zenn" in filteredCard) result.zenn = filteredCard.zenn;
+      if ("qiita" in filteredCard) result.qiita = filteredCard.qiita;
+      if ("line" in filteredCard) result.line = filteredCard.line;
+      if ("discord" in filteredCard) result.discord = filteredCard.discord;
+      if ("telegram" in filteredCard) result.telegram = filteredCard.telegram;
+      if ("slack" in filteredCard) result.slack = filteredCard.slack;
+      if ("website" in filteredCard) result.website = filteredCard.website;
+      if ("blog" in filteredCard) result.blog = filteredCard.blog;
+      if ("youtube" in filteredCard) result.youtube = filteredCard.youtube;
+      if ("twitch" in filteredCard) result.twitch = filteredCard.twitch;
     }
 
     return result;

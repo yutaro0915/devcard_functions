@@ -1,7 +1,6 @@
 import {IUserRepository} from "../domain/IUserRepository";
 import {ICardRepository} from "../domain/ICardRepository";
 import {IGitHubService} from "../domain/IGitHubService";
-import {ConnectedService} from "../domain/PublicCard";
 import {UserNotFoundError} from "../domain/errors/DomainErrors";
 
 /**
@@ -34,7 +33,7 @@ export interface ManualSyncOutput {
  */
 interface SyncServiceResult {
   success: boolean;
-  data?: ConnectedService;
+  username?: string;
   error?: "token-not-found" | "token-expired" | "api-error";
 }
 
@@ -65,15 +64,15 @@ export class ManualSyncUseCase {
       throw new Error(`Card not found for user ${input.userId}`);
     }
 
-    // Copy existing connected services to preserve them
-    const updatedServices = {...card.connectedServices};
+    // Build update data object
+    const updateData: Record<string, string> = {};
 
     // Process each requested service
     for (const service of input.services) {
       if (service === "github") {
         const result = await this.syncGitHub(user.githubAccessToken);
-        if (result.success && result.data) {
-          updatedServices.github = result.data;
+        if (result.success && result.username) {
+          updateData.github = result.username;
           syncedServices.push("github");
         } else if (result.error) {
           errors.push({
@@ -88,9 +87,7 @@ export class ManualSyncUseCase {
 
     // Update card only if at least one service was synced
     if (syncedServices.length > 0) {
-      await this.cardRepository.update(input.userId, {
-        connectedServices: updatedServices,
-      });
+      await this.cardRepository.update(input.userId, updateData);
     }
 
     return {
@@ -117,7 +114,7 @@ export class ManualSyncUseCase {
     if (result.success && result.data) {
       return {
         success: true,
-        data: this.gitHubService.toConnectedService(result.data),
+        username: result.data.username,
       };
     }
 
