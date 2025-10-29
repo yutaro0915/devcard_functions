@@ -3,9 +3,9 @@ import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
 import {ManualSyncUseCase} from "../application/ManualSyncUseCase";
 import {UserRepository} from "../infrastructure/UserRepository";
-import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
+import {CardRepository} from "../infrastructure/CardRepository";
 import {GitHubApiClient} from "../infrastructure/GitHubApiClient";
-import {UserNotFoundError, PublicCardNotFoundError} from "../domain/errors/DomainErrors";
+import {UserNotFoundError} from "../domain/errors/DomainErrors";
 
 const firestore = getFirestore();
 
@@ -42,14 +42,10 @@ export const manualSync = onCall(async (request) => {
 
     // Initialize dependencies
     const userRepository = new UserRepository(firestore);
-    const publicCardRepository = new PublicCardRepository(firestore);
+    const cardRepository = new CardRepository(firestore);
     const gitHubService = new GitHubApiClient();
 
-    const manualSyncUseCase = new ManualSyncUseCase(
-      userRepository,
-      publicCardRepository,
-      gitHubService
-    );
+    const manualSyncUseCase = new ManualSyncUseCase(userRepository, cardRepository, gitHubService);
 
     // Execute use case
     const result = await manualSyncUseCase.execute({
@@ -76,8 +72,8 @@ export const manualSync = onCall(async (request) => {
     }
 
     // Issue #17: Use instanceof checks instead of string matching
-    if (error instanceof UserNotFoundError || error instanceof PublicCardNotFoundError) {
-      throw new HttpsError("not-found", error.message);
+    if (error instanceof UserNotFoundError) {
+      throw new HttpsError("not-found", (error as Error).message);
     }
 
     throw new HttpsError("internal", "Failed to sync services");

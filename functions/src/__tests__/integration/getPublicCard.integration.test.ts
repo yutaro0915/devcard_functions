@@ -61,7 +61,7 @@ describe("getPublicCard Integration Test", () => {
     const now = new Date();
 
     await adminFirestore
-      .collection("public_cards")
+      .collection("cards")
       .doc(userId)
       .set({
         userId,
@@ -71,6 +71,7 @@ describe("getPublicCard Integration Test", () => {
         connectedServices: data.connectedServices ?? {},
         theme: data.theme ?? "default",
         customCss: data.customCss ?? null,
+        visibility: {bio: "public", backgroundImage: "public", badges: "public"},
         updatedAt: data.updatedAt ?? now,
       });
   }

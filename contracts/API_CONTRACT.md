@@ -1,8 +1,23 @@
-# API Contract v0.6.0
+# API Contract v0.7.0
 
 **このファイルがバックエンドAPIの唯一の真実です。**
 
 フロントエンド・iOS・その他のクライアントは、このファイルに記載された仕様に従ってください。
+
+---
+
+## 🚨 v0.7.0 重要な変更 (Unified Card Model)
+
+**データモデルの統合** (Issue #68対応):
+- `/public_cards` と `/private_cards` コレクションを単一の `/cards` コレクションに統合
+- 内部実装の変更であり、**既存のAPI仕様（リクエスト/レスポンス）に変更はありません**
+- すべての既存クライアントコードはそのまま動作します
+- パフォーマンス向上: プロフィール更新時のトランザクション処理が不要に
+
+**技術的な詳細**:
+- `/cards/{userId}` に公開情報とプライベート情報を格納
+- `privateContacts` フィールドでプライベート連絡先を管理
+- `visibility` フィールドで各フィールドの公開範囲を制御（将来の機能拡張用）
 
 ---
 
@@ -21,7 +36,7 @@
 
 **処理内容**:
 - `/users/{userId}` に非公開プロフィールを作成
-- `/public_cards/{userId}` に公開名刺を作成
+- `/cards/{userId}` に名刺データを作成（v0.7.0+: 旧 `/public_cards` から変更）
 
 **displayName の生成ロジック**:
 1. Firebase Auth の `user.displayName` が存在する場合（Google/Apple認証など）→ それを使用
@@ -47,7 +62,7 @@
   updatedAt: Timestamp;
 }
 
-// /public_cards/{userId}
+// /cards/{userId} (v0.7.0+: 旧 /public_cards)
 {
   userId: string;
   displayName: string;
@@ -55,6 +70,11 @@
   bio?: string;
   connectedServices: {}; // 初期状態は空
   theme: "default";
+  visibility: {
+    bio: "public",
+    backgroundImage: "public",
+    badges: "public"
+  };
   updatedAt: Timestamp;
 }
 ```
@@ -153,7 +173,7 @@
 
 **認証**: 必須（自分のプロフィールのみ更新可能）
 
-**説明**: ユーザーが自分のプロフィール情報を更新します。`/users/{userId}`、`/public_cards/{userId}`、および `/private_cards/{userId}`（存在する場合）の3箇所がトランザクションで同期更新されます。
+**説明**: ユーザーが自分のプロフィール情報を更新します。`/users/{userId}` と `/cards/{userId}` の2箇所が更新されます（v0.7.0+: トランザクション不要、パフォーマンス向上）。
 
 **リクエスト**:
 ```typescript

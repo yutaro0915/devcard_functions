@@ -1,8 +1,8 @@
 import {IUserRepository} from "../domain/IUserRepository";
-import {IPublicCardRepository} from "../domain/IPublicCardRepository";
+import {ICardRepository} from "../domain/ICardRepository";
 import {IGitHubService} from "../domain/IGitHubService";
 import {ConnectedService} from "../domain/PublicCard";
-import {UserNotFoundError, PublicCardNotFoundError} from "../domain/errors/DomainErrors";
+import {UserNotFoundError} from "../domain/errors/DomainErrors";
 
 /**
  * Input data for manual sync
@@ -43,43 +43,30 @@ interface SyncServiceResult {
  * Currently supports GitHub only
  */
 export class ManualSyncUseCase {
-  /**
-   * Constructor
-   * @param {IUserRepository} userRepository User repository
-   * @param {IPublicCardRepository} publicCardRepository Public card repository
-   * @param {IGitHubService} gitHubService GitHub service
-   */
   constructor(
     private userRepository: IUserRepository,
-    private publicCardRepository: IPublicCardRepository,
+    private cardRepository: ICardRepository,
     private gitHubService: IGitHubService
   ) {}
 
-  /**
-   * Execute manual sync
-   * @param {ManualSyncInput} input Input data
-   * @return {Promise<ManualSyncOutput>} Sync result
-   */
   async execute(input: ManualSyncInput): Promise<ManualSyncOutput> {
     // Verify user exists
     const user = await this.userRepository.findById(input.userId);
     if (!user) {
-      // Issue #17: Use custom error class instead of generic Error
       throw new UserNotFoundError(input.userId);
     }
 
     const syncedServices: string[] = [];
     const errors: SyncError[] = [];
 
-    // Get existing public card
-    const publicCard = await this.publicCardRepository.findByUserId(input.userId);
-    if (!publicCard) {
-      // Issue #17: Use custom error class instead of generic Error
-      throw new PublicCardNotFoundError(input.userId);
+    // Get existing card
+    const card = await this.cardRepository.findById(input.userId);
+    if (!card) {
+      throw new Error(`Card not found for user ${input.userId}`);
     }
 
     // Copy existing connected services to preserve them
-    const updatedServices = {...publicCard.connectedServices};
+    const updatedServices = {...card.connectedServices};
 
     // Process each requested service
     for (const service of input.services) {
@@ -99,9 +86,9 @@ export class ManualSyncUseCase {
       // For now, unsupported services are silently ignored
     }
 
-    // Update public card only if at least one service was synced
+    // Update card only if at least one service was synced
     if (syncedServices.length > 0) {
-      await this.publicCardRepository.update(input.userId, {
+      await this.cardRepository.update(input.userId, {
         connectedServices: updatedServices,
       });
     }

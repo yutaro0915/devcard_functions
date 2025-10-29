@@ -1,14 +1,15 @@
 import {CreateExchangeTokenUseCase} from "../../../application/CreateExchangeTokenUseCase";
-import {IPrivateCardRepository} from "../../../domain/IPrivateCardRepository";
+import {ICardRepository} from "../../../domain/ICardRepository";
 import {IExchangeTokenRepository} from "../../../domain/IExchangeTokenRepository";
-import {PrivateCard} from "../../../domain/PrivateCard";
+import {Card} from "../../../domain/Card";
 import {PrivateCardNotFoundError} from "../../../domain/errors/DomainErrors";
 
-const mockPrivateCardRepository: jest.Mocked<IPrivateCardRepository> = {
+const mockCardRepository: jest.Mocked<ICardRepository> = {
   create: jest.fn(),
-  findByUserId: jest.fn(),
+  findById: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
+  exists: jest.fn(),
 };
 
 const mockExchangeTokenRepository: jest.Mocked<IExchangeTokenRepository> = {
@@ -26,17 +27,23 @@ describe("CreateExchangeTokenUseCase", () => {
   });
 
   // Issue #23: Test successful token creation
-  it("should create exchange token successfully when PrivateCard exists", async () => {
+  it("should create exchange token successfully when Card has privateContacts", async () => {
     const userId = "user-123";
 
-    const privateCard: PrivateCard = {
+    const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      email: "test@example.com",
+      connectedServices: {},
+      theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      privateContacts: {
+        email: "test@example.com",
+        phoneNumber: "+81-90-1234-5678",
+      },
       updatedAt: new Date(),
     };
 
-    mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+    mockCardRepository.findById.mockResolvedValue(card);
     mockExchangeTokenRepository.create.mockResolvedValue({
       tokenId: "token-abc-123",
       ownerId: userId,
@@ -44,10 +51,7 @@ describe("CreateExchangeTokenUseCase", () => {
       expiresAt: new Date(Date.now() + 60000), // +1 minute
     });
 
-    const useCase = new CreateExchangeTokenUseCase(
-      mockPrivateCardRepository,
-      mockExchangeTokenRepository
-    );
+    const useCase = new CreateExchangeTokenUseCase(mockCardRepository, mockExchangeTokenRepository);
 
     const result = await useCase.execute({userId});
 
@@ -55,7 +59,7 @@ describe("CreateExchangeTokenUseCase", () => {
     expect(result.expiresAt).toBeDefined();
     expect(result.qrCodeData).toBe("devcard://exchange/token-abc-123");
 
-    expect(mockPrivateCardRepository.findByUserId).toHaveBeenCalledWith(userId);
+    expect(mockCardRepository.findById).toHaveBeenCalledWith(userId);
     expect(mockExchangeTokenRepository.create).toHaveBeenCalledWith({
       tokenId: expect.any(String),
       ownerId: userId,
@@ -63,36 +67,59 @@ describe("CreateExchangeTokenUseCase", () => {
   });
 
   // Issue #23: Test PrivateCardNotFoundError
-  it("should throw PrivateCardNotFoundError when PrivateCard does not exist", async () => {
-    const userId = "user-without-private-card";
+  it("should throw PrivateCardNotFoundError when Card does not exist", async () => {
+    const userId = "user-without-card";
 
-    mockPrivateCardRepository.findByUserId.mockResolvedValue(null);
+    mockCardRepository.findById.mockResolvedValue(null);
 
-    const useCase = new CreateExchangeTokenUseCase(
-      mockPrivateCardRepository,
-      mockExchangeTokenRepository
-    );
+    const useCase = new CreateExchangeTokenUseCase(mockCardRepository, mockExchangeTokenRepository);
 
     await expect(useCase.execute({userId})).rejects.toThrow(PrivateCardNotFoundError);
     await expect(useCase.execute({userId})).rejects.toThrow(
-      "PrivateCard for user user-without-private-card not found"
+      "PrivateCard for user user-without-card not found"
     );
 
-    expect(mockPrivateCardRepository.findByUserId).toHaveBeenCalledWith(userId);
+    expect(mockCardRepository.findById).toHaveBeenCalledWith(userId);
+    expect(mockExchangeTokenRepository.create).not.toHaveBeenCalled();
+  });
+
+  // Test when Card exists but has no privateContacts
+  it("should throw PrivateCardNotFoundError when Card has no privateContacts", async () => {
+    const userId = "user-without-private-contacts";
+
+    const card: Card = {
+      userId,
+      displayName: "Test User",
+      connectedServices: {},
+      theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      updatedAt: new Date(),
+      // No privateContacts
+    };
+
+    mockCardRepository.findById.mockResolvedValue(card);
+
+    const useCase = new CreateExchangeTokenUseCase(mockCardRepository, mockExchangeTokenRepository);
+
+    await expect(useCase.execute({userId})).rejects.toThrow(PrivateCardNotFoundError);
+    expect(mockCardRepository.findById).toHaveBeenCalledWith(userId);
     expect(mockExchangeTokenRepository.create).not.toHaveBeenCalled();
   });
 
   it("should generate tokenId with correct format", async () => {
     const userId = "user-123";
 
-    const privateCard: PrivateCard = {
+    const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      email: "test@example.com",
+      connectedServices: {},
+      theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      privateContacts: {email: "test@example.com"},
       updatedAt: new Date(),
     };
 
-    mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+    mockCardRepository.findById.mockResolvedValue(card);
     mockExchangeTokenRepository.create.mockImplementation(async (data) => ({
       tokenId: data.tokenId,
       ownerId: data.ownerId,
@@ -100,10 +127,7 @@ describe("CreateExchangeTokenUseCase", () => {
       expiresAt: new Date(Date.now() + 60000),
     }));
 
-    const useCase = new CreateExchangeTokenUseCase(
-      mockPrivateCardRepository,
-      mockExchangeTokenRepository
-    );
+    const useCase = new CreateExchangeTokenUseCase(mockCardRepository, mockExchangeTokenRepository);
 
     const result = await useCase.execute({userId});
 
@@ -118,14 +142,17 @@ describe("CreateExchangeTokenUseCase", () => {
     const now = new Date("2024-01-01T12:00:00.000Z");
     const expectedExpiry = new Date("2024-01-01T12:01:00.000Z");
 
-    const privateCard: PrivateCard = {
+    const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      email: "test@example.com",
+      connectedServices: {},
+      theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      privateContacts: {email: "test@example.com"},
       updatedAt: new Date(),
     };
 
-    mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+    mockCardRepository.findById.mockResolvedValue(card);
     mockExchangeTokenRepository.create.mockResolvedValue({
       tokenId: "token-123",
       ownerId: userId,
@@ -133,10 +160,7 @@ describe("CreateExchangeTokenUseCase", () => {
       expiresAt: expectedExpiry,
     });
 
-    const useCase = new CreateExchangeTokenUseCase(
-      mockPrivateCardRepository,
-      mockExchangeTokenRepository
-    );
+    const useCase = new CreateExchangeTokenUseCase(mockCardRepository, mockExchangeTokenRepository);
 
     const result = await useCase.execute({userId});
 
@@ -149,14 +173,17 @@ describe("CreateExchangeTokenUseCase", () => {
   it("should generate tokenId in Base64URL format (20 characters, [A-Za-z0-9_-])", async () => {
     const userId = "user-123";
 
-    const privateCard: PrivateCard = {
+    const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      email: "test@example.com",
+      connectedServices: {},
+      theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      privateContacts: {email: "test@example.com"},
       updatedAt: new Date(),
     };
 
-    mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+    mockCardRepository.findById.mockResolvedValue(card);
     mockExchangeTokenRepository.create.mockImplementation(async (data) => ({
       tokenId: data.tokenId,
       ownerId: data.ownerId,
@@ -164,10 +191,7 @@ describe("CreateExchangeTokenUseCase", () => {
       expiresAt: new Date(Date.now() + 60000),
     }));
 
-    const useCase = new CreateExchangeTokenUseCase(
-      mockPrivateCardRepository,
-      mockExchangeTokenRepository
-    );
+    const useCase = new CreateExchangeTokenUseCase(mockCardRepository, mockExchangeTokenRepository);
 
     const result = await useCase.execute({userId});
 
@@ -181,14 +205,17 @@ describe("CreateExchangeTokenUseCase", () => {
   it("should generate unique tokenIds (no collisions in 100 iterations)", async () => {
     const userId = "user-123";
 
-    const privateCard: PrivateCard = {
+    const card: Card = {
       userId: "user-123",
       displayName: "Test User",
-      email: "test@example.com",
+      connectedServices: {},
+      theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      privateContacts: {email: "test@example.com"},
       updatedAt: new Date(),
     };
 
-    mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+    mockCardRepository.findById.mockResolvedValue(card);
     mockExchangeTokenRepository.create.mockImplementation(async (data) => ({
       tokenId: data.tokenId,
       ownerId: data.ownerId,
@@ -196,10 +223,7 @@ describe("CreateExchangeTokenUseCase", () => {
       expiresAt: new Date(Date.now() + 60000),
     }));
 
-    const useCase = new CreateExchangeTokenUseCase(
-      mockPrivateCardRepository,
-      mockExchangeTokenRepository
-    );
+    const useCase = new CreateExchangeTokenUseCase(mockCardRepository, mockExchangeTokenRepository);
 
     const tokenIds = new Set<string>();
     for (let i = 0; i < 100; i++) {
@@ -216,14 +240,17 @@ describe("CreateExchangeTokenUseCase", () => {
     it("トークン生成前に deleteUnusedByOwnerId() を呼び出す", async () => {
       const userId = "user-123";
 
-      const privateCard: PrivateCard = {
+      const card: Card = {
         userId: "user-123",
         displayName: "Test User",
-        email: "test@example.com",
+        connectedServices: {},
+        theme: "default",
+        visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+        privateContacts: {email: "test@example.com"},
         updatedAt: new Date(),
       };
 
-      mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+      mockCardRepository.findById.mockResolvedValue(card);
       mockExchangeTokenRepository.deleteUnusedByOwnerId.mockResolvedValue();
       mockExchangeTokenRepository.create.mockResolvedValue({
         tokenId: "new-token-123",
@@ -233,7 +260,7 @@ describe("CreateExchangeTokenUseCase", () => {
       });
 
       const useCase = new CreateExchangeTokenUseCase(
-        mockPrivateCardRepository,
+        mockCardRepository,
         mockExchangeTokenRepository
       );
 
@@ -250,14 +277,17 @@ describe("CreateExchangeTokenUseCase", () => {
     it("deleteUnusedByOwnerId が失敗した場合、エラーをスローする", async () => {
       const userId = "user-123";
 
-      const privateCard: PrivateCard = {
+      const card: Card = {
         userId: "user-123",
         displayName: "Test User",
-        email: "test@example.com",
+        connectedServices: {},
+        theme: "default",
+        visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+        privateContacts: {email: "test@example.com"},
         updatedAt: new Date(),
       };
 
-      mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+      mockCardRepository.findById.mockResolvedValue(card);
       mockExchangeTokenRepository.deleteUnusedByOwnerId.mockRejectedValue(
         new Error("Firestore error")
       );
@@ -269,7 +299,7 @@ describe("CreateExchangeTokenUseCase", () => {
       });
 
       const useCase = new CreateExchangeTokenUseCase(
-        mockPrivateCardRepository,
+        mockCardRepository,
         mockExchangeTokenRepository
       );
 

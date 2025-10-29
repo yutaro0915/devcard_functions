@@ -52,8 +52,8 @@ describe("updateProfile Integration Test", () => {
       expect(userData?.photoURL).toBe("https://example.com/new-photo.jpg");
       expect(userData?.updatedAt).toBeDefined();
 
-      // Verify: Firestore data - /public_cards collection
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      // Verify: Firestore data - /cards collection
+      const publicCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
       const publicCardData = publicCardDoc.data();
 
       expect(publicCardData?.displayName).toBe("Updated Name");
@@ -93,7 +93,7 @@ describe("updateProfile Integration Test", () => {
       expect(result.data).toEqual({success: true});
 
       const firestore = getFirestoreInstance();
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
 
       expect(publicCardDoc.data()?.bio).toBe("Bio only update");
     });
@@ -129,7 +129,7 @@ describe("updateProfile Integration Test", () => {
       expect(result.data).toEqual({success: true});
 
       const firestore = getFirestoreInstance();
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
 
       expect(publicCardDoc.data()?.bio).toBe("");
     });
@@ -267,16 +267,16 @@ describe("updateProfile Integration Test", () => {
       expect(userData?.displayName).toBe("Updated Name");
       expect(userData?.photoURL).toBe("https://example.com/new-photo.jpg");
 
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
       const publicCardData = publicCardDoc.data();
       expect(publicCardData?.displayName).toBe("Updated Name");
       expect(publicCardData?.photoURL).toBe("https://example.com/new-photo.jpg");
 
-      const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+      const privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
       const privateCardData = privateCardDoc.data();
       expect(privateCardData?.displayName).toBe("Updated Name");
       expect(privateCardData?.photoURL).toBe("https://example.com/new-photo.jpg");
-      expect(privateCardData?.email).toBe("initial@example.com"); // Email should remain
+      expect(privateCardData?.privateContacts?.email).toBe("initial@example.com"); // Email should remain
       expect(privateCardData?.updatedAt).toBeDefined();
     });
 
@@ -300,8 +300,8 @@ describe("updateProfile Integration Test", () => {
       const firestore = getFirestoreInstance();
 
       const userDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
-      const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
+      const privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
 
       expect(userDoc.data()?.displayName).toBe("Atomic Update Test");
       expect(publicCardDoc.data()?.displayName).toBe("Atomic Update Test");

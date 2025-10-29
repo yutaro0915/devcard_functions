@@ -1,6 +1,5 @@
 import {ISavedCardRepository} from "../domain/ISavedCardRepository";
-import {IPublicCardRepository} from "../domain/IPublicCardRepository";
-import {IPrivateCardRepository} from "../domain/IPrivateCardRepository";
+import {ICardRepository} from "../domain/ICardRepository";
 
 /**
  * Input data for marking card as viewed
@@ -17,8 +16,7 @@ export interface MarkAsViewedInput {
 export class MarkAsViewedUseCase {
   constructor(
     private savedCardRepository: ISavedCardRepository,
-    private publicCardRepository: IPublicCardRepository,
-    private privateCardRepository: IPrivateCardRepository
+    private cardRepository: ICardRepository
   ) {}
 
   async execute(input: MarkAsViewedInput): Promise<void> {
@@ -31,28 +29,16 @@ export class MarkAsViewedUseCase {
     }
 
     // Get the master card's current updatedAt
-    let masterUpdatedAt: Date;
-
-    if (savedCard.cardType === "public") {
-      const publicCard = await this.publicCardRepository.findByUserId(savedCard.cardUserId);
-      if (!publicCard) {
-        throw new Error("Public card not found");
-      }
-      masterUpdatedAt = publicCard.updatedAt;
-    } else {
-      // private
-      const privateCard = await this.privateCardRepository.findByUserId(savedCard.cardUserId);
-      if (!privateCard) {
-        throw new Error("Private card not found");
-      }
-      masterUpdatedAt = privateCard.updatedAt;
+    const card = await this.cardRepository.findById(savedCard.cardUserId);
+    if (!card) {
+      throw new Error("Card not found");
     }
 
     // Update lastViewedAt and lastKnownUpdatedAt
     const now = new Date();
     await this.savedCardRepository.updateById(userId, savedCardId, {
       lastViewedAt: now,
-      lastKnownUpdatedAt: masterUpdatedAt,
+      lastKnownUpdatedAt: card.updatedAt,
     });
   }
 }

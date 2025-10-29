@@ -1,10 +1,10 @@
 import {ManualSyncUseCase} from "../../../application/ManualSyncUseCase";
 import {IUserRepository} from "../../../domain/IUserRepository";
-import {IPublicCardRepository} from "../../../domain/IPublicCardRepository";
+import {ICardRepository} from "../../../domain/ICardRepository";
 import {IGitHubService} from "../../../domain/IGitHubService";
 import {User} from "../../../domain/User";
-import {PublicCard} from "../../../domain/PublicCard";
-import {UserNotFoundError, PublicCardNotFoundError} from "../../../domain/errors/DomainErrors";
+import {Card} from "../../../domain/Card";
+import {UserNotFoundError} from "../../../domain/errors/DomainErrors";
 
 const mockUserRepository: jest.Mocked<IUserRepository> = {
   create: jest.fn(),
@@ -12,10 +12,11 @@ const mockUserRepository: jest.Mocked<IUserRepository> = {
   update: jest.fn(),
 };
 
-const mockPublicCardRepository: jest.Mocked<IPublicCardRepository> = {
+const mockCardRepository: jest.Mocked<ICardRepository> = {
   create: jest.fn(),
-  findByUserId: jest.fn(),
+  findById: jest.fn(),
   update: jest.fn(),
+  exists: jest.fn(),
   delete: jest.fn(),
 };
 
@@ -44,10 +45,11 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
-    const existingPublicCard: PublicCard = {
+    const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
       connectedServices: {},
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
@@ -72,17 +74,17 @@ describe("ManualSyncUseCase", () => {
     };
 
     mockUserRepository.findById.mockResolvedValue(existingUser);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
+    mockCardRepository.findById.mockResolvedValue(existingCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: true,
       data: gitHubUserInfo,
     });
     mockGitHubService.toConnectedService.mockReturnValue(connectedService);
-    mockPublicCardRepository.update.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
-      mockPublicCardRepository,
+      mockCardRepository,
       mockGitHubService
     );
 
@@ -95,7 +97,7 @@ describe("ManualSyncUseCase", () => {
     expect(mockUserRepository.findById).toHaveBeenCalledWith("user-123");
     expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith("valid_github_token");
     expect(mockGitHubService.toConnectedService).toHaveBeenCalledWith(gitHubUserInfo);
-    expect(mockPublicCardRepository.update).toHaveBeenCalledWith("user-123", {
+    expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
       connectedServices: {
         github: connectedService,
       },
@@ -117,20 +119,21 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
-    const existingPublicCard: PublicCard = {
+    const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
       connectedServices: {},
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
 
     mockUserRepository.findById.mockResolvedValue(existingUser);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
+    mockCardRepository.findById.mockResolvedValue(existingCard);
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
-      mockPublicCardRepository,
+      mockCardRepository,
       mockGitHubService
     );
 
@@ -146,7 +149,7 @@ describe("ManualSyncUseCase", () => {
     ]);
 
     expect(mockGitHubService.fetchUserInfo).not.toHaveBeenCalled();
-    expect(mockPublicCardRepository.update).not.toHaveBeenCalled();
+    expect(mockCardRepository.update).not.toHaveBeenCalled();
   });
 
   it("should return token-expired error when GitHub API returns 401", async () => {
@@ -164,16 +167,17 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
-    const existingPublicCard: PublicCard = {
+    const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
       connectedServices: {},
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
 
     mockUserRepository.findById.mockResolvedValue(existingUser);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
+    mockCardRepository.findById.mockResolvedValue(existingCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: false,
       error: "token-expired",
@@ -181,7 +185,7 @@ describe("ManualSyncUseCase", () => {
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
-      mockPublicCardRepository,
+      mockCardRepository,
       mockGitHubService
     );
 
@@ -197,7 +201,7 @@ describe("ManualSyncUseCase", () => {
     ]);
 
     expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith("expired_token");
-    expect(mockPublicCardRepository.update).not.toHaveBeenCalled();
+    expect(mockCardRepository.update).not.toHaveBeenCalled();
   });
 
   it("should return api-error when GitHub API fails", async () => {
@@ -215,16 +219,17 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
-    const existingPublicCard: PublicCard = {
+    const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
       connectedServices: {},
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
 
     mockUserRepository.findById.mockResolvedValue(existingUser);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
+    mockCardRepository.findById.mockResolvedValue(existingCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: false,
       error: "api-error",
@@ -232,7 +237,7 @@ describe("ManualSyncUseCase", () => {
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
-      mockPublicCardRepository,
+      mockCardRepository,
       mockGitHubService
     );
 
@@ -259,7 +264,7 @@ describe("ManualSyncUseCase", () => {
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
-      mockPublicCardRepository,
+      mockCardRepository,
       mockGitHubService
     );
 
@@ -267,8 +272,8 @@ describe("ManualSyncUseCase", () => {
     await expect(useCase.execute(input)).rejects.toThrow("User nonexistent-user not found");
   });
 
-  // Issue #17: Test custom error class (PublicCardNotFoundError)
-  it("should throw PublicCardNotFoundError if public card not found", async () => {
+  // Issue #17: Test custom error class (Error)
+  it("should throw Error if public card not found", async () => {
     const input = {
       userId: "user-123",
       services: ["github"],
@@ -292,7 +297,7 @@ describe("ManualSyncUseCase", () => {
     };
 
     mockUserRepository.findById.mockResolvedValue(existingUser);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(null);
+    mockCardRepository.findById.mockResolvedValue(null);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: true,
       data: gitHubUserInfo,
@@ -300,12 +305,12 @@ describe("ManualSyncUseCase", () => {
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
-      mockPublicCardRepository,
+      mockCardRepository,
       mockGitHubService
     );
 
-    await expect(useCase.execute(input)).rejects.toThrow(PublicCardNotFoundError);
-    await expect(useCase.execute(input)).rejects.toThrow("PublicCard for user user-123 not found");
+    await expect(useCase.execute(input)).rejects.toThrow(Error);
+    await expect(useCase.execute(input)).rejects.toThrow("Card not found for user user-123");
   });
 
   it("should ignore unsupported services", async () => {
@@ -323,10 +328,11 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
-    const existingPublicCard: PublicCard = {
+    const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
       connectedServices: {},
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
@@ -345,17 +351,17 @@ describe("ManualSyncUseCase", () => {
     };
 
     mockUserRepository.findById.mockResolvedValue(existingUser);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
+    mockCardRepository.findById.mockResolvedValue(existingCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: true,
       data: gitHubUserInfo,
     });
     mockGitHubService.toConnectedService.mockReturnValue(connectedService);
-    mockPublicCardRepository.update.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
-      mockPublicCardRepository,
+      mockCardRepository,
       mockGitHubService
     );
 
@@ -382,7 +388,7 @@ describe("ManualSyncUseCase", () => {
       updatedAt: new Date(),
     };
 
-    const existingPublicCard: PublicCard = {
+    const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
       connectedServices: {
@@ -393,6 +399,7 @@ describe("ManualSyncUseCase", () => {
         },
       },
       theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       updatedAt: new Date(),
     };
 
@@ -410,17 +417,17 @@ describe("ManualSyncUseCase", () => {
     };
 
     mockUserRepository.findById.mockResolvedValue(existingUser);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(existingPublicCard);
+    mockCardRepository.findById.mockResolvedValue(existingCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: true,
       data: gitHubUserInfo,
     });
     mockGitHubService.toConnectedService.mockReturnValue(connectedService);
-    mockPublicCardRepository.update.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
 
     const useCase = new ManualSyncUseCase(
       mockUserRepository,
-      mockPublicCardRepository,
+      mockCardRepository,
       mockGitHubService
     );
 
@@ -430,7 +437,7 @@ describe("ManualSyncUseCase", () => {
     expect(result.syncedServices).toEqual(["github"]);
 
     // Check that existing services are preserved
-    expect(mockPublicCardRepository.update).toHaveBeenCalledWith("user-123", {
+    expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
       connectedServices: {
         existingService: {
           serviceName: "existingService",

@@ -2,8 +2,7 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
 import {SavedCardRepository} from "../infrastructure/SavedCardRepository";
-import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
-import {PrivateCardRepository} from "../infrastructure/PrivateCardRepository";
+import {CardRepository} from "../infrastructure/CardRepository";
 import {ExchangeTokenRepository} from "../infrastructure/ExchangeTokenRepository";
 import {SaveCardUseCase} from "../application/SaveCardUseCase";
 import {GetSavedCardsUseCase} from "../application/GetSavedCardsUseCase";
@@ -36,8 +35,8 @@ export const saveCard = onCall(async (request) => {
 
     // Initialize dependencies
     const savedCardRepository = new SavedCardRepository(firestore);
-    const publicCardRepository = new PublicCardRepository(firestore);
-    const saveCardUseCase = new SaveCardUseCase(savedCardRepository, publicCardRepository);
+    const cardRepository = new CardRepository(firestore);
+    const saveCardUseCase = new SaveCardUseCase(savedCardRepository, cardRepository);
 
     // Execute use case
     const savedCard = await saveCardUseCase.execute({
@@ -122,13 +121,8 @@ export const getSavedCards = onCall(async (request) => {
 
     // Initialize dependencies
     const savedCardRepository = new SavedCardRepository(firestore);
-    const publicCardRepository = new PublicCardRepository(firestore);
-    const privateCardRepository = new PrivateCardRepository(firestore);
-    const getSavedCardsUseCase = new GetSavedCardsUseCase(
-      savedCardRepository,
-      publicCardRepository,
-      privateCardRepository
-    );
+    const cardRepository = new CardRepository(firestore);
+    const getSavedCardsUseCase = new GetSavedCardsUseCase(savedCardRepository, cardRepository);
 
     // Issue #25: Execute use case with options including startAfter
     const savedCards = await getSavedCardsUseCase.execute(userId, {
@@ -193,11 +187,11 @@ export const savePrivateCard = onCall(async (request) => {
 
     // Initialize dependencies
     const exchangeTokenRepository = new ExchangeTokenRepository(firestore);
-    const privateCardRepository = new PrivateCardRepository(firestore);
+    const cardRepository = new CardRepository(firestore);
     const savedCardRepository = new SavedCardRepository(firestore);
     const savePrivateCardUseCase = new SavePrivateCardUseCase(
       exchangeTokenRepository,
-      privateCardRepository,
+      cardRepository,
       savedCardRepository
     );
 
@@ -262,13 +256,8 @@ export const markAsViewed = onCall(async (request) => {
 
     // Initialize dependencies
     const savedCardRepository = new SavedCardRepository(firestore);
-    const publicCardRepository = new PublicCardRepository(firestore);
-    const privateCardRepository = new PrivateCardRepository(firestore);
-    const markAsViewedUseCase = new MarkAsViewedUseCase(
-      savedCardRepository,
-      publicCardRepository,
-      privateCardRepository
-    );
+    const cardRepository = new CardRepository(firestore);
+    const markAsViewedUseCase = new MarkAsViewedUseCase(savedCardRepository, cardRepository);
 
     // Execute use case
     await markAsViewedUseCase.execute({userId, savedCardId});

@@ -2,27 +2,25 @@ import * as auth from "firebase-functions/v1/auth";
 import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
 import {UserRepository} from "../infrastructure/UserRepository";
-import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
+import {CardRepository} from "../infrastructure/CardRepository";
 import {CreateUserUseCase} from "../application/CreateUserUseCase";
-import {GeneratePublicCardUseCase} from "../application/GeneratePublicCardUseCase";
 import {SanitizeService} from "../application/SanitizeService";
 
 const firestore = getFirestore();
 
 /**
  * Auth onCreate trigger (v1)
- * Creates user profile in /users and public card in /public_cards when a new user signs up
+ * Creates user profile in /users and card in /cards when a new user signs up
  */
 export const onUserCreate = auth.user().onCreate(async (user) => {
   try {
-    logger.info("Creating user profile and public card", {userId: user.uid});
+    logger.info("Creating user profile and card", {userId: user.uid});
 
     // Initialize dependencies
     const userRepository = new UserRepository(firestore);
-    const publicCardRepository = new PublicCardRepository(firestore);
+    const cardRepository = new CardRepository(firestore);
     const sanitizeService = new SanitizeService();
     const createUserUseCase = new CreateUserUseCase(userRepository);
-    const generatePublicCardUseCase = new GeneratePublicCardUseCase(publicCardRepository);
 
     // Generate displayName with sanitization
     let displayName = "Anonymous";
@@ -45,16 +43,17 @@ export const onUserCreate = auth.user().onCreate(async (user) => {
       photoURL,
     });
 
-    // Generate public card
-    await generatePublicCardUseCase.execute({
+    // Create card (replaces PublicCard creation)
+    await cardRepository.create({
       userId: user.uid,
       displayName,
       photoURL,
+      theme: "default",
     });
 
-    logger.info("User profile and public card created successfully", {userId: user.uid});
+    logger.info("User profile and card created successfully", {userId: user.uid});
   } catch (error) {
-    logger.error("Failed to create user profile or public card", {
+    logger.error("Failed to create user profile or card", {
       userId: user.uid,
       error: error instanceof Error ? error.message : String(error),
     });

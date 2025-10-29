@@ -2,12 +2,11 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
 import {UpdatePrivateCardUseCase} from "../application/UpdatePrivateCardUseCase";
-import {GetPrivateCardUseCase} from "../application/GetPrivateCardUseCase";
+import {GetCardUseCase} from "../application/GetCardUseCase";
 import {CreateExchangeTokenUseCase} from "../application/CreateExchangeTokenUseCase";
-import {PrivateCardRepository} from "../infrastructure/PrivateCardRepository";
-import {UserRepository} from "../infrastructure/UserRepository";
+import {CardRepository} from "../infrastructure/CardRepository";
 import {ExchangeTokenRepository} from "../infrastructure/ExchangeTokenRepository";
-import {PrivateCardNotFoundError, UserNotFoundError} from "../domain/errors/DomainErrors";
+import {PrivateCardNotFoundError} from "../domain/errors/DomainErrors";
 import {
   PRIVATE_CARD_VALIDATION,
   isValidTwitterHandle,
@@ -145,10 +144,9 @@ export const updatePrivateCard = onCall(async (request) => {
       hasOtherContacts: otherContacts !== undefined,
     });
 
-    // Execute use case
-    const privateCardRepository = new PrivateCardRepository(firestore);
-    const userRepository = new UserRepository(firestore);
-    const useCase = new UpdatePrivateCardUseCase(privateCardRepository, userRepository);
+    // Execute use case with nested privateContacts structure
+    const cardRepository = new CardRepository(firestore);
+    const useCase = new UpdatePrivateCardUseCase(cardRepository);
 
     // If twitterHandle was explicitly set to empty string, pass "" to delete it
     // Otherwise pass the normalized value (which might be undefined)
@@ -157,14 +155,18 @@ export const updatePrivateCard = onCall(async (request) => {
         ? ""
         : normalizedTwitterHandle;
 
+    // Build privateContacts object (nested structure)
+    const privateContacts: Record<string, string> = {};
+    if (email !== undefined) privateContacts.email = email;
+    if (phoneNumber !== undefined) privateContacts.phoneNumber = phoneNumber;
+    if (lineId !== undefined) privateContacts.lineId = lineId;
+    if (discordId !== undefined) privateContacts.discordId = discordId;
+    if (twitterHandleValue !== undefined) privateContacts.twitterHandle = twitterHandleValue;
+    if (otherContacts !== undefined) privateContacts.otherContacts = otherContacts;
+
     await useCase.execute({
       userId,
-      email,
-      phoneNumber,
-      lineId,
-      discordId,
-      twitterHandle: twitterHandleValue,
-      otherContacts,
+      privateContacts: Object.keys(privateContacts).length > 0 ? privateContacts : undefined,
     });
 
     return {success: true};
@@ -178,11 +180,6 @@ export const updatePrivateCard = onCall(async (request) => {
     // Re-throw HttpsError as-is
     if (error instanceof HttpsError) {
       throw error;
-    }
-
-    // Issue #17: Use instanceof checks instead of string matching
-    if (error instanceof UserNotFoundError) {
-      throw new HttpsError("not-found", error.message);
     }
 
     throw new HttpsError("internal", "Failed to update private card");
@@ -204,22 +201,41 @@ export const getPrivateCard = onCall(async (request) => {
   try {
     logger.info("getPrivateCard called", {userId});
 
-    // Execute use case
+    // Execute use case with visibility='private'
     const {BadgeRepository} = await import("../infrastructure/BadgeRepository.js");
-    const privateCardRepository = new PrivateCardRepository(firestore);
+    const cardRepository = new CardRepository(firestore);
     const badgeRepository = new BadgeRepository(firestore);
-    const useCase = new GetPrivateCardUseCase(privateCardRepository, badgeRepository);
+    const useCase = new GetCardUseCase(cardRepository, badgeRepository);
 
-    const privateCard = await useCase.execute(userId);
+    const privateCard = await useCase.execute({
+      userId,
+      visibility: "private",
+      requestingUserId: userId,
+    });
 
     if (!privateCard) {
       return null;
     }
 
-    // Return serialized data (Date to ISO string)
+    // If no privateContacts exist, return null (no private card data)
+    if (!privateCard.privateContacts) {
+      return null;
+    }
+
+    // Flatten privateContacts for backward compatibility with API contract
+    const {privateContacts, ...rest} = privateCard;
     return {
-      ...privateCard,
-      updatedAt: privateCard.updatedAt.toISOString(),
+      ...rest,
+      updatedAt: privateCard.updatedAt?.toISOString(),
+      // Flatten privateContacts fields to top level
+      ...(privateContacts && {
+        email: privateContacts.email,
+        phoneNumber: privateContacts.phoneNumber,
+        lineId: privateContacts.lineId,
+        discordId: privateContacts.discordId,
+        twitterHandle: privateContacts.twitterHandle,
+        otherContacts: privateContacts.otherContacts,
+      }),
     };
   } catch (error) {
     logger.error("getPrivateCard failed", {userId, error});
@@ -243,10 +259,10 @@ export const createExchangeToken = onCall(async (request) => {
     logger.info("createExchangeToken called", {userId});
 
     // Initialize dependencies
-    const privateCardRepository = new PrivateCardRepository(firestore);
+    const cardRepository = new CardRepository(firestore);
     const exchangeTokenRepository = new ExchangeTokenRepository(firestore);
 
-    const useCase = new CreateExchangeTokenUseCase(privateCardRepository, exchangeTokenRepository);
+    const useCase = new CreateExchangeTokenUseCase(cardRepository, exchangeTokenRepository);
 
     // Execute use case
     const result = await useCase.execute({userId});

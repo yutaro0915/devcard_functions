@@ -42,10 +42,18 @@ export class UserRepository implements IUserRepository {
   }
 
   async update(userId: string, data: Partial<User>): Promise<void> {
-    const updateData = {
-      ...data,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: Record<string, any> = {
       updatedAt: FieldValue.serverTimestamp(),
     };
+
+    // Only include defined values to avoid Firestore "undefined" errors
+    if (data.displayName !== undefined) updateData.displayName = data.displayName;
+    if (data.photoURL !== undefined) updateData.photoURL = data.photoURL;
+    if (data.githubAccessToken !== undefined) updateData.githubAccessToken = data.githubAccessToken;
+    if (data.xAccessToken !== undefined) updateData.xAccessToken = data.xAccessToken;
+    if (data.qiitaAccessToken !== undefined) updateData.qiitaAccessToken = data.qiitaAccessToken;
+    if (data.customCss !== undefined) updateData.customCss = data.customCss;
 
     await this.firestore.collection(this.collection).doc(userId).update(updateData);
   }

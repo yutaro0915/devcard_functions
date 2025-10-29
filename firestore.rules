@@ -13,13 +13,23 @@ service cloud.firestore {
       }
     }
 
-    // Public cards - anyone can read, only Cloud Functions can write
+    // Unified cards collection - replaces public_cards and private_cards
+    // Only the owner can read their own card (includes private data)
+    // Cloud Functions handle access control via GetCardUseCase (visibility filtering)
+    match /cards/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false; // Only Cloud Functions (with admin privileges) can write
+    }
+
+    // Legacy: Public cards - anyone can read, only Cloud Functions can write
+    // TODO: Remove after migration
     match /public_cards/{userId} {
       allow read: if true;
       allow write: if false; // Only Cloud Functions (with admin privileges) can write
     }
 
-    // Private cards - only the owner can read, only Cloud Functions can write
+    // Legacy: Private cards - only the owner can read, only Cloud Functions can write
+    // TODO: Remove after migration
     match /private_cards/{userId} {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow write: if false; // Only Cloud Functions (with admin privileges) can write

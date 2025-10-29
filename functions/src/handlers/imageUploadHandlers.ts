@@ -5,13 +5,8 @@ import {UploadProfileImageUseCase} from "../application/UploadProfileImageUseCas
 import {UploadCardBackgroundUseCase} from "../application/UploadCardBackgroundUseCase";
 import {StorageService} from "../infrastructure/StorageService";
 import {UserRepository} from "../infrastructure/UserRepository";
-import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
-import {PrivateCardRepository} from "../infrastructure/PrivateCardRepository";
-import {
-  UserNotFoundError,
-  PublicCardNotFoundError,
-  ImageValidationError,
-} from "../domain/errors/DomainErrors";
+import {CardRepository} from "../infrastructure/CardRepository";
+import {UserNotFoundError, ImageValidationError} from "../domain/errors/DomainErrors";
 
 const firestore = getFirestore();
 
@@ -41,15 +36,9 @@ export const uploadProfileImage = onCall(async (request) => {
     // Initialize dependencies
     const storageService = new StorageService();
     const userRepository = new UserRepository(firestore);
-    const publicCardRepository = new PublicCardRepository(firestore);
-    const privateCardRepository = new PrivateCardRepository(firestore);
+    const cardRepository = new CardRepository(firestore);
 
-    const useCase = new UploadProfileImageUseCase(
-      storageService,
-      userRepository,
-      publicCardRepository,
-      privateCardRepository
-    );
+    const useCase = new UploadProfileImageUseCase(storageService, userRepository, cardRepository);
 
     // Execute use case
     const result = await useCase.execute({
@@ -80,7 +69,7 @@ export const uploadProfileImage = onCall(async (request) => {
       throw new HttpsError("invalid-argument", error.message);
     }
 
-    if (error instanceof UserNotFoundError || error instanceof PublicCardNotFoundError) {
+    if (error instanceof UserNotFoundError) {
       throw new HttpsError("not-found", error.message);
     }
 
@@ -113,9 +102,9 @@ export const uploadCardBackground = onCall(async (request) => {
 
     // Initialize dependencies
     const storageService = new StorageService();
-    const publicCardRepository = new PublicCardRepository(firestore);
+    const cardRepository = new CardRepository(firestore);
 
-    const useCase = new UploadCardBackgroundUseCase(storageService, publicCardRepository);
+    const useCase = new UploadCardBackgroundUseCase(storageService, cardRepository);
 
     // Execute use case
     const result = await useCase.execute({
@@ -147,10 +136,6 @@ export const uploadCardBackground = onCall(async (request) => {
     // Handle domain errors
     if (error instanceof ImageValidationError) {
       throw new HttpsError("invalid-argument", error.message);
-    }
-
-    if (error instanceof PublicCardNotFoundError) {
-      throw new HttpsError("not-found", error.message);
     }
 
     throw new HttpsError("internal", "Failed to upload card background image");

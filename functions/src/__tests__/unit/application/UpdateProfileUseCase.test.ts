@@ -1,10 +1,19 @@
-import {
-  UpdateProfileUseCase,
-  IProfileUpdateTransaction,
-} from "../../../application/UpdateProfileUseCase";
+import {UpdateProfileUseCase} from "../../../application/UpdateProfileUseCase";
+import {ICardRepository} from "../../../domain/ICardRepository";
+import {IUserRepository} from "../../../domain/IUserRepository";
 
-const mockTransaction: jest.Mocked<IProfileUpdateTransaction> = {
-  execute: jest.fn(),
+const mockCardRepository: jest.Mocked<ICardRepository> = {
+  create: jest.fn(),
+  findById: jest.fn(),
+  update: jest.fn(),
+  exists: jest.fn(),
+  delete: jest.fn(),
+};
+
+const mockUserRepository: jest.Mocked<IUserRepository> = {
+  create: jest.fn(),
+  findById: jest.fn(),
+  update: jest.fn(),
 };
 
 describe("UpdateProfileUseCase", () => {
@@ -20,27 +29,22 @@ describe("UpdateProfileUseCase", () => {
       photoURL: "https://example.com/new.jpg",
     };
 
-    mockTransaction.execute.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
+    mockUserRepository.update.mockResolvedValue(undefined);
 
-    const useCase = new UpdateProfileUseCase(mockTransaction);
+    const useCase = new UpdateProfileUseCase(mockCardRepository, mockUserRepository);
     await useCase.execute(input);
 
-    expect(mockTransaction.execute).toHaveBeenCalledWith(
-      "user-123",
-      {
-        displayName: "New Name",
-        photoURL: "https://example.com/new.jpg",
-      },
-      {
-        displayName: "New Name",
-        bio: "New bio",
-        photoURL: "https://example.com/new.jpg",
-      },
-      {
-        displayName: "New Name",
-        photoURL: "https://example.com/new.jpg",
-      }
-    );
+    expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: "New Name",
+      bio: "New bio",
+      photoURL: "https://example.com/new.jpg",
+    });
+
+    expect(mockUserRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: "New Name",
+      photoURL: "https://example.com/new.jpg",
+    });
   });
 
   it("should update displayName only", async () => {
@@ -49,23 +53,22 @@ describe("UpdateProfileUseCase", () => {
       displayName: "New Name Only",
     };
 
-    mockTransaction.execute.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
+    mockUserRepository.update.mockResolvedValue(undefined);
 
-    const useCase = new UpdateProfileUseCase(mockTransaction);
+    const useCase = new UpdateProfileUseCase(mockCardRepository, mockUserRepository);
     await useCase.execute(input);
 
-    expect(mockTransaction.execute).toHaveBeenCalledWith(
-      "user-123",
-      {
-        displayName: "New Name Only",
-      },
-      {
-        displayName: "New Name Only",
-      },
-      {
-        displayName: "New Name Only",
-      }
-    );
+    expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: "New Name Only",
+      bio: undefined,
+      photoURL: undefined,
+    });
+
+    expect(mockUserRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: "New Name Only",
+      photoURL: undefined,
+    });
   });
 
   it("should update bio only", async () => {
@@ -74,19 +77,20 @@ describe("UpdateProfileUseCase", () => {
       bio: "New bio only",
     };
 
-    mockTransaction.execute.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
+    mockUserRepository.update.mockResolvedValue(undefined);
 
-    const useCase = new UpdateProfileUseCase(mockTransaction);
+    const useCase = new UpdateProfileUseCase(mockCardRepository, mockUserRepository);
     await useCase.execute(input);
 
-    expect(mockTransaction.execute).toHaveBeenCalledWith(
-      "user-123",
-      {},
-      {
-        bio: "New bio only",
-      },
-      undefined
-    );
+    expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: undefined,
+      bio: "New bio only",
+      photoURL: undefined,
+    });
+
+    // bio only doesn't trigger user update
+    expect(mockUserRepository.update).not.toHaveBeenCalled();
   });
 
   it("should update photoURL only", async () => {
@@ -95,23 +99,22 @@ describe("UpdateProfileUseCase", () => {
       photoURL: "https://example.com/new-photo.jpg",
     };
 
-    mockTransaction.execute.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
+    mockUserRepository.update.mockResolvedValue(undefined);
 
-    const useCase = new UpdateProfileUseCase(mockTransaction);
+    const useCase = new UpdateProfileUseCase(mockCardRepository, mockUserRepository);
     await useCase.execute(input);
 
-    expect(mockTransaction.execute).toHaveBeenCalledWith(
-      "user-123",
-      {
-        photoURL: "https://example.com/new-photo.jpg",
-      },
-      {
-        photoURL: "https://example.com/new-photo.jpg",
-      },
-      {
-        photoURL: "https://example.com/new-photo.jpg",
-      }
-    );
+    expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: undefined,
+      bio: undefined,
+      photoURL: "https://example.com/new-photo.jpg",
+    });
+
+    expect(mockUserRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: undefined,
+      photoURL: "https://example.com/new-photo.jpg",
+    });
   });
 
   it("should handle empty update gracefully", async () => {
@@ -119,37 +122,18 @@ describe("UpdateProfileUseCase", () => {
       userId: "user-123",
     };
 
-    mockTransaction.execute.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
 
-    const useCase = new UpdateProfileUseCase(mockTransaction);
+    const useCase = new UpdateProfileUseCase(mockCardRepository, mockUserRepository);
     await useCase.execute(input);
 
-    // Empty updates should still call transaction with empty objects
-    expect(mockTransaction.execute).toHaveBeenCalledWith("user-123", {}, {}, undefined);
-  });
+    expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: undefined,
+      bio: undefined,
+      photoURL: undefined,
+    });
 
-  it("should throw error if user not found", async () => {
-    const input = {
-      userId: "nonexistent-user",
-      displayName: "New Name",
-    };
-
-    mockTransaction.execute.mockRejectedValue(new Error("User with ID nonexistent-user not found"));
-
-    const useCase = new UpdateProfileUseCase(mockTransaction);
-    await expect(useCase.execute(input)).rejects.toThrow("User with ID nonexistent-user not found");
-  });
-
-  it("should throw error if public card not found", async () => {
-    const input = {
-      userId: "user-123",
-      displayName: "New Name",
-    };
-
-    mockTransaction.execute.mockRejectedValue(new Error("PublicCard for user user-123 not found"));
-
-    const useCase = new UpdateProfileUseCase(mockTransaction);
-    await expect(useCase.execute(input)).rejects.toThrow("PublicCard for user user-123 not found");
+    expect(mockUserRepository.update).not.toHaveBeenCalled();
   });
 
   it("should allow empty string for bio", async () => {
@@ -158,18 +142,17 @@ describe("UpdateProfileUseCase", () => {
       bio: "",
     };
 
-    mockTransaction.execute.mockResolvedValue(undefined);
+    mockCardRepository.update.mockResolvedValue(undefined);
 
-    const useCase = new UpdateProfileUseCase(mockTransaction);
+    const useCase = new UpdateProfileUseCase(mockCardRepository, mockUserRepository);
     await useCase.execute(input);
 
-    expect(mockTransaction.execute).toHaveBeenCalledWith(
-      "user-123",
-      {},
-      {
-        bio: "",
-      },
-      undefined
-    );
+    expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
+      displayName: undefined,
+      bio: "",
+      photoURL: undefined,
+    });
+
+    expect(mockUserRepository.update).not.toHaveBeenCalled();
   });
 });

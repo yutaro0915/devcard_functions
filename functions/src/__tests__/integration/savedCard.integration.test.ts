@@ -28,20 +28,32 @@ describe("SavedCard Operations Integration Test", () => {
   const TEST_EMAIL = "test@example.com";
   const TEST_EMAIL2 = "test2@example.com";
 
-  // Helper: Create PrivateCard directly in Firestore
+  // Helper: Create Card with privateContacts directly in Firestore
   async function createPrivateCardDirectly(userId: string, email: string) {
     const adminApp = admin.app();
     const adminFirestore = adminApp.firestore();
     const now = new Date();
 
-    await adminFirestore.collection("private_cards").doc(userId).set({
-      userId,
-      displayName: "Test User",
-      photoURL: "https://example.com/photo.jpg",
-      email,
-      phoneNumber: "+81-90-1234-5678",
-      updatedAt: now,
-    });
+    await adminFirestore
+      .collection("cards")
+      .doc(userId)
+      .set({
+        userId,
+        displayName: "Test User",
+        photoURL: "https://example.com/photo.jpg",
+        connectedServices: {},
+        theme: "default",
+        visibility: {
+          bio: "public",
+          backgroundImage: "public",
+          badges: "public",
+        },
+        privateContacts: {
+          email,
+          phoneNumber: "+81-90-1234-5678",
+        },
+        updatedAt: now,
+      });
   }
 
   // Helper: Create ExchangeToken directly in Firestore
@@ -126,7 +138,7 @@ describe("SavedCard Operations Integration Test", () => {
 
         const adminApp = admin.app();
         const adminFirestore = adminApp.firestore();
-        await adminFirestore.collection("private_cards").doc(TEST_USER2_ID).update({
+        await adminFirestore.collection("cards").doc(TEST_USER2_ID).update({
           email: "updated@example.com",
           updatedAt: new Date(),
         });
@@ -495,7 +507,7 @@ describe("SavedCard Operations Integration Test", () => {
         // (Need to switch user context - simulate by direct Firestore update)
         const adminApp = admin.app();
         const adminFirestore = adminApp.firestore();
-        await adminFirestore.collection("public_cards").doc(TEST_USER2_ID).update({
+        await adminFirestore.collection("cards").doc(TEST_USER2_ID).update({
           bio: "Updated bio from test",
           updatedAt: new Date(),
         });
@@ -526,7 +538,7 @@ describe("SavedCard Operations Integration Test", () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
         const adminApp = admin.app();
         const adminFirestore = adminApp.firestore();
-        await adminFirestore.collection("public_cards").doc(TEST_USER2_ID).update({
+        await adminFirestore.collection("cards").doc(TEST_USER2_ID).update({
           bio: "Updated",
           updatedAt: new Date(),
         });
@@ -624,11 +636,11 @@ describe("SavedCard Operations Integration Test", () => {
         await new Promise((resolve) => setTimeout(resolve, 100));
         const adminApp = admin.app();
         const adminFirestore = adminApp.firestore();
-        await adminFirestore.collection("public_cards").doc(TEST_USER2_ID).update({
+        await adminFirestore.collection("cards").doc(TEST_USER2_ID).update({
           bio: "Updated public",
           updatedAt: new Date(),
         });
-        await adminFirestore.collection("private_cards").doc(TEST_USER2_ID).update({
+        await adminFirestore.collection("cards").doc(TEST_USER2_ID).update({
           email: "updated@example.com",
           updatedAt: new Date(),
         });

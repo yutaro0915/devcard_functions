@@ -32,8 +32,8 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
     await teardownTestEnvironment();
   });
 
-  describe("Contract: onUserCreate trigger creates user and public_card", () => {
-    it("新規ユーザー登録時に /users/{userId} と /public_cards/{userId} が自動作成される", async () => {
+  describe("Contract: onUserCreate trigger creates user and card", () => {
+    it("新規ユーザー登録時に /users/{userId} と /cards/{userId} が自動作成される", async () => {
       const email = `newuser-${Date.now()}@example.com`;
       const password = "password123";
 
@@ -54,16 +54,21 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       expect(userData?.createdAt).toBeDefined();
       expect(userData?.updatedAt).toBeDefined();
 
-      // Contract: /public_cards/{userId} must exist
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
-      expect(publicCardDoc.exists()).toBe(true);
+      // Contract: /cards/{userId} must exist (Unified Card Model)
+      const cardDoc = await getDoc(doc(firestore, "cards", userId));
+      expect(cardDoc.exists()).toBe(true);
 
-      const publicCardData = publicCardDoc.data();
-      expect(publicCardData?.userId).toBe(userId);
-      expect(publicCardData?.displayName).toBeDefined();
-      expect(publicCardData?.connectedServices).toEqual({});
-      expect(publicCardData?.theme).toBe("default");
-      expect(publicCardData?.updatedAt).toBeDefined();
+      const cardData = cardDoc.data();
+      expect(cardData?.userId).toBe(userId);
+      expect(cardData?.displayName).toBeDefined();
+      expect(cardData?.connectedServices).toEqual({});
+      expect(cardData?.theme).toBe("default");
+      expect(cardData?.visibility).toEqual({
+        bio: "public",
+        backgroundImage: "public",
+        badges: "public",
+      });
+      expect(cardData?.updatedAt).toBeDefined();
     });
   });
 
@@ -79,7 +84,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
       const userDoc = await getDoc(doc(firestore, "users", userId));
       expect(userDoc.data()?.displayName).toMatch(/^test\d+$/);
 
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", userId));
       // Both should have the same sanitized displayName
       expect(publicCardDoc.data()?.displayName).toMatch(/^test\d+$/);
     });
@@ -134,7 +139,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
     });
   });
 
-  describe("Contract: public_card structure", () => {
+  describe("Contract: card structure", () => {
     it("connectedServices は初期状態で空オブジェクト", async () => {
       const email = "services@example.com";
       const userCredential = await createUserWithEmailAndPassword(auth, email, "password123");
@@ -142,7 +147,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
 
       await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", userId));
       expect(publicCardDoc.data()?.connectedServices).toEqual({});
     });
 
@@ -153,7 +158,7 @@ describe("onUserCreate Auth Trigger Integration Tests", () => {
 
       await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", userId));
       expect(publicCardDoc.data()?.theme).toBe("default");
     });
   });

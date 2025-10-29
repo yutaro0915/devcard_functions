@@ -1,8 +1,8 @@
 import {SavePrivateCardUseCase} from "../../../application/SavePrivateCardUseCase";
 import {IExchangeTokenRepository} from "../../../domain/IExchangeTokenRepository";
-import {IPrivateCardRepository} from "../../../domain/IPrivateCardRepository";
+import {ICardRepository} from "../../../domain/ICardRepository";
 import {ISavedCardRepository} from "../../../domain/ISavedCardRepository";
-import {PrivateCard} from "../../../domain/PrivateCard";
+import {Card} from "../../../domain/Card";
 import {ExchangeToken} from "../../../domain/ExchangeToken";
 
 const mockExchangeTokenRepository: jest.Mocked<IExchangeTokenRepository> = {
@@ -14,11 +14,12 @@ const mockExchangeTokenRepository: jest.Mocked<IExchangeTokenRepository> = {
   deleteUnusedByOwnerId: jest.fn(), // Issue #50: New method
 };
 
-const mockPrivateCardRepository: jest.Mocked<IPrivateCardRepository> = {
+const mockCardRepository: jest.Mocked<ICardRepository> = {
   create: jest.fn(),
-  findByUserId: jest.fn(),
+  findById: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
+  exists: jest.fn(),
 };
 
 const mockSavedCardRepository: jest.Mocked<ISavedCardRepository> = {
@@ -56,7 +57,7 @@ describe("SavePrivateCardUseCase", () => {
 
       const useCase = new SavePrivateCardUseCase(
         mockExchangeTokenRepository,
-        mockPrivateCardRepository,
+        mockCardRepository,
         mockSavedCardRepository
       );
 
@@ -87,7 +88,7 @@ describe("SavePrivateCardUseCase", () => {
 
       const useCase = new SavePrivateCardUseCase(
         mockExchangeTokenRepository,
-        mockPrivateCardRepository,
+        mockCardRepository,
         mockSavedCardRepository
       );
 
@@ -109,26 +110,29 @@ describe("SavePrivateCardUseCase", () => {
         expiresAt: new Date(Date.now() + 60000), // 1 minute from now (valid)
       };
 
-      const privateCard: PrivateCard = {
+      const card: Card = {
         userId: ownerId,
         displayName: "Owner User",
-        email: "owner@example.com",
+        connectedServices: {},
+        theme: "default",
+        visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+        privateContacts: {email: "owner@example.com"},
         updatedAt: new Date(),
       };
 
       mockExchangeTokenRepository.findById.mockResolvedValue(validToken);
-      mockPrivateCardRepository.findByUserId.mockResolvedValue(privateCard);
+      mockCardRepository.findById.mockResolvedValue(card);
       mockSavedCardRepository.save.mockResolvedValue({
         savedCardId: "saved-123",
         cardUserId: ownerId,
         cardType: "private",
         savedAt: new Date(),
-        lastKnownUpdatedAt: privateCard.updatedAt,
+        lastKnownUpdatedAt: card.updatedAt,
       });
 
       const useCase = new SavePrivateCardUseCase(
         mockExchangeTokenRepository,
-        mockPrivateCardRepository,
+        mockCardRepository,
         mockSavedCardRepository
       );
 
@@ -149,7 +153,7 @@ describe("SavePrivateCardUseCase", () => {
 
       const useCase = new SavePrivateCardUseCase(
         mockExchangeTokenRepository,
-        mockPrivateCardRepository,
+        mockCardRepository,
         mockSavedCardRepository
       );
 
@@ -171,7 +175,7 @@ describe("SavePrivateCardUseCase", () => {
 
       const useCase = new SavePrivateCardUseCase(
         mockExchangeTokenRepository,
-        mockPrivateCardRepository,
+        mockCardRepository,
         mockSavedCardRepository
       );
 
@@ -194,7 +198,7 @@ describe("SavePrivateCardUseCase", () => {
 
       const useCase = new SavePrivateCardUseCase(
         mockExchangeTokenRepository,
-        mockPrivateCardRepository,
+        mockCardRepository,
         mockSavedCardRepository
       );
 
