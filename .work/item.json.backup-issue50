@@ -1,0 +1,50 @@
+{
+  "feature_name": "Exchange Token即時削除＆リフレッシュ機能 (Issue #50)",
+  "status": "ready-for-review",
+  "api_changes": [
+    {
+      "path": "savePrivateCard",
+      "method": "N/A",
+      "change_type": "change-validation",
+      "breaking": false,
+      "details": "期限切れトークンを検証時にその場で削除。エラーレスポンス (invalid-argument) は変更なし。",
+      "reason": "期限切れトークンをリアルタイムで削除し、Firestoreの肥大化を防ぐ。"
+    },
+    {
+      "path": "createExchangeToken",
+      "method": "N/A",
+      "change_type": "change-validation",
+      "breaking": false,
+      "details": "新しいトークン生成時、同一ユーザーの既存の未使用トークンを自動的に削除。レスポンス構造は変更なし。",
+      "reason": "有効トークンを1つに制限し、ストレージコスト削減とセキュリティ向上。"
+    }
+  ],
+  "security_notes": [
+    "認証: createExchangeToken, savePrivateCard は既に認証必須（変更なし）",
+    "認可: 自分のトークンのみ削除される（他人のトークンには影響なし）",
+    "トークン数制限: 1ユーザー1有効トークンに制限することで、古いトークンからの不正アクセスリスクを排除",
+    "即時削除: 期限切れトークンは検証時に即座に削除され、無効なトークンがFirestoreに残らない",
+    "ログ出力: トークンIDや機密情報はログに出力しない"
+  ],
+  "tests_required": [
+    "[即時削除] ユニットテスト: ExchangeTokenRepository.delete(tokenId) が正常に動作する",
+    "[即時削除] ユニットテスト: SavePrivateCardUseCase が期限切れトークン検出時に delete() を呼び出す",
+    "[即時削除] 統合テスト: savePrivateCard で期限切れトークンを使用 → invalid-argument エラー + トークン削除",
+    "[即時削除] 統合テスト: 削除済みトークンで savePrivateCard を再実行 → not-found エラー",
+    "[リフレッシュ] ユニットテスト: ExchangeTokenRepository.deleteUnusedByOwnerId(ownerId) が未使用トークンのみ削除",
+    "[リフレッシュ] ユニットテスト: CreateExchangeTokenUseCase が deleteUnusedByOwnerId() を呼び出す",
+    "[リフレッシュ] 統合テスト: 新しいトークンを生成すると、古い未使用トークンが削除される",
+    "[リフレッシュ] 統合テスト: 使用済みトークンは削除されない",
+    "[リフレッシュ] 統合テスト: 未使用トークンが0件でもエラーにならない",
+    "[境界条件] 統合テスト: 既に削除済みのトークンを削除してもエラーにならない"
+  ],
+  "client_work_items": [
+    "なし: クライアント側の実装変更は不要（APIレスポンス構造は同じ）"
+  ],
+  "breaking_changes": false,
+  "notes_for_frontend": "createExchangeToken の動作が変更されました。新しいトークンを生成すると、以前に生成した未使用のトークンは自動的に無効化（削除）されます。また、savePrivateCard で期限切れトークンを使用した場合、トークンは即座にFirestoreから削除されます（エラーレスポンスは変更なし）。クライアント側の実装変更は不要です。",
+  "backend_commit_sha": null,
+  "related_issues": ["#50"],
+  "estimated_effort": "2-3時間（Domain/Infrastructure/Application層の修正 + 統合テスト10件 + ユニットテスト6件）",
+  "implementation_notes": "統合テストで発見: Firestoreクエリ .where('usedBy', '==', null) を使うため、トークン作成時に usedBy: null を明示的に設定する必要がある。フィールドが存在しない場合、クエリにマッチしない。"
+}

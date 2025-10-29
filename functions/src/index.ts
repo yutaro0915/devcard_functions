@@ -17,12 +17,8 @@ export {
   markAsViewed,
   deleteSavedCard,
 } from "./handlers/savedCardHandlers";
-export {updateProfile} from "./handlers/profileHandlers";
-export {
-  updatePrivateCard,
-  getPrivateCard,
-  createExchangeToken,
-} from "./handlers/privateCardHandlers";
+export {updateCard} from "./handlers/cardHandlers";
+export {getPrivateCard, createExchangeToken} from "./handlers/privateCardHandlers";
 export {getPublicCard} from "./handlers/publicCardHandlers";
 export {manualSync} from "./handlers/syncHandlers";
 export {addModerator} from "./handlers/moderatorHandlers";
