@@ -9,7 +9,7 @@ import {
 import {httpsCallable} from "firebase/functions";
 import {doc, getDoc} from "firebase/firestore";
 
-describe("updateProfile Integration Test", () => {
+describe("updateCard Integration Test", () => {
   beforeAll(async () => {
     await setupTestEnvironment();
   });
@@ -30,11 +30,11 @@ describe("updateProfile Integration Test", () => {
       // Setup: Create test user
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
-      // Execute: Call updateProfile via Emulator
+      // Execute: Call updateCard via Emulator
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
-      const result = await updateProfile({
+      const result = await updateCard({
         displayName: "Updated Name",
         bio: "Updated bio",
         photoURL: "https://example.com/new-photo.jpg",
@@ -66,9 +66,9 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
-      const result = await updateProfile({
+      const result = await updateCard({
         displayName: "Name Only Update",
       });
 
@@ -84,9 +84,9 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
-      const result = await updateProfile({
+      const result = await updateCard({
         bio: "Bio only update",
       });
 
@@ -102,9 +102,9 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
-      const result = await updateProfile({
+      const result = await updateCard({
         photoURL: "https://newdomain.com/photo.png",
       });
 
@@ -120,9 +120,9 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
-      const result = await updateProfile({
+      const result = await updateCard({
         bio: "",
       });
 
@@ -147,9 +147,9 @@ describe("updateProfile Integration Test", () => {
 
       // Update profile
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
-      await updateProfile({
+      await updateCard({
         displayName: "New Name",
       });
 
@@ -167,19 +167,19 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
-      await expect(updateProfile({})).rejects.toThrow();
+      await expect(updateCard({})).rejects.toThrow();
     });
 
     it("displayNameが空文字列で失敗する", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
       await expect(
-        updateProfile({
+        updateCard({
           displayName: "",
         })
       ).rejects.toThrow();
@@ -189,10 +189,10 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
       await expect(
-        updateProfile({
+        updateCard({
           displayName: "a".repeat(101),
         })
       ).rejects.toThrow();
@@ -202,10 +202,10 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
       await expect(
-        updateProfile({
+        updateCard({
           bio: "a".repeat(501),
         })
       ).rejects.toThrow();
@@ -215,10 +215,10 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
       await expect(
-        updateProfile({
+        updateCard({
           photoURL: "http://example.com/photo.jpg",
         })
       ).rejects.toThrow();
@@ -228,10 +228,10 @@ describe("updateProfile Integration Test", () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
-      const updateProfile = httpsCallable(functions, "updateProfile");
+      const updateCard = httpsCallable(functions, "updateCard");
 
       await expect(
-        updateProfile({
+        updateCard({
           photoURL: "not-a-valid-url",
         })
       ).rejects.toThrow();
@@ -239,20 +239,20 @@ describe("updateProfile Integration Test", () => {
   });
 
   describe("PrivateCard統合: 3箇所同時更新", () => {
-    it("updateProfileがPublicCardとPrivateCardを同時更新し、両方のupdatedAtが更新される", async () => {
+    it("updateCardがPublicCardとPrivateCardを同時更新し、両方のupdatedAtが更新される", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       // Create PrivateCard first
       const functions = getFunctionsInstance();
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({email: "initial@example.com"});
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({email: "initial@example.com"});
 
       // Wait to ensure timestamp difference
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Update profile (should update User, PublicCard, and PrivateCard)
-      const updateProfile = httpsCallable(functions, "updateProfile");
-      const result = await updateProfile({
+      const updateCard = httpsCallable(functions, "updateCard");
+      const result = await updateCard({
         displayName: "Updated Name",
         photoURL: "https://example.com/new-photo.jpg",
       });
@@ -280,17 +280,17 @@ describe("updateProfile Integration Test", () => {
       expect(privateCardData?.updatedAt).toBeDefined();
     });
 
-    it("updateProfile時のトランザクションが正常に完了", async () => {
+    it("updateCard時のトランザクションが正常に完了", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       // Create PrivateCard
       const functions = getFunctionsInstance();
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({email: "test@example.com"});
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({email: "test@example.com"});
 
       // Update profile
-      const updateProfile = httpsCallable(functions, "updateProfile");
-      const result = await updateProfile({
+      const updateCard = httpsCallable(functions, "updateCard");
+      const result = await updateCard({
         displayName: "Atomic Update Test",
       });
 

@@ -83,10 +83,7 @@ describe("getPublicCard Integration Test", () => {
       cardData.github = data.github;
     }
 
-    await adminFirestore
-      .collection("cards")
-      .doc(userId)
-      .set(cardData);
+    await adminFirestore.collection("cards").doc(userId).set(cardData);
   }
 
   describe("成功系", () => {

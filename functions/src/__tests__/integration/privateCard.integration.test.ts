@@ -25,15 +25,15 @@ describe("PrivateCard Integration Test", () => {
   const TEST_USER_ID = "test-user-123";
   const TEST_EMAIL = "test@example.com";
 
-  describe("updatePrivateCard", () => {
+  describe("updateCard", () => {
     describe("成功系", () => {
       it("有効な連絡先情報でPrivateCardが作成される", async () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
-        const result = await updatePrivateCard({
+        const result = await updateCard({
           email: "private@example.com",
           phoneNumber: "+81-90-1234-5678",
           line: "test_line_id",
@@ -58,10 +58,10 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
         // Initial update
-        await updatePrivateCard({email: "initial@example.com"});
+        await updateCard({email: "initial@example.com"});
 
         // Wait to ensure timestamp difference
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -72,7 +72,7 @@ describe("PrivateCard Integration Test", () => {
         const initialUpdatedAt = initialDoc.data()?.updatedAt;
 
         // Second update
-        const result = await updatePrivateCard({email: "updated@example.com"});
+        const result = await updateCard({email: "updated@example.com"});
 
         expect(result.data).toEqual({success: true});
 
@@ -87,17 +87,17 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
         // Create with multiple fields
-        await updatePrivateCard({
+        await updateCard({
           email: "test@example.com",
           phoneNumber: "+81-90-1234-5678",
           line: "test_line",
         });
 
         // Partial update - only email
-        const result = await updatePrivateCard({email: "new@example.com"});
+        const result = await updateCard({email: "new@example.com"});
 
         expect(result.data).toEqual({success: true});
 
@@ -116,10 +116,10 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
         // First, create with twitterHandle
-        await updatePrivateCard({twitterHandle: "testuser"});
+        await updateCard({twitterHandle: "testuser"});
 
         const firestore = getFirestoreInstance();
         let privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
@@ -127,7 +127,7 @@ describe("PrivateCard Integration Test", () => {
         expect(privateCardData?.x).toBe("testuser");
 
         // Then, send empty string to delete the field
-        const result = await updatePrivateCard({twitterHandle: ""});
+        const result = await updateCard({twitterHandle: ""});
         expect(result.data).toEqual({success: true});
 
         // Verify twitterHandle is now undefined (not stored in Firestore)
@@ -140,9 +140,9 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
-        const result = await updatePrivateCard({twitterHandle: "testuser"});
+        const result = await updateCard({twitterHandle: "testuser"});
         expect(result.data).toEqual({success: true});
 
         const firestore = getFirestoreInstance();
@@ -155,9 +155,9 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
-        const result = await updatePrivateCard({twitterHandle: "@testuser"});
+        const result = await updateCard({twitterHandle: "@testuser"});
         expect(result.data).toEqual({success: true});
 
         const firestore = getFirestoreInstance();
@@ -171,43 +171,43 @@ describe("PrivateCard Integration Test", () => {
       it("未ログイン時に unauthenticated エラー", async () => {
         // Don't create test user - not authenticated
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
-        await expect(updatePrivateCard({email: "test@example.com"})).rejects.toThrow();
+        await expect(updateCard({email: "test@example.com"})).rejects.toThrow();
       });
 
       it("全フィールド未指定で invalid-argument エラー", async () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
-        await expect(updatePrivateCard({})).rejects.toThrow();
+        await expect(updateCard({})).rejects.toThrow();
       });
 
       it("emailが無効な形式で invalid-argument エラー", async () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
-        await expect(updatePrivateCard({email: "invalid-email"})).rejects.toThrow();
+        await expect(updateCard({email: "invalid-email"})).rejects.toThrow();
       });
 
       it("文字列が最大長を超えて invalid-argument エラー", async () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
 
         // phoneNumber max: 50
-        await expect(updatePrivateCard({phoneNumber: "a".repeat(51)})).rejects.toThrow();
+        await expect(updateCard({phoneNumber: "a".repeat(51)})).rejects.toThrow();
 
         // line max: 100
-        await expect(updatePrivateCard({line: "a".repeat(101)})).rejects.toThrow();
+        await expect(updateCard({line: "a".repeat(101)})).rejects.toThrow();
 
         // otherContacts max: 1000
-        await expect(updatePrivateCard({otherContacts: "a".repeat(1001)})).rejects.toThrow();
+        await expect(updateCard({otherContacts: "a".repeat(1001)})).rejects.toThrow();
       });
     });
   });
@@ -218,11 +218,11 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
         const functions = getFunctionsInstance();
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const updateCard = httpsCallable(functions, "updateCard");
         const getPrivateCard = httpsCallable(functions, "getPrivateCard");
 
         // Create private card
-        await updatePrivateCard({
+        await updateCard({
           email: "test@example.com",
           phoneNumber: "+81-90-1234-5678",
           line: "test_line",
@@ -284,8 +284,8 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
         const functions = getFunctionsInstance();
 
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-        await updatePrivateCard({email: "owner@example.com", phoneNumber: "+81-90-1111-2222"});
+        const updateCard = httpsCallable(functions, "updateCard");
+        await updateCard({email: "owner@example.com", phoneNumber: "+81-90-1111-2222"});
 
         const createExchangeToken = httpsCallable(functions, "createExchangeToken");
         const tokenResult = await createExchangeToken({});
@@ -308,8 +308,8 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
         const functions = getFunctionsInstance();
 
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-        await updatePrivateCard({email: "owner@example.com"});
+        const updateCard = httpsCallable(functions, "updateCard");
+        await updateCard({email: "owner@example.com"});
 
         const createExchangeToken = httpsCallable(functions, "createExchangeToken");
         const tokenResult = await createExchangeToken({});
@@ -334,8 +334,8 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
         const functions = getFunctionsInstance();
 
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-        await updatePrivateCard({email: "owner@example.com"});
+        const updateCard = httpsCallable(functions, "updateCard");
+        await updateCard({email: "owner@example.com"});
 
         const createExchangeToken = httpsCallable(functions, "createExchangeToken");
 
@@ -362,8 +362,8 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
         const functions = getFunctionsInstance();
 
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-        await updatePrivateCard({email: "owner@example.com"});
+        const updateCard = httpsCallable(functions, "updateCard");
+        await updateCard({email: "owner@example.com"});
 
         const createExchangeToken = httpsCallable(functions, "createExchangeToken");
 
@@ -375,7 +375,7 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(SAVER_USER_ID, SAVER_EMAIL);
 
         // SAVER needs PrivateCard before they can save others' cards
-        const saverUpdatePrivateCard = httpsCallable(functions, "updatePrivateCard");
+        const saverUpdatePrivateCard = httpsCallable(functions, "updateCard");
         await saverUpdatePrivateCard({email: "saver@example.com"});
 
         const savePrivateCard = httpsCallable(functions, "savePrivateCard");
@@ -405,8 +405,8 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
         const functions = getFunctionsInstance();
 
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-        await updatePrivateCard({email: "owner@example.com"});
+        const updateCard = httpsCallable(functions, "updateCard");
+        await updateCard({email: "owner@example.com"});
 
         const createExchangeToken = httpsCallable(functions, "createExchangeToken");
 
@@ -426,8 +426,8 @@ describe("PrivateCard Integration Test", () => {
         await createTestUser(OWNER_USER_ID, OWNER_EMAIL);
         const functions = getFunctionsInstance();
 
-        const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-        await updatePrivateCard({email: "owner@example.com"});
+        const updateCard = httpsCallable(functions, "updateCard");
+        await updateCard({email: "owner@example.com"});
 
         const createExchangeToken = httpsCallable(functions, "createExchangeToken");
 

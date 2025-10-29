@@ -60,8 +60,8 @@ describe("User Story Integration Tests", () => {
       expect(publicCardDoc.data()?.theme).toBe("default");
 
       // Step 2: User updates profile
-      const updateProfile = httpsCallable(functions, "updateProfile");
-      await updateProfile({
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({
         displayName: "John Doe",
         bio: "Software Engineer",
       });
@@ -92,8 +92,8 @@ describe("User Story Integration Tests", () => {
       await createTestUser(userB, "userB@example.com");
 
       // User B creates profile
-      const updateProfile = httpsCallable(functions, "updateProfile");
-      await updateProfile({
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({
         displayName: "Bob Smith",
         bio: "Product Manager",
       });
@@ -142,14 +142,14 @@ describe("User Story Integration Tests", () => {
       await createTestUser(userA, "userA@example.com");
 
       // Step 1: User A creates private card
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      const updateResult = await updatePrivateCard({
+      const updateCard = httpsCallable(functions, "updateCard");
+      const updateResult = await updateCard({
         email: "alice@company.com",
         phoneNumber: "123-456-7890",
         line: "alice_line",
       });
 
-      // Verify: updatePrivateCard succeeded
+      // Verify: updateCard succeeded
       expect((updateResult.data as any).success).toBe(true);
 
       // Step 2: User A generates exchange token
@@ -217,8 +217,8 @@ describe("User Story Integration Tests", () => {
 
       // User B updates profile
       await createTestUser(userB, "userB@example.com");
-      const updateProfile = httpsCallable(functions, "updateProfile");
-      await updateProfile({bio: "Updated bio"});
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({bio: "Updated bio"});
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -313,8 +313,8 @@ describe("User Story Integration Tests", () => {
       await createTestUser(userId, "user@example.com");
 
       // Create private card
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({
         email: "original@example.com",
         phoneNumber: "111-111-1111",
       });
@@ -326,7 +326,7 @@ describe("User Story Integration Tests", () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       // Update private card
-      await updatePrivateCard({
+      await updateCard({
         email: "updated@example.com",
       });
 
@@ -348,8 +348,8 @@ describe("User Story Integration Tests", () => {
 
       // Setup User A with private card
       await createTestUser(userA, "userA@example.com");
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({email: "alice@example.com"});
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({email: "alice@example.com"});
 
       // User A generates token
       const createExchangeToken = httpsCallable(functions, "createExchangeToken");
@@ -373,8 +373,8 @@ describe("User Story Integration Tests", () => {
 
       // Setup User A with private card
       await createTestUser(userA, "userA@example.com");
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({email: "alice@example.com"});
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({email: "alice@example.com"});
 
       // User A generates token
       const createExchangeToken = httpsCallable(functions, "createExchangeToken");
@@ -401,8 +401,8 @@ describe("User Story Integration Tests", () => {
       await createTestUser(privateUser, "privateuser@example.com");
 
       // Private user creates private card
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({email: "private@example.com"});
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({email: "private@example.com"});
 
       // Generate token
       const createExchangeToken = httpsCallable(functions, "createExchangeToken");
@@ -444,12 +444,12 @@ describe("User Story Integration Tests", () => {
       await createTestUser(userId, "user@example.com");
 
       // Create private card first
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({email: "contact@example.com"});
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({email: "contact@example.com"});
 
       // Update profile
-      const updateProfile = httpsCallable(functions, "updateProfile");
-      await updateProfile({
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({
         displayName: "New Display Name",
         bio: "Updated bio",
       });
@@ -467,21 +467,21 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー11: PrivateCard の初回作成", () => {
-    it("初回 updatePrivateCard 実行時に displayName/photoURL が User から自動コピーされる", async () => {
+    it("初回 updateCard 実行時に displayName/photoURL が User から自動コピーされる", async () => {
       const userId = "user-story11";
 
       await createTestUser(userId, "user@example.com");
 
       // Update user profile first
-      const updateProfile = httpsCallable(functions, "updateProfile");
-      await updateProfile({
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({
         displayName: "John Smith",
         photoURL: "https://example.com/photo.jpg",
       });
 
-      // First call to updatePrivateCard (should create doc)
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({
+      // First call to updateCard (should create doc)
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({
         email: "john@company.com",
         phoneNumber: "555-1234",
       });
@@ -495,7 +495,7 @@ describe("User Story Integration Tests", () => {
       expect(privateCardDoc.data()?.phoneNumber).toBe("555-1234");
 
       // Second call (should only update specified fields)
-      await updatePrivateCard({
+      await updateCard({
         email: "john.new@company.com",
       });
 
@@ -602,25 +602,25 @@ describe("User Story Integration Tests", () => {
       const saveCard = httpsCallable(functions, "saveCard");
       await expect(saveCard({})).rejects.toThrow();
 
-      // updateProfile: all fields missing (contract line 196)
-      const updateProfile = httpsCallable(functions, "updateProfile");
-      await expect(updateProfile({})).rejects.toThrow();
+      // updateCard: all fields missing (contract line 196)
+      const updateCard = httpsCallable(functions, "updateCard");
+      await expect(updateCard({})).rejects.toThrow();
 
-      // updateProfile: displayName too long (contract line 184)
-      await expect(updateProfile({displayName: "a".repeat(101)})).rejects.toThrow();
+      // updateCard: displayName too long (contract line 184)
+      await expect(updateCard({displayName: "a".repeat(101)})).rejects.toThrow();
 
-      // updateProfile: bio too long (contract line 185)
-      await expect(updateProfile({bio: "a".repeat(501)})).rejects.toThrow();
+      // updateCard: bio too long (contract line 185)
+      await expect(updateCard({bio: "a".repeat(501)})).rejects.toThrow();
 
-      // updateProfile: photoURL not HTTPS (contract line 186)
-      await expect(updateProfile({photoURL: "http://example.com/photo.jpg"})).rejects.toThrow();
+      // updateCard: photoURL not HTTPS (contract line 186)
+      await expect(updateCard({photoURL: "http://example.com/photo.jpg"})).rejects.toThrow();
 
-      // updatePrivateCard: all fields missing (contract line 493)
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await expect(updatePrivateCard({})).rejects.toThrow();
+      // updateCard: all fields missing (contract line 493)
+      const updateCard = httpsCallable(functions, "updateCard");
+      await expect(updateCard({})).rejects.toThrow();
 
-      // updatePrivateCard: invalid email format (contract line 471)
-      await expect(updatePrivateCard({email: "invalid-email"})).rejects.toThrow();
+      // updateCard: invalid email format (contract line 471)
+      await expect(updateCard({email: "invalid-email"})).rejects.toThrow();
 
       // getSavedCards: invalid cardType (contract line 330)
       const getSavedCards = httpsCallable(functions, "getSavedCards");
@@ -681,8 +681,8 @@ describe("User Story Integration Tests", () => {
       await createTestUser(userId, "user@example.com");
 
       // Create private card with @username format
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({
         twitterHandle: "@johndoe",
       });
 
@@ -691,7 +691,7 @@ describe("User Story Integration Tests", () => {
       expect(privateCardDoc.data()?.x).toBe("johndoe");
 
       // Update without @ (should work)
-      await updatePrivateCard({
+      await updateCard({
         twitterHandle: "janedoe",
       });
 
@@ -699,7 +699,7 @@ describe("User Story Integration Tests", () => {
       expect(privateCardDoc.data()?.x).toBe("janedoe");
 
       // Delete by sending empty string per contract (line 480, 506)
-      await updatePrivateCard({
+      await updateCard({
         twitterHandle: "",
       });
 

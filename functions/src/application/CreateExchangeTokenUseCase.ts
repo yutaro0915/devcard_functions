@@ -38,12 +38,7 @@ export class CreateExchangeTokenUseCase {
 
     // Check if card has at least one private contact field
     const hasPrivateInfo =
-      card.email ||
-      card.phoneNumber ||
-      card.line ||
-      card.discord ||
-      card.telegram ||
-      card.slack;
+      card.email || card.phoneNumber || card.line || card.discord || card.telegram || card.slack;
 
     if (!hasPrivateInfo) {
       throw new PrivateCardNotFoundError(input.userId);

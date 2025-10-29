@@ -740,8 +740,8 @@ describe("Badge Management Integration Test", () => {
 
       // Create private card and get it as regular user
       await setCustomClaimsAndReauth(REGULAR_USER_ID, {});
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({email: "regular@example.com"});
+      const updateCard = httpsCallable(functions, "updateCard");
+      await updateCard({email: "regular@example.com"});
 
       const getPrivateCard = httpsCallable(functions, "getPrivateCard");
       const cardResult = await getPrivateCard({});
