@@ -49,13 +49,13 @@ describe("User Story Integration Tests", () => {
       const userId = userCredential.user.uid;
       await new Promise((resolve) => setTimeout(resolve, TEST_CONFIG.AUTH_TRIGGER_WAIT_MS));
 
-      // Verify: /users and /public_cards created per contract
+      // Verify: /users and /cards created per contract
       const userDoc = await getDoc(doc(firestore, "users", userId));
       expect(userDoc.exists()).toBe(true);
       // Contract line 29: email "newuser-{timestamp}@example.com" → sanitized to "newuser{timestamp}" (- removed)
       expect(userDoc.data()?.displayName).toMatch(/^newuser\d+$/);
 
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", userId));
       expect(publicCardDoc.exists()).toBe(true);
       expect(publicCardDoc.data()?.theme).toBe("default");
 
@@ -67,7 +67,7 @@ describe("User Story Integration Tests", () => {
       });
 
       // Verify: profile updated per contract
-      const updatedPublicCard = await getDoc(doc(firestore, "public_cards", userId));
+      const updatedPublicCard = await getDoc(doc(firestore, "cards", userId));
       expect(updatedPublicCard.data()?.displayName).toBe("John Doe");
       expect(updatedPublicCard.data()?.bio).toBe("Software Engineer");
 
@@ -319,7 +319,7 @@ describe("User Story Integration Tests", () => {
         phoneNumber: "111-111-1111",
       });
 
-      const originalCard = await getDoc(doc(firestore, "private_cards", userId));
+      const originalCard = await getDoc(doc(firestore, "cards", userId));
       const originalUpdatedAt = originalCard.data()?.updatedAt;
 
       // Wait to ensure timestamp difference
@@ -331,9 +331,9 @@ describe("User Story Integration Tests", () => {
       });
 
       // Verify: updatedAt changed per contract
-      const updatedCard = await getDoc(doc(firestore, "private_cards", userId));
-      expect(updatedCard.data()?.email).toBe("updated@example.com");
-      expect(updatedCard.data()?.phoneNumber).toBe("111-111-1111"); // Unchanged field preserved
+      const updatedCard = await getDoc(doc(firestore, "cards", userId));
+      expect(updatedCard.data()?.privateContacts?.email).toBe("updated@example.com");
+      expect(updatedCard.data()?.privateContacts?.phoneNumber).toBe("111-111-1111"); // Unchanged field preserved
 
       const newUpdatedAt = updatedCard.data()?.updatedAt;
       expect(newUpdatedAt).not.toEqual(originalUpdatedAt);
@@ -438,7 +438,7 @@ describe("User Story Integration Tests", () => {
   });
 
   describe("ストーリー10: プロフィール更新のトランザクション", () => {
-    it("displayName 更新時に users/public_cards/private_cards が同期更新される", async () => {
+    it("displayName 更新時に users/cards/cards が同期更新される", async () => {
       const userId = "user-story10";
 
       await createTestUser(userId, "user@example.com");
@@ -454,18 +454,15 @@ describe("User Story Integration Tests", () => {
         bio: "Updated bio",
       });
 
-      // Verify: all 3 documents updated per contract (lines 150-204)
+      // Verify: users and cards documents are synchronized (Unified Card Model)
       const userDoc = await getDoc(doc(firestore, "users", userId));
       expect(userDoc.data()?.displayName).toBe("New Display Name");
 
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", userId));
-      expect(publicCardDoc.data()?.displayName).toBe("New Display Name");
-      expect(publicCardDoc.data()?.bio).toBe("Updated bio");
-
-      const privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
-      expect(privateCardDoc.data()?.displayName).toBe("New Display Name");
-      // bio should NOT be in private card (only in public card)
-      expect(privateCardDoc.data()?.bio).toBeUndefined();
+      // In Unified Card Model, there's only one card document containing all data
+      const cardDoc = await getDoc(doc(firestore, "cards", userId));
+      expect(cardDoc.data()?.displayName).toBe("New Display Name");
+      expect(cardDoc.data()?.bio).toBe("Updated bio");
+      expect(cardDoc.data()?.privateContacts?.email).toBe("contact@example.com");
     });
   });
 
@@ -490,21 +487,21 @@ describe("User Story Integration Tests", () => {
       });
 
       // Verify: displayName/photoURL copied from User per contract (lines 502-503)
-      const privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
+      const privateCardDoc = await getDoc(doc(firestore, "cards", userId));
       expect(privateCardDoc.exists()).toBe(true);
       expect(privateCardDoc.data()?.displayName).toBe("John Smith");
       expect(privateCardDoc.data()?.photoURL).toBe("https://example.com/photo.jpg");
-      expect(privateCardDoc.data()?.email).toBe("john@company.com");
-      expect(privateCardDoc.data()?.phoneNumber).toBe("555-1234");
+      expect(privateCardDoc.data()?.privateContacts?.email).toBe("john@company.com");
+      expect(privateCardDoc.data()?.privateContacts?.phoneNumber).toBe("555-1234");
 
       // Second call (should only update specified fields)
       await updatePrivateCard({
         email: "john.new@company.com",
       });
 
-      const updatedDoc = await getDoc(doc(firestore, "private_cards", userId));
-      expect(updatedDoc.data()?.email).toBe("john.new@company.com");
-      expect(updatedDoc.data()?.phoneNumber).toBe("555-1234"); // Preserved per contract
+      const updatedDoc = await getDoc(doc(firestore, "cards", userId));
+      expect(updatedDoc.data()?.privateContacts?.email).toBe("john.new@company.com");
+      expect(updatedDoc.data()?.privateContacts?.phoneNumber).toBe("555-1234"); // Preserved per contract
       expect(updatedDoc.data()?.displayName).toBe("John Smith"); // Unchanged
     });
   });
@@ -649,7 +646,8 @@ describe("User Story Integration Tests", () => {
   describe("ストーリー15: エラーハンドリング - リソース not-found", () => {
     it("存在しないリソースに対して not-found エラーを返す", async () => {
       const userId = "user-story15";
-      await createTestUser(userId, "user@example.com");
+      // Create user WITHOUT privateContacts for createExchangeToken error test
+      await createTestUser(userId, "user@example.com", false);
 
       // saveCard: non-existent cardUserId (contract line 136)
       const saveCard = httpsCallable(functions, "saveCard");
@@ -689,24 +687,24 @@ describe("User Story Integration Tests", () => {
       });
 
       // Verify: @ removed per contract (lines 474-479)
-      let privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
-      expect(privateCardDoc.data()?.twitterHandle).toBe("johndoe");
+      let privateCardDoc = await getDoc(doc(firestore, "cards", userId));
+      expect(privateCardDoc.data()?.privateContacts?.twitterHandle).toBe("johndoe");
 
       // Update without @ (should work)
       await updatePrivateCard({
         twitterHandle: "janedoe",
       });
 
-      privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
-      expect(privateCardDoc.data()?.twitterHandle).toBe("janedoe");
+      privateCardDoc = await getDoc(doc(firestore, "cards", userId));
+      expect(privateCardDoc.data()?.privateContacts?.twitterHandle).toBe("janedoe");
 
       // Delete by sending empty string per contract (line 480, 506)
       await updatePrivateCard({
         twitterHandle: "",
       });
 
-      privateCardDoc = await getDoc(doc(firestore, "private_cards", userId));
-      expect(privateCardDoc.data()?.twitterHandle).toBeUndefined();
+      privateCardDoc = await getDoc(doc(firestore, "cards", userId));
+      expect(privateCardDoc.data()?.privateContacts?.twitterHandle).toBeUndefined();
     });
   });
 

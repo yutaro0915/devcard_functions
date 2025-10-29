@@ -53,7 +53,7 @@ describe("Image Upload Integration Tests", () => {
       expect(data.photoURL).toMatch(/^https:\/\/firebasestorage\.googleapis\.com/);
     });
 
-    it("uploadProfileImage: アップロード後、/users, /public_cards, /private_cards の photoURL が更新される", async () => {
+    it("uploadProfileImage: アップロード後、/users, /cards の photoURL が更新される", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
@@ -72,17 +72,10 @@ describe("Image Upload Integration Tests", () => {
       const userDoc = await getDoc(doc(firestore, "users", TEST_USER_ID));
       expect(userDoc.data()?.photoURL).toBe(uploadedPhotoURL);
 
-      // Verify /public_cards
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
-      expect(publicCardDoc.data()?.photoURL).toBe(uploadedPhotoURL);
-
-      // Verify /private_cards (need to create first)
-      const updatePrivateCard = httpsCallable(functions, "updatePrivateCard");
-      await updatePrivateCard({email: TEST_EMAIL});
-
-      const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
-      expect(privateCardDoc.data()?.photoURL).toBe(uploadedPhotoURL);
-    });
+      // Verify /cards (Unified Card Model: single collection)
+      const cardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
+      expect(cardDoc.data()?.photoURL).toBe(uploadedPhotoURL);
+    }, 10000); // 10 second timeout for image upload operations
 
     it("uploadProfileImage: 画像サイズが5MBを超える場合 invalid-argument エラー", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
@@ -143,7 +136,7 @@ describe("Image Upload Integration Tests", () => {
       expect(data.backgroundImageUrl).toMatch(/^https:\/\/firebasestorage\.googleapis\.com/);
     });
 
-    it("uploadCardBackground: アップロード後、/public_cards の backgroundImageUrl が更新される", async () => {
+    it("uploadCardBackground: アップロード後、/cards の backgroundImageUrl が更新される", async () => {
       await createTestUser(TEST_USER_ID, TEST_EMAIL);
 
       const functions = getFunctionsInstance();
@@ -157,9 +150,9 @@ describe("Image Upload Integration Tests", () => {
       const data = result.data as {success: boolean; backgroundImageUrl: string};
       const uploadedBackgroundURL = data.backgroundImageUrl;
 
-      // Verify /public_cards
+      // Verify /cards
       const firestore = getFirestoreInstance();
-      const publicCardDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      const publicCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
       expect(publicCardDoc.data()?.backgroundImageUrl).toBe(uploadedBackgroundURL);
     });
 

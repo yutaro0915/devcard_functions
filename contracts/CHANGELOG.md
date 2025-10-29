@@ -11,6 +11,69 @@
 
 ---
 
+## [0.7.0] - 2025-10-28
+
+### 🔄 Internal Refactoring - Unified Card Model (Issue #68)
+
+**重要**: これは**内部実装の変更**であり、**APIインターフェースに破壊的変更はありません**。
+すべての既存クライアントコードはそのまま動作します。
+
+### Changed
+- **データモデルの統合**:
+  - `/public_cards` と `/private_cards` コレクションを単一の `/cards` コレクションに統合
+  - プライベート連絡先情報は `/cards/{userId}.privateContacts` に格納（ネスト構造）
+  - 可視性設定を `/cards/{userId}.visibility` で管理（将来の機能拡張用）
+
+- **パフォーマンス向上**:
+  - `updateProfile`: トランザクション処理が不要になり、レスポンスタイムが改善
+  - `/users` と `/cards` の2箇所のみ更新（旧: `/users`, `/public_cards`, `/private_cards` の3箇所）
+
+- **Auth Trigger `onUserCreate`**:
+  - `/cards/{userId}` を作成（旧: `/public_cards/{userId}`）
+  - `visibility` フィールドを初期化（すべて `"public"` に設定）
+
+### Technical Details
+- **Domain Layer**:
+  - 新規: `Card`, `CardVisibility`, `PrivateContacts`, `ICardRepository`, `CardVisibilityFilter`
+  - 削除: `PublicCard`, `IPublicCardRepository`, `PrivateCard`, `IPrivateCardRepository`
+
+- **Infrastructure Layer**:
+  - 新規: `CardRepository` (`/cards` コレクション管理)
+  - 既存レポジトリとの互換性維持（`PublicCardRepository`, `PrivateCardRepository` は非推奨だが動作継続）
+
+- **Application Layer**:
+  - `UpdateProfileUseCase`: トランザクション処理を削除、`CardRepository` を使用
+  - `UploadProfileImageUseCase`: `CardRepository` を使用
+  - `UploadCardBackgroundUseCase`: `CardRepository` を使用
+  - `SavePrivateCardUseCase`: `ICardRepository` を使用
+  - `CreateExchangeTokenUseCase`: `ICardRepository` を使用
+
+- **Handler Layer**:
+  - すべてのハンドラーで `CardRepository` を使用
+  - レスポンス構造は従来通り（後方互換性維持）
+
+- **Tests**:
+  - ユニットテスト: 83件すべて成功
+  - 統合テスト: 144件すべて成功
+  - 統合テストヘルパーを更新（`createTestUser` が `/cards` を作成）
+
+### Security
+- Firestore Security Rules: `/cards` コレクションに対する読み取り/書き込みルールを追加
+- 可視性フィルタリングはバックエンド側（Application層）で実施
+- 既存のセキュリティポリシー（認証、認可）に変更なし
+
+### Migration
+- 既存データは現時点では移行不要（旧コレクションと新コレクションが共存可能）
+- マイグレーションスクリプト用意: `functions/src/scripts/migrateToUnifiedCard.ts`
+- 本番環境への適用は別途計画
+
+### Backward Compatibility
+- ✅ すべての既存APIエンドポイントが正常動作
+- ✅ リクエスト/レスポンス構造に変更なし
+- ✅ クライアント側の実装変更は不要
+
+---
+
 ## [0.8.0] - 2025-10-27
 
 ### Changed

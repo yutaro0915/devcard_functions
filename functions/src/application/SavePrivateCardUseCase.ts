@@ -1,5 +1,5 @@
 import {IExchangeTokenRepository} from "../domain/IExchangeTokenRepository";
-import {IPrivateCardRepository} from "../domain/IPrivateCardRepository";
+import {ICardRepository} from "../domain/ICardRepository";
 import {ISavedCardRepository} from "../domain/ISavedCardRepository";
 
 /**
@@ -17,7 +17,7 @@ export interface SavePrivateCardInput {
 export class SavePrivateCardUseCase {
   constructor(
     private exchangeTokenRepository: IExchangeTokenRepository,
-    private privateCardRepository: IPrivateCardRepository,
+    private cardRepository: ICardRepository,
     private savedCardRepository: ISavedCardRepository
   ) {}
 
@@ -48,9 +48,9 @@ export class SavePrivateCardUseCase {
       throw new Error("Token has expired");
     }
 
-    // 5. Get the PrivateCard
-    const privateCard = await this.privateCardRepository.findByUserId(token.ownerId);
-    if (!privateCard) {
+    // 5. Get the Card and verify it has privateContacts
+    const card = await this.cardRepository.findById(token.ownerId);
+    if (!card || !card.privateContacts) {
       throw new Error("Private card not found");
     }
 
@@ -59,7 +59,7 @@ export class SavePrivateCardUseCase {
       userId,
       cardUserId: token.ownerId,
       cardType: "private",
-      lastKnownUpdatedAt: privateCard.updatedAt,
+      lastKnownUpdatedAt: card.updatedAt,
     });
 
     // 7. Mark token as used

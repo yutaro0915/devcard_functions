@@ -105,8 +105,9 @@ export async function cleanupTestData(): Promise<void> {
   // Then clear all top-level collections using Admin SDK
   const collections = [
     "users",
-    "public_cards",
-    "private_cards",
+    "cards", // Unified Card Model
+    "public_cards", // Legacy
+    "private_cards", // Legacy
     "exchange_tokens",
     "badges",
     "moderators",
@@ -152,8 +153,13 @@ export async function teardownTestEnvironment(): Promise<void> {
 
 /**
  * Create a test user with authenticated context
+ * @param includePrivateContacts - If true, creates card with privateContacts (default: true)
  */
-export async function createTestUser(userId: string, email: string): Promise<User> {
+export async function createTestUser(
+  userId: string,
+  email: string,
+  includePrivateContacts = true
+): Promise<User> {
   if (!auth || !firestore || !adminApp) {
     throw new Error("Auth/Firestore/Admin not initialized");
   }
@@ -182,8 +188,8 @@ export async function createTestUser(userId: string, email: string): Promise<Use
     updatedAt: now,
   });
 
-  // Create public card in /public_cards collection using Admin SDK
-  await adminFirestore.collection("public_cards").doc(userId).set({
+  // Create unified card in /cards collection using Admin SDK
+  const cardData: any = {
     userId,
     displayName: "Test User",
     photoURL: "https://example.com/photo.jpg",
@@ -191,8 +197,23 @@ export async function createTestUser(userId: string, email: string): Promise<Use
     connectedServices: {},
     theme: "default",
     customCss: null,
+    visibility: {
+      bio: "public",
+      backgroundImage: "public",
+      badges: "public",
+    },
     updatedAt: now,
-  });
+  };
+
+  // Optionally include privateContacts
+  if (includePrivateContacts) {
+    cardData.privateContacts = {
+      email: email, // Use the provided email
+      phoneNumber: "+81-90-1234-5678",
+    };
+  }
+
+  await adminFirestore.collection("cards").doc(userId).set(cardData);
 
   return currentUser;
 }

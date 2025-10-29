@@ -1,50 +1,136 @@
 {
-  "feature_name": "Exchange Token即時削除＆リフレッシュ機能 (Issue #50)",
+  "feature_name": "Unified Card Model リファクタリング (Issue #68対応)",
   "status": "ready-for-review",
   "api_changes": [
     {
-      "path": "savePrivateCard",
+      "path": "データモデル全体",
       "method": "N/A",
-      "change_type": "change-validation",
-      "breaking": false,
-      "details": "期限切れトークンを検証時にその場で削除。エラーレスポンス (invalid-argument) は変更なし。",
-      "reason": "期限切れトークンをリアルタイムで削除し、Firestoreの肥大化を防ぐ。"
+      "change_type": "major-refactor",
+      "breaking": true,
+      "details": "PublicCard/PrivateCardを単一のCardエンティティに統合。/public_cards, /private_cardsコレクションを/cardsに統合。可視性フラグ(visibility)で公開範囲を制御。",
+      "reason": "displayName/photoURL等の共通フィールドが3箇所に重複しており、プロフィール更新時にトランザクションで同期が必要。単一モデル化により保守性・拡張性が大幅に向上。"
     },
     {
-      "path": "createExchangeToken",
-      "method": "N/A",
-      "change_type": "change-validation",
+      "path": "onUserCreate",
+      "method": "Auth Trigger",
+      "change_type": "change-behavior",
+      "breaking": true,
+      "details": "/cardsコレクションを作成。/public_cards, /private_cardsは作成しない。",
+      "reason": "新しいデータモデルに対応。"
+    },
+    {
+      "path": "updateProfile",
+      "method": "Callable Function",
+      "change_type": "simplify",
       "breaking": false,
-      "details": "新しいトークン生成時、同一ユーザーの既存の未使用トークンを自動的に削除。レスポンス構造は変更なし。",
-      "reason": "有効トークンを1つに制限し、ストレージコスト削減とセキュリティ向上。"
+      "details": "/cardsのみ更新（トランザクション不要）。APIインターフェース（リクエスト/レスポンス）は変更なし。",
+      "reason": "トランザクション処理が不要になり、パフォーマンス向上。"
+    },
+    {
+      "path": "getPublicCard",
+      "method": "Callable Function",
+      "change_type": "change-response",
+      "breaking": true,
+      "details": "/cardsから公開情報のみをフィルタリングして返却。レスポンス構造はほぼ同じだが、visibilityに応じてフィールドが動的に変わる（例: visibility.bio='hidden'の場合、bioフィールドが返却されない）。",
+      "reason": "単一モデルから可視性に応じた情報を返却。"
+    },
+    {
+      "path": "getPrivateCard",
+      "method": "Callable Function",
+      "change_type": "change-response",
+      "breaking": true,
+      "details": "/cardsからプライベート情報を含めて返却。privateContactsフィールドがネストされたオブジェクト（{email?, phoneNumber?, lineId?, ...}）になる。",
+      "reason": "プライベート連絡先情報を構造化して管理。"
+    },
+    {
+      "path": "updatePrivateCard",
+      "method": "Callable Function",
+      "change_type": "change-request",
+      "breaking": true,
+      "details": "privateContactsフィールドをネストされたオブジェクトとして受け取る。リクエスト例: {privateContacts: {email: 'test@example.com', phoneNumber: '090-1234-5678'}}",
+      "reason": "新しいデータ構造に対応。"
+    },
+    {
+      "path": "getSavedCards",
+      "method": "Callable Function",
+      "change_type": "change-internal",
+      "breaking": false,
+      "details": "/cardsから情報を取得。cardType='public'/'private'に応じて可視性フィルタリングを実施。レスポンス構造は変更なし。",
+      "reason": "内部実装の変更のみ。クライアントへの影響なし。"
+    },
+    {
+      "path": "uploadCardBackground",
+      "method": "Callable Function",
+      "change_type": "change-internal",
+      "breaking": false,
+      "details": "/cards/{userId}.backgroundImageUrlを更新。APIインターフェースは変更なし。",
+      "reason": "内部実装の変更のみ。"
+    },
+    {
+      "path": "uploadProfileImage",
+      "method": "Callable Function",
+      "change_type": "change-internal",
+      "breaking": false,
+      "details": "/cards/{userId}.photoURLと/users/{userId}.photoURLを更新。APIインターフェースは変更なし。",
+      "reason": "内部実装の変更のみ。"
     }
   ],
   "security_notes": [
-    "認証: createExchangeToken, savePrivateCard は既に認証必須（変更なし）",
-    "認可: 自分のトークンのみ削除される（他人のトークンには影響なし）",
-    "トークン数制限: 1ユーザー1有効トークンに制限することで、古いトークンからの不正アクセスリスクを排除",
-    "即時削除: 期限切れトークンは検証時に即座に削除され、無効なトークンがFirestoreに残らない",
-    "ログ出力: トークンIDや機密情報はログに出力しない"
+    "認証: updateCard（旧updatePrivateCard）は本人のみ可能（既存と同じ）",
+    "認可: getCard（旧getPublicCard/getPrivateCard）は公開情報のみ誰でも取得可能、プライベート情報は本人のみ（既存と同じ）",
+    "Firestore Rules: /cardsコレクションは読み取り公開、書き込みは本人のみ（allow read: if true; allow write: if request.auth.uid == userId;）",
+    "可視性制御: バックエンド側（Application層）でフィルタリング実施。Firestore Rulesでは制御しない。",
+    "マイグレーション: 既存データの可視性はデフォルトで'public'に設定（既存の動作を維持）",
+    "プライベート情報の保護: privateContactsフィールドはvisibility='private'の場合のみ返却"
   ],
   "tests_required": [
-    "[即時削除] ユニットテスト: ExchangeTokenRepository.delete(tokenId) が正常に動作する",
-    "[即時削除] ユニットテスト: SavePrivateCardUseCase が期限切れトークン検出時に delete() を呼び出す",
-    "[即時削除] 統合テスト: savePrivateCard で期限切れトークンを使用 → invalid-argument エラー + トークン削除",
-    "[即時削除] 統合テスト: 削除済みトークンで savePrivateCard を再実行 → not-found エラー",
-    "[リフレッシュ] ユニットテスト: ExchangeTokenRepository.deleteUnusedByOwnerId(ownerId) が未使用トークンのみ削除",
-    "[リフレッシュ] ユニットテスト: CreateExchangeTokenUseCase が deleteUnusedByOwnerId() を呼び出す",
-    "[リフレッシュ] 統合テスト: 新しいトークンを生成すると、古い未使用トークンが削除される",
-    "[リフレッシュ] 統合テスト: 使用済みトークンは削除されない",
-    "[リフレッシュ] 統合テスト: 未使用トークンが0件でもエラーにならない",
-    "[境界条件] 統合テスト: 既に削除済みのトークンを削除してもエラーにならない"
+    "[Domain] Card エンティティの生成が正しく動作する",
+    "[Domain] CardVisibilityFilter が公開情報のみを返す（visibility='public'）",
+    "[Domain] CardVisibilityFilter がプライベート情報を含む（visibility='private'）",
+    "[Domain] CardVisibilityFilter が hiddenフィールドを除外する",
+    "[Infrastructure] CardRepository.create() が /cards にドキュメントを作成",
+    "[Infrastructure] CardRepository.findById() がカードを取得",
+    "[Infrastructure] CardRepository.update() が部分更新を実行（displayName, bio等）",
+    "[Infrastructure] CardRepository.update() が privateContacts をネスト構造で更新",
+    "[Application] UpdateCardUseCase が1回の書き込みでプロフィール更新",
+    "[Application] GetCardUseCase が公開情報のみを返す（visibility='public'）",
+    "[Application] GetCardUseCase がプライベート情報を含む（visibility='private'）",
+    "[Application] GetCardUseCase が hiddenフィールドを除外する",
+    "[Integration] onUserCreate が /cards を作成し、/public_cards, /private_cardsを作成しない",
+    "[Integration] updateProfile が /cards のみ更新（トランザクション不要、3箇所同期なし）",
+    "[Integration] getPublicCard が公開情報のみを返却（bio, backgroundImageUrl等）",
+    "[Integration] getPublicCard が visibility='hidden' のフィールドを返却しない",
+    "[Integration] getPrivateCard が本人のプライベート情報を返却（privateContactsを含む）",
+    "[Integration] getPrivateCard が他人のカードを取得できない（permission-denied）",
+    "[Integration] updatePrivateCard が privateContacts をネスト構造で更新",
+    "[Integration] getSavedCards が /cards から情報を取得（cardType='public'/'private'）",
+    "[Integration] uploadCardBackground が /cards.backgroundImageUrl を更新",
+    "[Integration] uploadProfileImage が /cards.photoURL と /users.photoURL を更新",
+    "[Integration] マイグレーションスクリプトが既存データを正しく移行（/public_cards + /private_cards → /cards）",
+    "[Integration] マイグレーション後、旧APIが正しく動作する（互換性レイヤー）",
+    "[Validation] visibility に不正な値（'public', 'private', 'hidden' 以外）を指定 → invalid-argument",
+    "[Validation] privateContacts.email に不正なメール形式 → invalid-argument",
+    "[Auth] 未認証で updateCard を呼び出し → unauthenticated",
+    "[Auth] 他人のカードを updateCard → permission-denied",
+    "[Error] 存在しない userId で getCard → not-found",
+    "[Migration] 既に /cards が存在するユーザーを再マイグレーション → 上書きせずスキップ",
+    "[Migration] /private_cards が存在しないユーザーを移行 → privateContacts: undefined で作成"
   ],
   "client_work_items": [
-    "なし: クライアント側の実装変更は不要（APIレスポンス構造は同じ）"
+    "【破壊的変更】全カード関連APIのレスポンス構造変更に対応（段階的移行期間あり）",
+    "【Web】getPublicCard のレスポンス変更（visibilityに応じた動的フィールド）に対応",
+    "【Web】getPrivateCard のレスポンス変更（privateContactsがネスト構造: {email?, phoneNumber?, ...}）に対応",
+    "【Web】updatePrivateCard のリクエスト変更（privateContactsをネストで送信: {privateContacts: {email: '...', phoneNumber: '...'}}）に対応",
+    "【iOS】上記3つの変更に対応",
+    "【共通】マイグレーション期間中（v0.9.0〜v1.0.0）の旧API/新APIの併用サポート",
+    "【共通】v1.0.0リリース時に旧API削除の確認とクライアント側の最終移行",
+    "【任意】visibility設定UI（将来的にユーザーが公開範囲を変更できる機能）"
   ],
-  "breaking_changes": false,
-  "notes_for_frontend": "createExchangeToken の動作が変更されました。新しいトークンを生成すると、以前に生成した未使用のトークンは自動的に無効化（削除）されます。また、savePrivateCard で期限切れトークンを使用した場合、トークンは即座にFirestoreから削除されます（エラーレスポンスは変更なし）。クライアント側の実装変更は不要です。",
+  "breaking_changes": true,
+  "notes_for_frontend": "PublicCard/PrivateCardを統合した新しいCardモデルに移行します。主な変更点: (1) getPublicCard/getPrivateCardのレスポンス構造変更（privateContactsがネスト構造に）、(2) updatePrivateCardのリクエスト構造変更（privateContactsをネストで送信）。段階的移行を予定しており、v0.9.0で互換性レイヤーを実装し、v0.9.x期間中に新APIへ移行、v1.0.0で旧API削除。フロントエンド/iOSチームと詳細スケジュールを調整します。この変更により、将来的な機能追加（背景画像の公開範囲設定、bioの公開/非公開切り替え等）が容易になります。",
   "backend_commit_sha": null,
-  "related_issues": ["#50"],
-  "estimated_effort": "2-3時間（Domain/Infrastructure/Application層の修正 + 統合テスト10件 + ユニットテスト6件）",
-  "implementation_notes": "統合テストで発見: Firestoreクエリ .where('usedBy', '==', null) を使うため、トークン作成時に usedBy: null を明示的に設定する必要がある。フィールドが存在しない場合、クエリにマッチしない。"
+  "related_issues": ["#68"],
+  "estimated_effort": "2-3日（全レイヤーの書き直し: Domain 4ファイル削除+2ファイル新規作成、Infrastructure 3ファイル削除+2ファイル新規作成、Application 5ファイル修正、Handler 8ファイル修正、マイグレーションスクリプト作成、統合テスト31件、ユニットテスト20件程度）",
+  "migration_strategy": "段階的移行: Phase 0 (v0.9.0) 互換性レイヤー実装 → Phase 1 (v0.9.1) 全ユーザーデータ移行 → Phase 2 (v0.9.2〜v0.9.9) クライアント移行期間（旧API/新API併用） → Phase 3 (v1.0.0) 旧API削除・メジャーバージョンアップ",
+  "implementation_notes": "重要: /usersコレクションにはdisplayName/photoURLを残す（Firebase Authとの整合性、既存コードの互換性維持のため）。/cardsコレクションと同期が必要だが、トランザクションは不要（/usersは認証情報管理用、/cardsが表示用データの唯一の真実）。"
 }

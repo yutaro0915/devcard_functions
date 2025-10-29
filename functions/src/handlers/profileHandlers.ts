@@ -2,15 +2,16 @@ import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
 import {UpdateProfileUseCase} from "../application/UpdateProfileUseCase";
-import {ProfileUpdateTransaction} from "../infrastructure/ProfileUpdateTransaction";
-import {UserNotFoundError, PublicCardNotFoundError} from "../domain/errors/DomainErrors";
+import {CardRepository} from "../infrastructure/CardRepository";
+import {UserRepository} from "../infrastructure/UserRepository";
+import {UserNotFoundError} from "../domain/errors/DomainErrors";
 import {PROFILE_VALIDATION} from "../constants/validation";
 
 const firestore = getFirestore();
 
 /**
  * Callable function to update user profile
- * Updates both /users and /public_cards collections
+ * Updates /cards and /users collections (no transaction needed)
  */
 export const updateProfile = onCall(async (request) => {
   // Check authentication
@@ -76,9 +77,10 @@ export const updateProfile = onCall(async (request) => {
   try {
     logger.info("Updating user profile", {userId});
 
-    // Initialize dependencies
-    const transaction = new ProfileUpdateTransaction(firestore);
-    const updateProfileUseCase = new UpdateProfileUseCase(transaction);
+    // Initialize dependencies (no transaction needed!)
+    const cardRepository = new CardRepository(firestore);
+    const userRepository = new UserRepository(firestore);
+    const updateProfileUseCase = new UpdateProfileUseCase(cardRepository, userRepository);
 
     // Execute use case
     await updateProfileUseCase.execute({
@@ -102,8 +104,7 @@ export const updateProfile = onCall(async (request) => {
       throw error;
     }
 
-    // Issue #17: Use instanceof checks instead of string matching
-    if (error instanceof UserNotFoundError || error instanceof PublicCardNotFoundError) {
+    if (error instanceof UserNotFoundError) {
       throw new HttpsError("not-found", error.message);
     }
 

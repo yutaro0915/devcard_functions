@@ -41,14 +41,14 @@ describe("PrivateCard Integration Test", () => {
 
         expect(result.data).toEqual({success: true});
 
-        // Verify Firestore data
+        // Verify Firestore data (privateContacts is now nested)
         const firestore = getFirestoreInstance();
-        const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        const privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const privateCardData = privateCardDoc.data();
 
-        expect(privateCardData?.email).toBe("private@example.com");
-        expect(privateCardData?.phoneNumber).toBe("+81-90-1234-5678");
-        expect(privateCardData?.lineId).toBe("test_line_id");
+        expect(privateCardData?.privateContacts?.email).toBe("private@example.com");
+        expect(privateCardData?.privateContacts?.phoneNumber).toBe("+81-90-1234-5678");
+        expect(privateCardData?.privateContacts?.lineId).toBe("test_line_id");
         expect(privateCardData?.updatedAt).toBeDefined();
         expect(privateCardData?.displayName).toBe("Test User");
         expect(privateCardData?.photoURL).toBe("https://example.com/photo.jpg");
@@ -68,7 +68,7 @@ describe("PrivateCard Integration Test", () => {
 
         // Get initial updatedAt
         const firestore = getFirestoreInstance();
-        const initialDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        const initialDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const initialUpdatedAt = initialDoc.data()?.updatedAt;
 
         // Second update
@@ -76,10 +76,10 @@ describe("PrivateCard Integration Test", () => {
 
         expect(result.data).toEqual({success: true});
 
-        const updatedDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        const updatedDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const updatedData = updatedDoc.data();
 
-        expect(updatedData?.email).toBe("updated@example.com");
+        expect(updatedData?.privateContacts?.email).toBe("updated@example.com");
         expect(updatedData?.updatedAt.toMillis()).toBeGreaterThan(initialUpdatedAt.toMillis());
       });
 
@@ -102,14 +102,14 @@ describe("PrivateCard Integration Test", () => {
         expect(result.data).toEqual({success: true});
 
         const firestore = getFirestoreInstance();
-        const updatedDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        const updatedDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const updatedData = updatedDoc.data();
 
         // Email should be updated
-        expect(updatedData?.email).toBe("new@example.com");
+        expect(updatedData?.privateContacts?.email).toBe("new@example.com");
         // Other fields should remain
-        expect(updatedData?.phoneNumber).toBe("+81-90-1234-5678");
-        expect(updatedData?.lineId).toBe("test_line");
+        expect(updatedData?.privateContacts?.phoneNumber).toBe("+81-90-1234-5678");
+        expect(updatedData?.privateContacts?.lineId).toBe("test_line");
       });
 
       it("twitterHandle に空文字列を送信すると undefined で保存される", async () => {
@@ -122,18 +122,18 @@ describe("PrivateCard Integration Test", () => {
         await updatePrivateCard({twitterHandle: "testuser"});
 
         const firestore = getFirestoreInstance();
-        let privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        let privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         let privateCardData = privateCardDoc.data();
-        expect(privateCardData?.twitterHandle).toBe("testuser");
+        expect(privateCardData?.privateContacts?.twitterHandle).toBe("testuser");
 
         // Then, send empty string to delete the field
         const result = await updatePrivateCard({twitterHandle: ""});
         expect(result.data).toEqual({success: true});
 
         // Verify twitterHandle is now undefined (not stored in Firestore)
-        privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         privateCardData = privateCardDoc.data();
-        expect(privateCardData?.twitterHandle).toBeUndefined();
+        expect(privateCardData?.privateContacts?.twitterHandle).toBeUndefined();
       });
 
       it("twitterHandle に 'testuser' を送信すると正規化されて保存される", async () => {
@@ -146,9 +146,9 @@ describe("PrivateCard Integration Test", () => {
         expect(result.data).toEqual({success: true});
 
         const firestore = getFirestoreInstance();
-        const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        const privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const privateCardData = privateCardDoc.data();
-        expect(privateCardData?.twitterHandle).toBe("testuser");
+        expect(privateCardData?.privateContacts?.twitterHandle).toBe("testuser");
       });
 
       it("twitterHandle に '@testuser' を送信すると '@' が除去されて保存される", async () => {
@@ -161,9 +161,9 @@ describe("PrivateCard Integration Test", () => {
         expect(result.data).toEqual({success: true});
 
         const firestore = getFirestoreInstance();
-        const privateCardDoc = await getDoc(doc(firestore, "private_cards", TEST_USER_ID));
+        const privateCardDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
         const privateCardData = privateCardDoc.data();
-        expect(privateCardData?.twitterHandle).toBe("testuser");
+        expect(privateCardData?.privateContacts?.twitterHandle).toBe("testuser");
       });
     });
 
@@ -249,7 +249,8 @@ describe("PrivateCard Integration Test", () => {
       });
 
       it("PrivateCardが存在しない場合、nullを返す", async () => {
-        await createTestUser(TEST_USER_ID, TEST_EMAIL);
+        // Create user WITHOUT privateContacts
+        await createTestUser(TEST_USER_ID, TEST_EMAIL, false);
 
         const functions = getFunctionsInstance();
         const getPrivateCard = httpsCallable(functions, "getPrivateCard");

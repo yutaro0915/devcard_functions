@@ -39,7 +39,7 @@ describe.skip("ManualSync Integration Test - updatedAt更新", () => {
 
       // Get initial updatedAt
       const firestore = getFirestoreInstance();
-      const initialDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      const initialDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
       const initialUpdatedAt = initialDoc.data()?.updatedAt;
 
       // Wait to ensure timestamp difference
@@ -49,12 +49,12 @@ describe.skip("ManualSync Integration Test - updatedAt更新", () => {
       // (manualSync would fail without GitHub token setup)
       const adminApp = admin.app();
       const adminFirestore = adminApp.firestore();
-      await adminFirestore.collection("public_cards").doc(TEST_USER_ID).update({
+      await adminFirestore.collection("cards").doc(TEST_USER_ID).update({
         updatedAt: new Date(),
       });
 
       // Verify updatedAt was updated
-      const updatedDoc = await getDoc(doc(firestore, "public_cards", TEST_USER_ID));
+      const updatedDoc = await getDoc(doc(firestore, "cards", TEST_USER_ID));
       const updatedData = updatedDoc.data();
 
       expect(updatedData?.updatedAt).toBeDefined();
@@ -72,7 +72,7 @@ describe.skip("ManualSync Integration Test - updatedAt更新", () => {
 
       // Get USER1's current PublicCard updatedAt
       const savedCardId = "saved-card-123";
-      const publicCardDoc = await adminFirestore.collection("public_cards").doc(TEST_USER_ID).get();
+      const publicCardDoc = await adminFirestore.collection("cards").doc(TEST_USER_ID).get();
       const currentUpdatedAt = publicCardDoc.data()?.updatedAt;
 
       // User2 saves User1's card (simulate by direct Firestore)
@@ -94,7 +94,7 @@ describe.skip("ManualSync Integration Test - updatedAt更新", () => {
 
       // Simulate GitHub sync by directly updating PublicCard
       // (In real scenario, manualSync would update this after fetching from GitHub)
-      await adminFirestore.collection("public_cards").doc(TEST_USER_ID).update({
+      await adminFirestore.collection("cards").doc(TEST_USER_ID).update({
         updatedAt: new Date(),
       });
 

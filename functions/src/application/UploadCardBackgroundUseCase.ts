@@ -1,6 +1,5 @@
-import {IPublicCardRepository} from "../domain/IPublicCardRepository";
+import {ICardRepository} from "../domain/ICardRepository";
 import {StorageService} from "../infrastructure/StorageService";
-import {PublicCardNotFoundError} from "../domain/errors/DomainErrors";
 
 export interface UploadCardBackgroundInput {
   userId: string;
@@ -14,19 +13,19 @@ export interface UploadCardBackgroundOutput {
 
 /**
  * UseCase for uploading card background image to Firebase Storage
- * Updates backgroundImageUrl in /public_cards
+ * Updates backgroundImageUrl in /cards
  */
 export class UploadCardBackgroundUseCase {
   constructor(
     private storageService: StorageService,
-    private publicCardRepository: IPublicCardRepository
+    private cardRepository: ICardRepository
   ) {}
 
   async execute(input: UploadCardBackgroundInput): Promise<UploadCardBackgroundOutput> {
-    // Verify public card exists
-    const publicCard = await this.publicCardRepository.findByUserId(input.userId);
-    if (!publicCard) {
-      throw new PublicCardNotFoundError(input.userId);
+    // Verify card exists
+    const card = await this.cardRepository.findById(input.userId);
+    if (!card) {
+      throw new Error(`Card not found for user ${input.userId}`);
     }
 
     // Upload image to Storage
@@ -37,8 +36,8 @@ export class UploadCardBackgroundUseCase {
       input.contentType
     );
 
-    // Update /public_cards
-    await this.publicCardRepository.update(input.userId, {backgroundImageUrl});
+    // Update /cards
+    await this.cardRepository.update(input.userId, {backgroundImageUrl});
 
     return {backgroundImageUrl};
   }

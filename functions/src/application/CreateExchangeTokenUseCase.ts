@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import {IPrivateCardRepository} from "../domain/IPrivateCardRepository";
+import {ICardRepository} from "../domain/ICardRepository";
 import {IExchangeTokenRepository} from "../domain/IExchangeTokenRepository";
 import {PrivateCardNotFoundError} from "../domain/errors/DomainErrors";
 
@@ -25,14 +25,14 @@ export interface CreateExchangeTokenOutput {
  */
 export class CreateExchangeTokenUseCase {
   constructor(
-    private privateCardRepository: IPrivateCardRepository,
+    private cardRepository: ICardRepository,
     private exchangeTokenRepository: IExchangeTokenRepository
   ) {}
 
   async execute(input: CreateExchangeTokenInput): Promise<CreateExchangeTokenOutput> {
-    // Verify PrivateCard exists
-    const privateCard = await this.privateCardRepository.findByUserId(input.userId);
-    if (!privateCard) {
+    // Verify Card exists and has privateContacts
+    const card = await this.cardRepository.findById(input.userId);
+    if (!card || !card.privateContacts) {
       throw new PrivateCardNotFoundError(input.userId);
     }
 

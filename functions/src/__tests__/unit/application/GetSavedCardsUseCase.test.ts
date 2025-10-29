@@ -1,9 +1,8 @@
 import {GetSavedCardsUseCase} from "../../../application/GetSavedCardsUseCase";
 import {ISavedCardRepository} from "../../../domain/ISavedCardRepository";
-import {IPublicCardRepository} from "../../../domain/IPublicCardRepository";
-import {IPrivateCardRepository} from "../../../domain/IPrivateCardRepository";
+import {ICardRepository} from "../../../domain/ICardRepository";
 import {SavedCard} from "../../../domain/SavedCard";
-import {PublicCard} from "../../../domain/PublicCard";
+import {Card} from "../../../domain/Card";
 
 const mockSavedCardRepository: jest.Mocked<ISavedCardRepository> = {
   save: jest.fn(),
@@ -16,18 +15,12 @@ const mockSavedCardRepository: jest.Mocked<ISavedCardRepository> = {
   updateById: jest.fn(),
 };
 
-const mockPublicCardRepository: jest.Mocked<IPublicCardRepository> = {
+const mockCardRepository: jest.Mocked<ICardRepository> = {
   create: jest.fn(),
-  findByUserId: jest.fn(),
+  findById: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),
-};
-
-const mockPrivateCardRepository: jest.Mocked<IPrivateCardRepository> = {
-  create: jest.fn(),
-  findByUserId: jest.fn(),
-  update: jest.fn(),
-  delete: jest.fn(),
+  exists: jest.fn(),
 };
 
 describe("GetSavedCardsUseCase", () => {
@@ -56,32 +49,30 @@ describe("GetSavedCardsUseCase", () => {
       },
     ];
 
-    const publicCard1: PublicCard = {
+    const publicCard1: Card = {
       userId: "card-user-1",
       displayName: "User 1",
       connectedServices: {},
       theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       updatedAt: new Date(),
     };
 
-    const publicCard2: PublicCard = {
+    const publicCard2: Card = {
       userId: "card-user-2",
       displayName: "User 2",
       connectedServices: {},
       theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       updatedAt: new Date(),
     };
 
     mockSavedCardRepository.findByUserId.mockResolvedValue(savedCards);
-    mockPublicCardRepository.findByUserId
+    mockCardRepository.findById
       .mockResolvedValueOnce(publicCard1)
       .mockResolvedValueOnce(publicCard2);
 
-    const useCase = new GetSavedCardsUseCase(
-      mockSavedCardRepository,
-      mockPublicCardRepository,
-      mockPrivateCardRepository
-    );
+    const useCase = new GetSavedCardsUseCase(mockSavedCardRepository, mockCardRepository);
     const result = await useCase.execute(userId);
 
     expect(result).toHaveLength(2);
@@ -93,7 +84,7 @@ describe("GetSavedCardsUseCase", () => {
     expect(result[1].displayName).toEqual("User 2");
 
     expect(mockSavedCardRepository.findByUserId).toHaveBeenCalledWith(userId, undefined);
-    expect(mockPublicCardRepository.findByUserId).toHaveBeenCalledTimes(2);
+    expect(mockCardRepository.findById).toHaveBeenCalledTimes(2);
   });
 
   it("should handle deleted cards gracefully", async () => {
@@ -114,24 +105,19 @@ describe("GetSavedCardsUseCase", () => {
       },
     ];
 
-    const publicCard1: PublicCard = {
+    const publicCard1: Card = {
       userId: "card-user-1",
       displayName: "User 1",
       connectedServices: {},
       theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       updatedAt: new Date(),
     };
 
     mockSavedCardRepository.findByUserId.mockResolvedValue(savedCards);
-    mockPublicCardRepository.findByUserId
-      .mockResolvedValueOnce(publicCard1)
-      .mockResolvedValueOnce(null); // Card was deleted
+    mockCardRepository.findById.mockResolvedValueOnce(publicCard1).mockResolvedValueOnce(null); // Card was deleted
 
-    const useCase = new GetSavedCardsUseCase(
-      mockSavedCardRepository,
-      mockPublicCardRepository,
-      mockPrivateCardRepository
-    );
+    const useCase = new GetSavedCardsUseCase(mockSavedCardRepository, mockCardRepository);
     const result = await useCase.execute(userId);
 
     expect(result).toHaveLength(2);
@@ -146,15 +132,11 @@ describe("GetSavedCardsUseCase", () => {
 
     mockSavedCardRepository.findByUserId.mockResolvedValue([]);
 
-    const useCase = new GetSavedCardsUseCase(
-      mockSavedCardRepository,
-      mockPublicCardRepository,
-      mockPrivateCardRepository
-    );
+    const useCase = new GetSavedCardsUseCase(mockSavedCardRepository, mockCardRepository);
     const result = await useCase.execute(userId);
 
     expect(result).toEqual([]);
-    expect(mockPublicCardRepository.findByUserId).not.toHaveBeenCalled();
+    expect(mockCardRepository.findById).not.toHaveBeenCalled();
   });
 
   it("should calculate hasUpdate correctly when card is updated", async () => {
@@ -172,22 +154,19 @@ describe("GetSavedCardsUseCase", () => {
       },
     ];
 
-    const publicCard: PublicCard = {
+    const publicCard: Card = {
       userId: "card-user-1",
       displayName: "User 1",
       connectedServices: {},
       theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       updatedAt: newDate,
     };
 
     mockSavedCardRepository.findByUserId.mockResolvedValue(savedCards);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(publicCard);
+    mockCardRepository.findById.mockResolvedValue(publicCard);
 
-    const useCase = new GetSavedCardsUseCase(
-      mockSavedCardRepository,
-      mockPublicCardRepository,
-      mockPrivateCardRepository
-    );
+    const useCase = new GetSavedCardsUseCase(mockSavedCardRepository, mockCardRepository);
     const result = await useCase.execute(userId);
 
     expect(result).toHaveLength(1);
@@ -209,22 +188,19 @@ describe("GetSavedCardsUseCase", () => {
       },
     ];
 
-    const publicCard: PublicCard = {
+    const publicCard: Card = {
       userId: "card-user-1",
       displayName: "User 1",
       connectedServices: {},
       theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       updatedAt: sameDate, // Same timestamp (boundary condition)
     };
 
     mockSavedCardRepository.findByUserId.mockResolvedValue(savedCards);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(publicCard);
+    mockCardRepository.findById.mockResolvedValue(publicCard);
 
-    const useCase = new GetSavedCardsUseCase(
-      mockSavedCardRepository,
-      mockPublicCardRepository,
-      mockPrivateCardRepository
-    );
+    const useCase = new GetSavedCardsUseCase(mockSavedCardRepository, mockCardRepository);
     const result = await useCase.execute(userId);
 
     expect(result).toHaveLength(1);
@@ -246,22 +222,19 @@ describe("GetSavedCardsUseCase", () => {
       },
     ];
 
-    const publicCard: PublicCard = {
+    const publicCard: Card = {
       userId: "card-user-1",
       displayName: "User 1",
       connectedServices: {},
       theme: "default",
+      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
       updatedAt: now,
     };
 
     mockSavedCardRepository.findByUserId.mockResolvedValue(savedCards);
-    mockPublicCardRepository.findByUserId.mockResolvedValue(publicCard);
+    mockCardRepository.findById.mockResolvedValue(publicCard);
 
-    const useCase = new GetSavedCardsUseCase(
-      mockSavedCardRepository,
-      mockPublicCardRepository,
-      mockPrivateCardRepository
-    );
+    const useCase = new GetSavedCardsUseCase(mockSavedCardRepository, mockCardRepository);
     const result = await useCase.execute(userId);
 
     expect(result).toHaveLength(1);

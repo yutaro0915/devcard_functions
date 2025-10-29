@@ -1,7 +1,7 @@
 import {ISavedCardRepository, FindSavedCardsOptions} from "../domain/ISavedCardRepository";
-import {IPublicCardRepository} from "../domain/IPublicCardRepository";
-import {IPrivateCardRepository} from "../domain/IPrivateCardRepository";
+import {ICardRepository} from "../domain/ICardRepository";
 import {SavedCard} from "../domain/SavedCard";
+import {CardVisibilityFilter} from "../domain/CardVisibilityFilter";
 import type {ConnectedService} from "../domain/PublicCard";
 
 /**
@@ -53,8 +53,7 @@ export interface SavedCardWithDetails {
 export class GetSavedCardsUseCase {
   constructor(
     private savedCardRepository: ISavedCardRepository,
-    private publicCardRepository: IPublicCardRepository,
-    private privateCardRepository: IPrivateCardRepository
+    private cardRepository: ICardRepository
   ) {}
 
   async execute(userId: string, options?: FindSavedCardsOptions): Promise<SavedCardWithDetails[]> {
@@ -64,11 +63,7 @@ export class GetSavedCardsUseCase {
     // Fetch master card details for each saved card
     const cardsWithDetails = await Promise.all(
       savedCards.map(async (savedCard) => {
-        if (savedCard.cardType === "public") {
-          return this.buildPublicCardDetails(savedCard);
-        } else {
-          return this.buildPrivateCardDetails(savedCard);
-        }
+        return this.buildCardDetails(savedCard);
       })
     );
 
@@ -76,15 +71,15 @@ export class GetSavedCardsUseCase {
     return cardsWithDetails.filter((card) => card !== null) as SavedCardWithDetails[];
   }
 
-  private async buildPublicCardDetails(savedCard: SavedCard): Promise<SavedCardWithDetails | null> {
-    const publicCard = await this.publicCardRepository.findByUserId(savedCard.cardUserId);
+  private async buildCardDetails(savedCard: SavedCard): Promise<SavedCardWithDetails | null> {
+    const card = await this.cardRepository.findById(savedCard.cardUserId);
 
-    if (!publicCard) {
+    if (!card) {
       // Card was deleted
       return {
         savedCardId: savedCard.savedCardId,
         cardUserId: savedCard.cardUserId,
-        cardType: "public",
+        cardType: savedCard.cardType,
         savedAt: savedCard.savedAt,
         lastViewedAt: savedCard.lastViewedAt,
         lastKnownUpdatedAt: savedCard.lastKnownUpdatedAt,
@@ -100,12 +95,19 @@ export class GetSavedCardsUseCase {
     }
 
     // Calculate hasUpdate
-    const hasUpdate = this.calculateHasUpdate(savedCard.lastKnownUpdatedAt, publicCard.updatedAt);
+    const hasUpdate = this.calculateHasUpdate(savedCard.lastKnownUpdatedAt, card.updatedAt);
 
-    return {
+    // Apply visibility filter based on cardType
+    const filteredCard =
+      savedCard.cardType === "public"
+        ? CardVisibilityFilter.filterPublic(card)
+        : CardVisibilityFilter.filterPrivate(card);
+
+    // Build response
+    const result: SavedCardWithDetails = {
       savedCardId: savedCard.savedCardId,
       cardUserId: savedCard.cardUserId,
-      cardType: "public",
+      cardType: savedCard.cardType,
       savedAt: savedCard.savedAt,
       lastViewedAt: savedCard.lastViewedAt,
       lastKnownUpdatedAt: savedCard.lastKnownUpdatedAt,
@@ -114,66 +116,29 @@ export class GetSavedCardsUseCase {
       eventId: savedCard.eventId,
       badge: savedCard.badge,
       hasUpdate,
-      displayName: publicCard.displayName,
-      photoURL: publicCard.photoURL,
-      updatedAt: publicCard.updatedAt,
-      bio: publicCard.bio,
-      connectedServices: publicCard.connectedServices,
-      theme: publicCard.theme,
-      customCss: publicCard.customCss,
+      displayName: card.displayName,
+      photoURL: card.photoURL,
+      updatedAt: card.updatedAt,
     };
-  }
 
-  private async buildPrivateCardDetails(
-    savedCard: SavedCard
-  ): Promise<SavedCardWithDetails | null> {
-    const privateCard = await this.privateCardRepository.findByUserId(savedCard.cardUserId);
+    // Add public fields
+    if ("bio" in filteredCard && filteredCard.bio) result.bio = filteredCard.bio;
+    if ("connectedServices" in filteredCard)
+      result.connectedServices = filteredCard.connectedServices;
+    if ("theme" in filteredCard) result.theme = filteredCard.theme;
+    if ("customCss" in filteredCard) result.customCss = filteredCard.customCss;
 
-    if (!privateCard) {
-      // Card was deleted
-      return {
-        savedCardId: savedCard.savedCardId,
-        cardUserId: savedCard.cardUserId,
-        cardType: "private",
-        savedAt: savedCard.savedAt,
-        lastViewedAt: savedCard.lastViewedAt,
-        lastKnownUpdatedAt: savedCard.lastKnownUpdatedAt,
-        memo: savedCard.memo,
-        tags: savedCard.tags,
-        eventId: savedCard.eventId,
-        badge: savedCard.badge,
-        hasUpdate: false,
-        displayName: "[Deleted]",
-        updatedAt: new Date(),
-        isDeleted: true,
-      };
+    // Add private fields (only if cardType === 'private')
+    if (savedCard.cardType === "private" && card.privateContacts) {
+      result.email = card.privateContacts.email;
+      result.phoneNumber = card.privateContacts.phoneNumber;
+      result.lineId = card.privateContacts.lineId;
+      result.discordId = card.privateContacts.discordId;
+      result.twitterHandle = card.privateContacts.twitterHandle;
+      result.otherContacts = card.privateContacts.otherContacts;
     }
 
-    // Calculate hasUpdate
-    const hasUpdate = this.calculateHasUpdate(savedCard.lastKnownUpdatedAt, privateCard.updatedAt);
-
-    return {
-      savedCardId: savedCard.savedCardId,
-      cardUserId: savedCard.cardUserId,
-      cardType: "private",
-      savedAt: savedCard.savedAt,
-      lastViewedAt: savedCard.lastViewedAt,
-      lastKnownUpdatedAt: savedCard.lastKnownUpdatedAt,
-      memo: savedCard.memo,
-      tags: savedCard.tags,
-      eventId: savedCard.eventId,
-      badge: savedCard.badge,
-      hasUpdate,
-      displayName: privateCard.displayName,
-      photoURL: privateCard.photoURL,
-      updatedAt: privateCard.updatedAt,
-      email: privateCard.email,
-      phoneNumber: privateCard.phoneNumber,
-      lineId: privateCard.lineId,
-      discordId: privateCard.discordId,
-      twitterHandle: privateCard.twitterHandle,
-      otherContacts: privateCard.otherContacts,
-    };
+    return result;
   }
 
   /**

@@ -1,9 +1,9 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import {getFirestore} from "firebase-admin/firestore";
-import {PublicCardRepository} from "../infrastructure/PublicCardRepository";
+import {CardRepository} from "../infrastructure/CardRepository";
 import {BadgeRepository} from "../infrastructure/BadgeRepository";
-import {GetPublicCardUseCase} from "../application/GetPublicCardUseCase";
+import {GetCardUseCase} from "../application/GetCardUseCase";
 
 const firestore = getFirestore();
 
@@ -23,12 +23,15 @@ export const getPublicCard = onCall(async (request) => {
     logger.info("Getting public card", {userId});
 
     // Initialize dependencies
-    const publicCardRepository = new PublicCardRepository(firestore);
+    const cardRepository = new CardRepository(firestore);
     const badgeRepository = new BadgeRepository(firestore);
-    const getPublicCardUseCase = new GetPublicCardUseCase(publicCardRepository, badgeRepository);
+    const getCardUseCase = new GetCardUseCase(cardRepository, badgeRepository);
 
-    // Execute use case
-    const publicCard = await getPublicCardUseCase.execute(userId);
+    // Execute use case with visibility='public'
+    const publicCard = await getCardUseCase.execute({
+      userId,
+      visibility: "public",
+    });
 
     // Check if card exists
     if (!publicCard) {
@@ -41,7 +44,7 @@ export const getPublicCard = onCall(async (request) => {
     // Convert Date to ISO 8601 string for JSON serialization
     const publicCardResponse = {
       ...publicCard,
-      updatedAt: publicCard.updatedAt.toISOString(),
+      updatedAt: publicCard.updatedAt?.toISOString(),
     };
 
     return {success: true, publicCard: publicCardResponse};
