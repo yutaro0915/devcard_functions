@@ -34,19 +34,16 @@ describe("SavedCard Operations Integration Test", () => {
     const adminFirestore = adminApp.firestore();
     const now = new Date();
 
-    await adminFirestore
-      .collection("cards")
-      .doc(userId)
-      .set({
-        userId,
-        displayName: "Test User",
-        photoURL: "https://example.com/photo.jpg",
-        theme: "default",
-        // New flat schema: no nested privateContacts
-        email,
-        phoneNumber: "+81-90-1234-5678",
-        updatedAt: now,
-      });
+    await adminFirestore.collection("cards").doc(userId).set({
+      userId,
+      displayName: "Test User",
+      photoURL: "https://example.com/photo.jpg",
+      theme: "default",
+      // New flat schema: no nested privateContacts
+      email,
+      phoneNumber: "+81-90-1234-5678",
+      updatedAt: now,
+    });
   }
 
   // Helper: Create ExchangeToken directly in Firestore

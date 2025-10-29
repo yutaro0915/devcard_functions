@@ -22,10 +22,7 @@ export class CardVisibilityFilter {
   /**
    * Filter card fields based on allowed visibility levels
    */
-  private static filterByVisibility(
-    card: Card,
-    allowedLevels: VisibilityLevel[]
-  ): Partial<Card> {
+  private static filterByVisibility(card: Card, allowedLevels: VisibilityLevel[]): Partial<Card> {
     const filtered: Partial<Card> = {
       userId: card.userId,
       displayName: card.displayName,
@@ -65,7 +62,7 @@ export class CardVisibilityFilter {
       if (value !== undefined) {
         const visibility = getVisibility(field, card.visibility);
         if (allowedLevels.includes(visibility)) {
-          (filtered as any)[field] = value;
+          (filtered as Record<string, unknown>)[field] = value;
         }
       }
     }

@@ -97,7 +97,7 @@ export class CardRepository implements ICardRepository {
     for (const field of fields) {
       if (data[field] !== undefined) {
         // Empty strings should delete the field for contact fields
-        if (data[field] === "" && deleteOnEmptyFields.includes(field as any)) {
+        if (data[field] === "" && deleteOnEmptyFields.includes(field as keyof UpdateCardData)) {
           updateData[field] = FieldValue.delete();
         } else {
           updateData[field] = data[field];
