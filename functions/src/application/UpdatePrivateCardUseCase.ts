@@ -1,23 +1,28 @@
 import {ICardRepository} from "../domain/ICardRepository";
-import {PrivateContacts} from "../domain/Card";
 
 /**
- * Input data for updating private card
+ * Input data for updating private card fields
  */
 export interface UpdatePrivateCardInput {
   userId: string;
-  privateContacts?: PrivateContacts;
+  email?: string;
+  phoneNumber?: string;
+  line?: string;
+  discord?: string;
+  x?: string;
+  telegram?: string;
+  slack?: string;
+  otherContacts?: string;
 }
 
 /**
- * Use case for updating private card contact information
+ * Use case for updating private contact information
  */
 export class UpdatePrivateCardUseCase {
   constructor(private cardRepository: ICardRepository) {}
 
   async execute(input: UpdatePrivateCardInput): Promise<void> {
-    await this.cardRepository.update(input.userId, {
-      privateContacts: input.privateContacts,
-    });
+    const {userId, ...fields} = input;
+    await this.cardRepository.update(userId, fields);
   }
 }

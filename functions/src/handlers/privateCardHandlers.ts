@@ -26,15 +26,31 @@ export const updatePrivateCard = onCall(async (request) => {
   }
 
   const userId = request.auth.uid;
-  const {email, phoneNumber, lineId, discordId, twitterHandle, otherContacts} = request.data;
+  // Support both old and new parameter names for backward compatibility
+  const {
+    email,
+    phoneNumber,
+    line,
+    lineId, // legacy
+    discord,
+    discordId, // legacy
+    x,
+    twitterHandle, // legacy
+    otherContacts,
+  } = request.data;
+
+  // Use new names, fall back to old names for backward compatibility
+  const finalLine = line !== undefined ? line : lineId;
+  const finalDiscord = discord !== undefined ? discord : discordId;
+  const finalX = x !== undefined ? x : twitterHandle;
 
   // Validate at least one field is provided
   if (
     email === undefined &&
     phoneNumber === undefined &&
-    lineId === undefined &&
-    discordId === undefined &&
-    twitterHandle === undefined &&
+    finalLine === undefined &&
+    finalDiscord === undefined &&
+    finalX === undefined &&
     otherContacts === undefined
   ) {
     throw new HttpsError("invalid-argument", "At least one field must be provided");
@@ -71,51 +87,29 @@ export const updatePrivateCard = onCall(async (request) => {
     }
   }
 
-  // Validate lineId
-  if (lineId !== undefined) {
-    if (typeof lineId !== "string") {
-      throw new HttpsError("invalid-argument", "lineId must be a string");
+  // Validate line
+  if (finalLine !== undefined) {
+    if (typeof finalLine !== "string") {
+      throw new HttpsError("invalid-argument", "line must be a string");
     }
-    if (lineId.length > PRIVATE_CARD_VALIDATION.LINE_ID_MAX_LENGTH) {
+    if (finalLine.length > PRIVATE_CARD_VALIDATION.LINE_ID_MAX_LENGTH) {
       throw new HttpsError(
         "invalid-argument",
-        `lineId must be at most ${PRIVATE_CARD_VALIDATION.LINE_ID_MAX_LENGTH} characters`
+        `line must be at most ${PRIVATE_CARD_VALIDATION.LINE_ID_MAX_LENGTH} characters`
       );
     }
   }
 
-  // Validate discordId
-  if (discordId !== undefined) {
-    if (typeof discordId !== "string") {
-      throw new HttpsError("invalid-argument", "discordId must be a string");
+  // Validate discord
+  if (finalDiscord !== undefined) {
+    if (typeof finalDiscord !== "string") {
+      throw new HttpsError("invalid-argument", "discord must be a string");
     }
-    if (discordId.length > PRIVATE_CARD_VALIDATION.DISCORD_ID_MAX_LENGTH) {
+    if (finalDiscord.length > PRIVATE_CARD_VALIDATION.DISCORD_ID_MAX_LENGTH) {
       throw new HttpsError(
         "invalid-argument",
-        `discordId must be at most ${PRIVATE_CARD_VALIDATION.DISCORD_ID_MAX_LENGTH} characters`
+        `discord must be at most ${PRIVATE_CARD_VALIDATION.DISCORD_ID_MAX_LENGTH} characters`
       );
-    }
-  }
-
-  // Validate and normalize twitterHandle
-  let normalizedTwitterHandle: string | undefined;
-  if (twitterHandle !== undefined) {
-    if (typeof twitterHandle !== "string") {
-      throw new HttpsError("invalid-argument", "twitterHandle must be a string");
-    }
-    if (twitterHandle.length > 0) {
-      if (!isValidTwitterHandle(twitterHandle)) {
-        throw new HttpsError(
-          "invalid-argument",
-          "twitterHandle must be 1-15 characters and contain only letters, numbers, and underscores (@ prefix is optional)"
-        );
-      }
-      // Normalize: remove @ prefix
-      normalizedTwitterHandle = normalizeTwitterHandle(twitterHandle);
-    } else {
-      // Empty string → delete field (set to undefined)
-      // This ensures the field is not stored in Firestore
-      normalizedTwitterHandle = undefined;
     }
   }
 
@@ -132,41 +126,59 @@ export const updatePrivateCard = onCall(async (request) => {
     }
   }
 
+  // Validate and normalize x (Twitter/X handle)
+  let normalizedX: string | undefined;
+  if (finalX !== undefined) {
+    if (typeof finalX !== "string") {
+      throw new HttpsError("invalid-argument", "x must be a string");
+    }
+    if (finalX.length > 0) {
+      if (!isValidTwitterHandle(finalX)) {
+        throw new HttpsError(
+          "invalid-argument",
+          "x must be 1-15 characters and contain only letters, numbers, and underscores (@ prefix is optional)"
+        );
+      }
+      // Normalize: remove @ prefix
+      normalizedX = normalizeTwitterHandle(finalX);
+    } else {
+      // Empty string → delete field (set to undefined)
+      // This ensures the field is not stored in Firestore
+      normalizedX = undefined;
+    }
+  }
+
   try {
     // Log operation (mask PII)
     logger.info("updatePrivateCard called", {
       userId,
       hasEmail: email !== undefined,
       hasPhoneNumber: phoneNumber !== undefined,
-      hasLineId: lineId !== undefined,
-      hasDiscordId: discordId !== undefined,
-      hasTwitterHandle: twitterHandle !== undefined,
-      hasOtherContacts: otherContacts !== undefined,
+      hasLine: finalLine !== undefined,
+      hasDiscord: finalDiscord !== undefined,
+      hasX: finalX !== undefined,
     });
 
-    // Execute use case with nested privateContacts structure
+    // Execute use case with flat structure
     const cardRepository = new CardRepository(firestore);
     const useCase = new UpdatePrivateCardUseCase(cardRepository);
 
-    // If twitterHandle was explicitly set to empty string, pass "" to delete it
+    // If x was explicitly set to empty string, pass "" to delete it
     // Otherwise pass the normalized value (which might be undefined)
-    const twitterHandleValue =
-      twitterHandle !== undefined && normalizedTwitterHandle === undefined
-        ? ""
-        : normalizedTwitterHandle;
+    const xValue = finalX !== undefined && normalizedX === undefined ? "" : normalizedX;
 
-    // Build privateContacts object (nested structure)
-    const privateContacts: Record<string, string> = {};
-    if (email !== undefined) privateContacts.email = email;
-    if (phoneNumber !== undefined) privateContacts.phoneNumber = phoneNumber;
-    if (lineId !== undefined) privateContacts.lineId = lineId;
-    if (discordId !== undefined) privateContacts.discordId = discordId;
-    if (twitterHandleValue !== undefined) privateContacts.twitterHandle = twitterHandleValue;
-    if (otherContacts !== undefined) privateContacts.otherContacts = otherContacts;
+    // Build update data with flat fields
+    const updateData: Record<string, string | undefined> = {};
+    if (email !== undefined) updateData.email = email;
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber;
+    if (finalLine !== undefined) updateData.line = finalLine;
+    if (finalDiscord !== undefined) updateData.discord = finalDiscord;
+    if (xValue !== undefined) updateData.x = xValue;
+    if (otherContacts !== undefined) updateData.otherContacts = otherContacts;
 
     await useCase.execute({
       userId,
-      privateContacts: Object.keys(privateContacts).length > 0 ? privateContacts : undefined,
+      ...updateData,
     });
 
     return {success: true};
@@ -217,25 +229,25 @@ export const getPrivateCard = onCall(async (request) => {
       return null;
     }
 
-    // If no privateContacts exist, return null (no private card data)
-    if (!privateCard.privateContacts) {
+    // Check if any private fields exist - if not, treat as "no private card"
+    const hasPrivateFields =
+      privateCard.email ||
+      privateCard.phoneNumber ||
+      privateCard.line ||
+      privateCard.discord ||
+      privateCard.x ||
+      privateCard.telegram ||
+      privateCard.slack ||
+      privateCard.otherContacts;
+
+    if (!hasPrivateFields) {
       return null;
     }
 
-    // Flatten privateContacts for backward compatibility with API contract
-    const {privateContacts, ...rest} = privateCard;
+    // Return flat structure with private fields
     return {
-      ...rest,
+      ...privateCard,
       updatedAt: privateCard.updatedAt?.toISOString(),
-      // Flatten privateContacts fields to top level
-      ...(privateContacts && {
-        email: privateContacts.email,
-        phoneNumber: privateContacts.phoneNumber,
-        lineId: privateContacts.lineId,
-        discordId: privateContacts.discordId,
-        twitterHandle: privateContacts.twitterHandle,
-        otherContacts: privateContacts.otherContacts,
-      }),
     };
   } catch (error) {
     logger.error("getPrivateCard failed", {userId, error});

@@ -30,9 +30,22 @@ export class CreateExchangeTokenUseCase {
   ) {}
 
   async execute(input: CreateExchangeTokenInput): Promise<CreateExchangeTokenOutput> {
-    // Verify Card exists and has privateContacts
+    // Verify Card exists and has private contact information
     const card = await this.cardRepository.findById(input.userId);
-    if (!card || !card.privateContacts) {
+    if (!card) {
+      throw new PrivateCardNotFoundError(input.userId);
+    }
+
+    // Check if card has at least one private contact field
+    const hasPrivateInfo =
+      card.email ||
+      card.phoneNumber ||
+      card.line ||
+      card.discord ||
+      card.telegram ||
+      card.slack;
+
+    if (!hasPrivateInfo) {
       throw new PrivateCardNotFoundError(input.userId);
     }
 

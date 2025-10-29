@@ -10,14 +10,23 @@
 
 **データモデルの統合** (Issue #68対応):
 - `/public_cards` と `/private_cards` コレクションを単一の `/cards` コレクションに統合
-- 内部実装の変更であり、**既存のAPI仕様（リクエスト/レスポンス）に変更はありません**
-- すべての既存クライアントコードはそのまま動作します
+- **フラット構造**: すべてのフィールド（公開/非公開）がルートレベルに配置され、ネストされた `privateContacts` オブジェクトは使用しません
 - パフォーマンス向上: プロフィール更新時のトランザクション処理が不要に
 
 **技術的な詳細**:
 - `/cards/{userId}` に公開情報とプライベート情報を格納
-- `privateContacts` フィールドでプライベート連絡先を管理
-- `visibility` フィールドで各フィールドの公開範囲を制御（将来の機能拡張用）
+- フラット構造: `email`, `phoneNumber`, `line`, `discord`, `x` などすべてのフィールドがルートレベル
+- `visibility` フィールドで各フィールドの公開範囲を制御（public/private/hidden）
+- デフォルト可視性ルール:
+  - 連絡先/メッセージングフィールド（`email`, `phoneNumber`, `line`, `discord`, `telegram`, `slack`, `otherContacts`）: `"private"`
+  - SNSフィールド（`github`, `x`, `linkedin`, `instagram`, `facebook`, `zenn`, `qiita`, `website`, `blog`, `youtube`, `twitch`）: `"public"`
+
+**後方互換性**:
+- 旧フィールド名も引き続きサポート:
+  - `lineId` → `line` (新しい名前を優先)
+  - `discordId` → `discord` (新しい名前を優先)
+  - `twitterHandle` → `x` (新しい名前を優先)
+- 既存のクライアントコードはそのまま動作します
 
 ---
 
@@ -62,20 +71,21 @@
   updatedAt: Timestamp;
 }
 
-// /cards/{userId} (v0.7.0+: 旧 /public_cards)
+// /cards/{userId} (v0.7.0+: Unified Card Model with flat structure)
 {
   userId: string;
   displayName: string;
   photoURL?: string;
   bio?: string;
-  connectedServices: {}; // 初期状態は空
   theme: "default";
   visibility: {
     bio: "public",
-    backgroundImage: "public",
+    backgroundImageUrl: "public",
     badges: "public"
+    // Other fields use defaults from constants/visibility.ts
   };
   updatedAt: Timestamp;
+  // Note: SNS/contact fields not created initially, added when user updates them
 }
 ```
 
@@ -207,20 +217,17 @@
 - `not-found`: ユーザーまたは公開名刺が存在しない場合
 - `internal`: サーバー内部エラー
 
-**更新対象**:
+**更新対象** (v0.7.0+: Unified Card Model):
 - `/users/{userId}`: `displayName`, `photoURL`, `updatedAt`
-- `/public_cards/{userId}`: `displayName`, `bio`, `photoURL`, `updatedAt`
-- `/private_cards/{userId}`: `displayName`, `photoURL`, `updatedAt` (存在する場合のみ)
+- `/cards/{userId}`: `displayName`, `bio`, `photoURL`, `updatedAt`
 
 **注意事項**:
 - 少なくとも1つのフィールド（`displayName`、`bio`、または `photoURL`）を指定する必要があります
 - 未指定のフィールドは更新されません
-- 3箇所がFirestoreトランザクションで原子的に更新されます（失敗時は全てロールバック）
-- PrivateCardが存在しない場合は、User/PublicCardのみ更新されます
+- v0.7.0+: 統合カードモデルにより、トランザクション処理は不要になりました（パフォーマンス向上）
 
-**変更点 (v0.2.0)**:
-- PrivateCardの同期更新を追加（displayName, photoURL）
-- トランザクション処理で原子性を担保
+**変更点 (v0.7.0)**:
+- `/cards` コレクションへの統合により、1箇所の更新で完結
 
 ---
 
@@ -242,7 +249,7 @@
 **バリデーション**:
 - `userId`: 必須、非空文字列
 
-**レスポンス**:
+**レスポンス** (v0.7.0+: Unified Card Model with flat structure):
 ```typescript
 {
   success: true;
@@ -251,12 +258,30 @@
     displayName: string;
     photoURL?: string;
     bio?: string;
-    connectedServices: Record<string, ConnectedService>;
+
+    // SNS fields (public by default)
+    github?: string;
+    x?: string;
+    linkedin?: string;
+    instagram?: string;
+    facebook?: string;
+    zenn?: string;
+    qiita?: string;
+    website?: string;
+    blog?: string;
+    youtube?: string;
+    twitch?: string;
+
+    // Display settings
     badges?: string[]; // v0.5.0+: showOnPublicCard=true のバッジIDリスト
     theme: string;
     customCss?: string;
     backgroundImageUrl?: string; // v0.6.0+: カード背景画像URL（Firebase Storage）
+
     updatedAt: string; // ISO 8601形式
+
+    // Note: Private fields (email, phoneNumber, line, discord, telegram, slack, otherContacts)
+    // are filtered out based on visibility settings
   }
 }
 ```
@@ -266,8 +291,8 @@
 - `not-found`: 指定された公開名刺が存在しない場合
 - `internal`: サーバー内部エラー
 
-**参照データ**:
-- `/public_cards/{userId}` を読み取り専用で取得
+**参照データ** (v0.7.0+):
+- `/cards/{userId}` から可視性が `"public"` のフィールドのみ取得
 
 **注意事項**:
 - 認証不要のため、公開URLから誰でもアクセス可能
@@ -300,7 +325,7 @@
 }
 ```
 
-**レスポンス**:
+**レスポンス** (v0.7.0+: Unified Card Model with flat structure):
 ```typescript
 {
   success: true;
@@ -318,27 +343,41 @@
     eventId?: string;
     badge?: string;
 
-    // Master card details (cardTypeによって異なる)
+    // Master card details (visibility に応じてフィルタリング)
     displayName: string;
     photoURL?: string;
     updatedAt: string;                 // マスターカードのupdatedAt
     isDeleted?: boolean;               // マスターが削除済みの場合true
 
-    // Public card specific fields (cardType='public'の場合のみ)
+    // Basic profile fields
     bio?: string;
-    connectedServices?: Record<string, ConnectedService>;
     theme?: string;
     customCss?: string;
-    // badges?: string[];  // TODO v0.5.0+: 将来対応予定
+    backgroundImageUrl?: string;
+    badges?: string[];
 
-    // Private card specific fields (cardType='private'の場合のみ)
+    // SNS fields (public visibility: github, x, linkedin, instagram, facebook, zenn, qiita, website, blog, youtube, twitch)
+    github?: string;
+    x?: string;
+    linkedin?: string;
+    instagram?: string;
+    facebook?: string;
+    zenn?: string;
+    qiita?: string;
+    website?: string;
+    blog?: string;
+    youtube?: string;
+    twitch?: string;
+
+    // Contact/messaging fields (private visibility: email, phoneNumber, line, discord, telegram, slack, otherContacts)
+    // Only included if cardType='private' or if visibility is set to 'public' for specific fields
     email?: string;
     phoneNumber?: string;
-    lineId?: string;
-    discordId?: string;
-    twitterHandle?: string;
+    line?: string;
+    discord?: string;
+    telegram?: string;
+    slack?: string;
     otherContacts?: string;
-    // badges?: string[];  // TODO v0.5.0+: 将来対応予定
   }>
 }
 ```
@@ -468,38 +507,33 @@ hasUpdate = !lastKnownUpdatedAt || lastKnownUpdatedAt < master.updatedAt
 - `token-expired`: トークンの有効期限切れ（再認証が必要）
 - `api-error`: 外部APIエラー（ネットワークエラー、5xx等）
 
-**処理フロー**:
+**処理フロー** (v0.7.0+: Unified Card Model):
 1. 認証済みユーザーのIDを取得
 2. `/users/{userId}` から各サービスのアクセストークンを取得
 3. 外部API（GitHub等）を呼び出して最新情報を取得
-4. `/public_cards/{userId}` の `connectedServices` を更新
+4. `/cards/{userId}` の対応するフィールド（`github` など）を更新
 
-**更新されるデータ（GitHub の場合）**:
+**更新されるデータ（GitHub の場合）** (v0.7.0+):
 ```typescript
-connectedServices: {
-  github: {
-    serviceName: "github";
-    username: string;        // GitHubユーザー名
-    profileUrl: string;      // https://github.com/{username}
-    avatarUrl: string;       // プロフィール画像URL
-    bio?: string;            // GitHub上の自己紹介
-    stats?: {
-      name?: string;         // 実名（GitHub上で設定されている場合）
-    };
-  }
+// /cards/{userId} に以下のフィールドを更新
+{
+  github: string;  // GitHubユーザー名
+  updatedAt: Timestamp;
 }
 ```
 
 **注意事項**:
 - 認可: 自分自身のデータのみ同期可能（UserIDはリクエストから受け取らず、認証済みユーザーのIDを使用）
 - 部分成功: 一部のサービス同期が失敗しても、成功したものは反映される
-- 既存サービス保持: 同期対象外のサービス情報は保持される
 - トークン保護: アクセストークンはログに出力されない
 
+**変更点 (v0.7.0)**:
+- フラット構造: GitHubユーザー名が `/cards/{userId}` の `github` フィールドに保存されます
+- `connectedServices` オブジェクトは使用されなくなりました
+
 **変更点 (v0.2.0)**:
-- **同期成功時のみ `PublicCard.updatedAt` を更新**（エラー時は更新しない）
+- **同期成功時のみ `Card.updatedAt` を更新**（エラー時は更新しない）
 - これにより、保存済み名刺の更新検知（`hasUpdate`）が正しく機能します
-- 例: GitHub同期でリポジトリ追加 → `PublicCard.updatedAt`更新 → 保存している人に「最新版があります！」通知
 
 ---
 
@@ -509,16 +543,29 @@ connectedServices: {
 
 **認証**: 必須（自分のPrivateCardのみ編集可能）
 
-**説明**: 個人連絡先情報（PrivateCard）を作成・更新します。初回呼び出し時に `/private_cards/{userId}` が作成され、2回目以降は部分更新されます。
+**説明**: 個人連絡先情報を作成・更新します。v0.7.0+: `/cards/{userId}` のフラットフィールドとして保存され、初回呼び出し時にフィールドが追加され、2回目以降は部分更新されます。
 
-**リクエスト**:
+**リクエスト** (v0.7.0+: 新旧フィールド名両方サポート):
 ```typescript
 {
+  // Contact fields
   email?: string;           // メールアドレス (任意、最大255文字、email形式)
   phoneNumber?: string;     // 電話番号 (任意、最大50文字)
-  lineId?: string;          // LINE ID (任意、最大100文字)
-  discordId?: string;       // Discord ID (任意、最大100文字)
-  twitterHandle?: string;   // Twitterハンドル (任意、@付きでも可、保存時は@なしで正規化、最大15文字、空文字列でフィールド削除)
+
+  // Messaging fields (新しい名前を優先、旧名も後方互換性のためサポート)
+  line?: string;            // LINE ID (任意、最大100文字) - 推奨
+  lineId?: string;          // ⚠️ 非推奨: 後方互換性のため残されています。代わりに `line` を使用してください
+
+  discord?: string;         // Discord ID (任意、最大100文字) - 推奨
+  discordId?: string;       // ⚠️ 非推奨: 後方互換性のため残されています。代わりに `discord` を使用してください
+
+  x?: string;               // X/Twitterハンドル (任意、最大15文字) - 推奨
+  twitterHandle?: string;   // ⚠️ 非推奨: 後方互換性のため残されています。代わりに `x` を使用してください
+
+  telegram?: string;        // Telegram ID (任意、最大100文字) ✨ v0.7.0+
+  slack?: string;           // Slack ID (任意、最大100文字) ✨ v0.7.0+
+
+  // Other
   otherContacts?: string;   // その他連絡先 (任意、最大500文字)
 }
 ```
@@ -527,8 +574,10 @@ connectedServices: {
 - 少なくとも1つのフィールドが必須
 - `email`: 有効なメールアドレス形式、255文字以下
 - `phoneNumber`: 50文字以下
-- `lineId`, `discordId`: 100文字以下
-- `twitterHandle`:
+- `line` / `lineId`: 100文字以下
+- `discord` / `discordId`: 100文字以下
+- `telegram`, `slack`: 100文字以下
+- `x` / `twitterHandle`:
   - 1-15文字（@を除く）
   - 英数字とアンダースコアのみ
   - 入力時に`@`付きでも可（例: `@username` または `username`）
@@ -536,6 +585,10 @@ connectedServices: {
   - 表示時はフロントエンドで`@`を追加推奨（例: `@username`）
   - **空文字列 `""` を送信するとフィールドが削除されます**（v0.7.0）
 - `otherContacts`: 500文字以下
+
+**後方互換性**:
+- 新旧両方のフィールド名を送信した場合、新しい名前（`line`, `discord`, `x`）が優先されます
+- 例: `{ line: "abc", lineId: "xyz" }` → `line: "abc"` が使用されます
 
 **レスポンス**:
 ```typescript
@@ -553,14 +606,16 @@ connectedServices: {
   - 文字列長制限超過
 - `internal`: サーバー内部エラー
 
-**保存先**: `/private_cards/{userId}`
+**保存先** (v0.7.0+): `/cards/{userId}` - フラットフィールドとして保存
 
 **注意事項**:
-- 初回呼び出し時: ドキュメントを新規作成（displayName, photoURLは現在のUserから自動コピー）
+- v0.7.0+: フラット構造で `/cards/{userId}` に直接保存されます（ネストされた `privateContacts` オブジェクトは使用しません）
+- 初回呼び出し時: 既存のCardにフィールドを追加
 - 2回目以降: 指定されたフィールドのみ部分更新（未指定フィールドは保持）
 - `displayName`, `photoURL` は `updateProfile` で更新されると自動同期されます
 - 何か一つでも変更されたら `updatedAt` が必ず更新されます
-- **v0.7.0 変更**: `twitterHandle` に空文字列 `""` を送信すると、Firestoreから該当フィールドが削除されます（`undefined` として扱われる）
+- **v0.7.0 変更**: `x` に空文字列 `""` を送信すると、Firestoreから該当フィールドが削除されます（`undefined` として扱われる）
+- 可視性制御: デフォルトでは連絡先/メッセージングフィールドは `"private"` として扱われます
 
 ---
 
@@ -570,34 +625,58 @@ connectedServices: {
 
 **認証**: 必須（自分のPrivateCardのみ取得可能）
 
-**説明**: 自分の個人連絡先情報（PrivateCard）を取得します。他人のPrivateCardは取得できません。
+**説明**: 自分の個人連絡先情報を取得します。v0.7.0+: `/cards/{userId}` から可視性が `"private"` のフィールドを含むすべてのデータを取得します。他人のCardは取得できません。
 
 **リクエスト**: なし
 
-**レスポンス**:
+**レスポンス** (v0.7.0+: フラット構造):
 ```typescript
 {
   userId: string;
   displayName: string;
   photoURL?: string;
+  bio?: string;
+
+  // Contact fields (private by default)
   email?: string;
   phoneNumber?: string;
-  lineId?: string;
-  discordId?: string;
-  twitterHandle?: string;
+
+  // Messaging fields (private by default)
+  line?: string;
+  discord?: string;
+  telegram?: string;
+  slack?: string;
+
+  // SNS fields (public by default, but included in private view)
+  github?: string;
+  x?: string;
+  linkedin?: string;
+  instagram?: string;
+  facebook?: string;
+  zenn?: string;
+  qiita?: string;
+  website?: string;
+  blog?: string;
+  youtube?: string;
+  twitch?: string;
+
+  // Other
   otherContacts?: string;
   badges?: string[];  // v0.5.0+: showOnPrivateCard=true のバッジIDリスト
+
   updatedAt: string;  // ISO 8601形式
-} | null  // PrivateCardが未作成の場合null
+} | null  // プライベートフィールドが未設定の場合null
 ```
 
 **エラー**:
 - `unauthenticated`: 認証されていない場合
 - `internal`: サーバー内部エラー
 
-**注意事項**:
-- PrivateCardが未作成の場合は `null` を返します
-- セキュリティ: 他人のPrivateCardは絶対に取得できません（認証済みユーザーIDのみ使用）
+**注意事項** (v0.7.0+):
+- プライベートフィールド（`email`, `phoneNumber`, `line`, `discord`, `telegram`, `slack`, `otherContacts`）がすべて未設定の場合は `null` を返します
+- フラット構造: すべてのフィールドがルートレベルで返されます（ネストされた `privateContacts` オブジェクトはありません）
+- セキュリティ: 他人のCardは絶対に取得できません（認証済みユーザーIDのみ使用）
+- 可視性フィルタリング: `visibility="private"` として処理され、すべてのフィールド（public/private）が含まれます
 
 ---
 
@@ -607,9 +686,9 @@ connectedServices: {
 
 **認証**: 必須
 
-**説明**: 自分のPrivateCardを交換するための一時トークンを生成します。生成されたトークンをQRコード化し、相手に読み取ってもらうことでPrivateCard交換を実現します。
+**説明**: 自分の連絡先情報（プライベートフィールド）を交換するための一時トークンを生成します。v0.7.0+: フラット構造の `/cards/{userId}` から生成します。生成されたトークンをQRコード化し、相手に読み取ってもらうことで連絡先交換を実現します。
 
-**リクエスト**: なし（認証済みユーザーのPrivateCardから自動生成）
+**リクエスト**: なし（認証済みユーザーの `/cards/{userId}` から自動生成）
 
 **レスポンス**:
 ```typescript
@@ -630,7 +709,7 @@ connectedServices: {
 
 **エラー**:
 - `unauthenticated`: 認証されていない場合
-- `not-found`: PrivateCardが未作成の場合（先に `updatePrivateCard` を呼び出す必要あり）
+- `not-found`: プライベートフィールドが未設定の場合（先に `updatePrivateCard` を呼び出す必要あり）
 - `internal`: サーバー内部エラー
 
 **使用フロー例**:
@@ -647,8 +726,9 @@ console.log(token.qrCodeData); // "devcard://exchange/abc-_123XYZ..."
 await savePrivateCard({ tokenId: "abc-_123XYZ..." });
 ```
 
-**注意事項**:
-- PrivateCardが未作成の場合はエラーになります。先に `updatePrivateCard` で作成してください
+**注意事項** (v0.7.0+):
+- プライベートフィールドが未設定の場合はエラーになります。先に `updatePrivateCard` で作成してください
+- `/cards/{userId}` にプライベートフィールド（`email`, `phoneNumber`, `line`, `discord`, `telegram`, `slack`, `otherContacts`）が少なくとも1つ必要です
 - トークンは1分間で自動的に期限切れになります
 - トークンは1回使用されると無効化されます
 - 自分のトークンを自分で使用することはできません（`savePrivateCard` でエラー）
@@ -667,7 +747,7 @@ await savePrivateCard({ tokenId: "abc-_123XYZ..." });
 
 **認証**: 必須
 
-**説明**: トークンを使用して、他のユーザーのPrivateCardを保存します。トークンは1分間有効で、1回のみ使用可能です。
+**説明**: トークンを使用して、他のユーザーの連絡先情報（プライベートフィールド）を保存します。v0.7.0+: フラット構造の `/cards/{userId}` から情報を取得します。トークンは1分間有効で、1回のみ使用可能です。
 
 **リクエスト**:
 ```typescript
@@ -696,7 +776,7 @@ await savePrivateCard({ tokenId: "abc-_123XYZ..." });
   - トークンの所有者が自分自身（自分のトークンは使用不可）
   - トークンが期限切れ（作成から1分超過）
   - トークンが使用済み
-- `not-found`: トークンが存在しない、またはPrivateCardが存在しない
+- `not-found`: トークンが存在しない、またはCardが存在しない
 - `internal`: サーバー内部エラー
 
 **トークン検証**:
@@ -713,14 +793,15 @@ await savePrivateCard({ tokenId: "abc-_123XYZ..." });
   cardUserId: string;           // トークン所有者のuserId
   cardType: "private";
   savedAt: Timestamp;
-  lastKnownUpdatedAt: Timestamp; // 相手のPrivateCard.updatedAt
+  lastKnownUpdatedAt: Timestamp; // 相手のCard.updatedAt
 }
 ```
 
-**注意事項**:
+**注意事項** (v0.7.0+):
 - トークンは `/exchange_tokens/{tokenId}` に保存されています（将来的にQRコード/AirDropでの交換を想定）
 - 使用後、トークンは `usedBy`, `usedAt` フィールドでマークされ、再利用不可になります
 - セキュリティ: 自分のトークンは使用できません
+- v0.7.0+: `/cards/{userId}` から直接情報を取得します（フラット構造）
 - **v0.8.0 期限切れトークン即時削除 (Issue #50)**: 期限切れトークンを使用しようとした場合、トークンは即座にFirestoreから削除されます。エラーレスポンスは従来通り `invalid-argument` ですが、トークンは削除されるため、再度同じトークンで試行しても `not-found` エラーとなります。
 
 ---
@@ -800,84 +881,7 @@ await savePrivateCard({ tokenId: "abc-_123XYZ..." });
 
 **注意事項**:
 - 自分の保存済み名刺のみ削除可能（他人の名刺は削除できない）
-- 削除されるのはSavedCardのみ（マスターのPublicCard/PrivateCardは削除されません）
-
----
-
-### 7. Callable Function: `manualSync`
-
-**エンドポイント**: `manualSync` (Callable Function)
-
-**認証**: 必須（自分のデータのみ同期可能）
-
-**説明**: 保存済みの外部サービストークンを使用して、サービスの最新情報を公開名刺に手動で同期します。現在はGitHub基本情報（username, name, avatarUrl, bio, profileUrl）のみ対応。
-
-**リクエスト**:
-```typescript
-{
-  services: string[];  // 同期するサービスのリスト（例: ["github"]）
-}
-```
-
-**バリデーション**:
-- `services`: 必須、非空配列
-- 配列の各要素は文字列型である必要があります
-- 現在サポート: `["github"]`（将来的に "qiita", "zenn" などを追加予定）
-
-**レスポンス**:
-```typescript
-{
-  success: true;
-  syncedServices: string[];  // 成功した同期のリスト（例: ["github"]）
-  errors?: Array<{
-    service: string;
-    error: "token-not-found" | "token-expired" | "api-error";
-  }>;
-}
-```
-
-**エラー**:
-- `unauthenticated`: 認証されていない場合
-- `invalid-argument`: 以下の場合
-  - `services` フィールドが未指定
-  - `services` が配列以外
-  - `services` が空配列
-  - `services` の要素に文字列以外が含まれる
-- `not-found`: ユーザーまたは公開名刺が存在しない場合
-- `internal`: サーバー内部エラー
-
-**同期エラー（`errors[]` 内）**:
-- `token-not-found`: 指定サービスのトークンが保存されていない
-- `token-expired`: トークンの有効期限切れ（再認証が必要）
-- `api-error`: 外部APIエラー（ネットワークエラー、5xx等）
-
-**処理フロー**:
-1. 認証済みユーザーのIDを取得
-2. `/users/{userId}` から各サービスのアクセストークンを取得
-3. 外部API（GitHub等）を呼び出して最新情報を取得
-4. `/public_cards/{userId}` の `connectedServices` を更新
-
-**更新されるデータ（GitHub の場合）**:
-```typescript
-connectedServices: {
-  github: {
-    serviceName: "github";
-    username: string;        // GitHubユーザー名
-    profileUrl: string;      // https://github.com/{username}
-    avatarUrl: string;       // プロフィール画像URL
-    bio?: string;            // GitHub上の自己紹介
-    stats?: {
-      name?: string;         // 実名（GitHub上で設定されている場合）
-    };
-  }
-}
-```
-
-**注意事項**:
-- 認可: 自分自身のデータのみ同期可能（UserIDはリクエストから受け取らず、認証済みユーザーのIDを使用）
-- 部分成功: 一部のサービス同期が失敗しても、成功したものは反映される
-- 既存サービス保持: 同期対象外のサービス情報は保持される
-- トークン保護: アクセストークンはログに出力されない
+- 削除されるのはSavedCardのみ（マスターのCardは削除されません）
 
 ---
 
@@ -981,9 +985,12 @@ createdAt: Timestamp
 createdAt: string  // ISO 8601形式
 ```
 
-### ConnectedService
+### ConnectedService (⚠️ 非推奨: v0.7.0+)
+
+**注意**: v0.7.0以降、`connectedServices` オブジェクトは使用されなくなりました。代わりに、フラット構造の SNS フィールド（`github`, `x`, `linkedin` など）を使用してください。
 
 ```typescript
+// ⚠️ 非推奨: v0.7.0以降は使用されません
 interface ConnectedService {
   serviceName: string;  // "github", "qiita", "zenn", "x"
   username: string;
@@ -991,6 +998,25 @@ interface ConnectedService {
   avatarUrl?: string;
   bio?: string;
   stats?: Record<string, number | string>; // サービス固有の統計情報
+}
+```
+
+**v0.7.0+ フラット構造**:
+```typescript
+// 新しい構造: SNSフィールドは直接Cardオブジェクトに保存
+interface Card {
+  // ... 他のフィールド
+  github?: string;      // GitHubユーザー名
+  x?: string;           // X/Twitterハンドル
+  linkedin?: string;    // LinkedInプロフィールURL
+  instagram?: string;
+  facebook?: string;
+  zenn?: string;
+  qiita?: string;
+  website?: string;
+  blog?: string;
+  youtube?: string;
+  twitch?: string;
 }
 ```
 
@@ -1358,7 +1384,7 @@ Firestoreパス: `/moderators/{userId}`
 
 **認証**: 必須
 
-**説明**: プロフィール画像をFirebase Storageにアップロードし、`/users`, `/public_cards`, `/private_cards` (存在する場合) の `photoURL` を更新します。
+**説明**: プロフィール画像をFirebase Storageにアップロードし、`/users`, `/cards` の `photoURL` を更新します。v0.7.0+: 統合カードモデルにより、更新箇所が簡素化されました。
 
 **リクエスト**:
 ```typescript
@@ -1387,15 +1413,14 @@ Firestoreパス: `/moderators/{userId}`
   - `imageData` または `contentType` が不正
   - ファイルサイズが5MBを超える
   - Content-Typeが許可リストに含まれない
-- `not-found`: ユーザーまたは PublicCard が存在しない
+- `not-found`: ユーザーまたは Card が存在しない
 - `internal`: アップロード失敗
 
 **保存先**: `/user_images/{userId}/profile.{ext}` (Firebase Storage)
 
-**更新対象**:
+**更新対象** (v0.7.0+: Unified Card Model):
 - `/users/{userId}` の `photoURL`
-- `/public_cards/{userId}` の `photoURL`
-- `/private_cards/{userId}` の `photoURL` (存在する場合)
+- `/cards/{userId}` の `photoURL`
 
 **セキュリティ**:
 - 本人のみアップロード可能（`request.auth.uid == userId`）
@@ -1409,7 +1434,7 @@ Firestoreパス: `/moderators/{userId}`
 
 **認証**: 必須
 
-**説明**: カード背景画像をFirebase Storageにアップロードし、`/public_cards/{userId}` の `backgroundImageUrl` を更新します。
+**説明**: カード背景画像をFirebase Storageにアップロードし、`/cards/{userId}` の `backgroundImageUrl` を更新します。v0.7.0+: 統合カードモデルに対応。
 
 **リクエスト**:
 ```typescript
@@ -1438,17 +1463,17 @@ Firestoreパス: `/moderators/{userId}`
   - `imageData` または `contentType` が不正
   - ファイルサイズが5MBを超える
   - Content-Typeが許可リストに含まれない
-- `not-found`: PublicCard が存在しない
+- `not-found`: Card が存在しない
 - `internal`: アップロード失敗
 
 **保存先**: `/user_images/{userId}/card_background.{ext}` (Firebase Storage)
 
-**更新対象**:
-- `/public_cards/{userId}` の `backgroundImageUrl`
+**更新対象** (v0.7.0+: Unified Card Model):
+- `/cards/{userId}` の `backgroundImageUrl`
 
 **セキュリティ**:
 - 本人のみアップロード可能
-- 画像は公開読み取り可能（PublicCardの一部として）
+- 画像は公開読み取り可能（可視性設定に基づく）
 
 ---
 

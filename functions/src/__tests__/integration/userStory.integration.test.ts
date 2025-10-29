@@ -146,7 +146,7 @@ describe("User Story Integration Tests", () => {
       const updateResult = await updatePrivateCard({
         email: "alice@company.com",
         phoneNumber: "123-456-7890",
-        lineId: "alice_line",
+        line: "alice_line",
       });
 
       // Verify: updatePrivateCard succeeded
@@ -332,8 +332,8 @@ describe("User Story Integration Tests", () => {
 
       // Verify: updatedAt changed per contract
       const updatedCard = await getDoc(doc(firestore, "cards", userId));
-      expect(updatedCard.data()?.privateContacts?.email).toBe("updated@example.com");
-      expect(updatedCard.data()?.privateContacts?.phoneNumber).toBe("111-111-1111"); // Unchanged field preserved
+      expect(updatedCard.data()?.email).toBe("updated@example.com");
+      expect(updatedCard.data()?.phoneNumber).toBe("111-111-1111"); // Unchanged field preserved
 
       const newUpdatedAt = updatedCard.data()?.updatedAt;
       expect(newUpdatedAt).not.toEqual(originalUpdatedAt);
@@ -462,7 +462,7 @@ describe("User Story Integration Tests", () => {
       const cardDoc = await getDoc(doc(firestore, "cards", userId));
       expect(cardDoc.data()?.displayName).toBe("New Display Name");
       expect(cardDoc.data()?.bio).toBe("Updated bio");
-      expect(cardDoc.data()?.privateContacts?.email).toBe("contact@example.com");
+      expect(cardDoc.data()?.email).toBe("contact@example.com");
     });
   });
 
@@ -491,8 +491,8 @@ describe("User Story Integration Tests", () => {
       expect(privateCardDoc.exists()).toBe(true);
       expect(privateCardDoc.data()?.displayName).toBe("John Smith");
       expect(privateCardDoc.data()?.photoURL).toBe("https://example.com/photo.jpg");
-      expect(privateCardDoc.data()?.privateContacts?.email).toBe("john@company.com");
-      expect(privateCardDoc.data()?.privateContacts?.phoneNumber).toBe("555-1234");
+      expect(privateCardDoc.data()?.email).toBe("john@company.com");
+      expect(privateCardDoc.data()?.phoneNumber).toBe("555-1234");
 
       // Second call (should only update specified fields)
       await updatePrivateCard({
@@ -500,8 +500,8 @@ describe("User Story Integration Tests", () => {
       });
 
       const updatedDoc = await getDoc(doc(firestore, "cards", userId));
-      expect(updatedDoc.data()?.privateContacts?.email).toBe("john.new@company.com");
-      expect(updatedDoc.data()?.privateContacts?.phoneNumber).toBe("555-1234"); // Preserved per contract
+      expect(updatedDoc.data()?.email).toBe("john.new@company.com");
+      expect(updatedDoc.data()?.phoneNumber).toBe("555-1234"); // Preserved per contract
       expect(updatedDoc.data()?.displayName).toBe("John Smith"); // Unchanged
     });
   });
@@ -688,7 +688,7 @@ describe("User Story Integration Tests", () => {
 
       // Verify: @ removed per contract (lines 474-479)
       let privateCardDoc = await getDoc(doc(firestore, "cards", userId));
-      expect(privateCardDoc.data()?.privateContacts?.twitterHandle).toBe("johndoe");
+      expect(privateCardDoc.data()?.x).toBe("johndoe");
 
       // Update without @ (should work)
       await updatePrivateCard({
@@ -696,7 +696,7 @@ describe("User Story Integration Tests", () => {
       });
 
       privateCardDoc = await getDoc(doc(firestore, "cards", userId));
-      expect(privateCardDoc.data()?.privateContacts?.twitterHandle).toBe("janedoe");
+      expect(privateCardDoc.data()?.x).toBe("janedoe");
 
       // Delete by sending empty string per contract (line 480, 506)
       await updatePrivateCard({
@@ -704,7 +704,7 @@ describe("User Story Integration Tests", () => {
       });
 
       privateCardDoc = await getDoc(doc(firestore, "cards", userId));
-      expect(privateCardDoc.data()?.privateContacts?.twitterHandle).toBeUndefined();
+      expect(privateCardDoc.data()?.x).toBeUndefined();
     });
   });
 

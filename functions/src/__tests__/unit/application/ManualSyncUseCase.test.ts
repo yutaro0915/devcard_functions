@@ -48,8 +48,7 @@ describe("ManualSyncUseCase", () => {
     const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
@@ -62,24 +61,12 @@ describe("ManualSyncUseCase", () => {
       profileUrl: "https://github.com/testuser",
     };
 
-    const connectedService = {
-      serviceName: "github",
-      username: "testuser",
-      profileUrl: "https://github.com/testuser",
-      avatarUrl: "https://avatars.githubusercontent.com/u/123",
-      bio: "Software Engineer",
-      stats: {
-        name: "Test User",
-      },
-    };
-
     mockUserRepository.findById.mockResolvedValue(existingUser);
     mockCardRepository.findById.mockResolvedValue(existingCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: true,
       data: gitHubUserInfo,
     });
-    mockGitHubService.toConnectedService.mockReturnValue(connectedService);
     mockCardRepository.update.mockResolvedValue(undefined);
 
     const useCase = new ManualSyncUseCase(
@@ -96,11 +83,8 @@ describe("ManualSyncUseCase", () => {
 
     expect(mockUserRepository.findById).toHaveBeenCalledWith("user-123");
     expect(mockGitHubService.fetchUserInfo).toHaveBeenCalledWith("valid_github_token");
-    expect(mockGitHubService.toConnectedService).toHaveBeenCalledWith(gitHubUserInfo);
     expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
-      connectedServices: {
-        github: connectedService,
-      },
+      github: "testuser",
     });
   });
 
@@ -122,8 +106,7 @@ describe("ManualSyncUseCase", () => {
     const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
@@ -170,8 +153,7 @@ describe("ManualSyncUseCase", () => {
     const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
@@ -222,8 +204,7 @@ describe("ManualSyncUseCase", () => {
     const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
@@ -331,8 +312,7 @@ describe("ManualSyncUseCase", () => {
     const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {},
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       theme: "default",
       updatedAt: new Date(),
     };
@@ -391,15 +371,8 @@ describe("ManualSyncUseCase", () => {
     const existingCard: Card = {
       userId: "user-123",
       displayName: "Test User",
-      connectedServices: {
-        existingService: {
-          serviceName: "existingService",
-          username: "existing",
-          profileUrl: "https://example.com",
-        },
-      },
       theme: "default",
-      visibility: {bio: "public", backgroundImage: "public", badges: "public"},
+      visibility: {bio: "public", backgroundImageUrl: "public", badges: "public"},
       updatedAt: new Date(),
     };
 
@@ -409,20 +382,12 @@ describe("ManualSyncUseCase", () => {
       profileUrl: "https://github.com/testuser",
     };
 
-    const connectedService = {
-      serviceName: "github",
-      username: "testuser",
-      profileUrl: "https://github.com/testuser",
-      avatarUrl: "https://avatars.githubusercontent.com/u/123",
-    };
-
     mockUserRepository.findById.mockResolvedValue(existingUser);
     mockCardRepository.findById.mockResolvedValue(existingCard);
     mockGitHubService.fetchUserInfo.mockResolvedValue({
       success: true,
       data: gitHubUserInfo,
     });
-    mockGitHubService.toConnectedService.mockReturnValue(connectedService);
     mockCardRepository.update.mockResolvedValue(undefined);
 
     const useCase = new ManualSyncUseCase(
@@ -436,16 +401,9 @@ describe("ManualSyncUseCase", () => {
     expect(result.success).toBe(true);
     expect(result.syncedServices).toEqual(["github"]);
 
-    // Check that existing services are preserved
+    // Check that github field is updated
     expect(mockCardRepository.update).toHaveBeenCalledWith("user-123", {
-      connectedServices: {
-        existingService: {
-          serviceName: "existingService",
-          username: "existing",
-          profileUrl: "https://example.com",
-        },
-        github: connectedService,
-      },
+      github: "testuser",
     });
   });
 });

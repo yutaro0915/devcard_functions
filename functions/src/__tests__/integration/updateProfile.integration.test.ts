@@ -276,7 +276,7 @@ describe("updateProfile Integration Test", () => {
       const privateCardData = privateCardDoc.data();
       expect(privateCardData?.displayName).toBe("Updated Name");
       expect(privateCardData?.photoURL).toBe("https://example.com/new-photo.jpg");
-      expect(privateCardData?.privateContacts?.email).toBe("initial@example.com"); // Email should remain
+      expect(privateCardData?.email).toBe("initial@example.com"); // Email should remain
       expect(privateCardData?.updatedAt).toBeDefined();
     });
 

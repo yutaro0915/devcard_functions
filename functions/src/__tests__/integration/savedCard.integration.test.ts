@@ -41,17 +41,10 @@ describe("SavedCard Operations Integration Test", () => {
         userId,
         displayName: "Test User",
         photoURL: "https://example.com/photo.jpg",
-        connectedServices: {},
         theme: "default",
-        visibility: {
-          bio: "public",
-          backgroundImage: "public",
-          badges: "public",
-        },
-        privateContacts: {
-          email,
-          phoneNumber: "+81-90-1234-5678",
-        },
+        // New flat schema: no nested privateContacts
+        email,
+        phoneNumber: "+81-90-1234-5678",
         updatedAt: now,
       });
   }

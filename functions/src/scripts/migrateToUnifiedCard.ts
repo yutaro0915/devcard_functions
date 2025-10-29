@@ -43,34 +43,27 @@ export async function migrateToUnifiedCard() {
       const publicCardData = publicCardDoc.data()!;
       const privateCardData = privateCardDoc.exists ? privateCardDoc.data() : undefined;
 
-      // Build privateContacts from PrivateCard data
-      let privateContacts = undefined;
-      if (privateCardData) {
-        privateContacts = {
-          email: privateCardData.email,
-          phoneNumber: privateCardData.phoneNumber,
-          lineId: privateCardData.lineId,
-          discordId: privateCardData.discordId,
-          twitterHandle: privateCardData.twitterHandle,
-          otherContacts: privateCardData.otherContacts,
-        };
-      }
-
-      // Build unified Card
+      // Build unified Card with flat structure
       const unifiedCard: Card = {
         userId,
         displayName: publicCardData.displayName,
         photoURL: publicCardData.photoURL,
         bio: publicCardData.bio,
         backgroundImageUrl: publicCardData.backgroundImageUrl,
-        connectedServices: publicCardData.connectedServices || {},
         theme: publicCardData.theme || "default",
         customCss: publicCardData.customCss,
         badges: publicCardData.badges,
-        privateContacts,
+        // Flatten private contact fields from PrivateCard
+        ...(privateCardData && {
+          email: privateCardData.email,
+          phoneNumber: privateCardData.phoneNumber,
+          line: privateCardData.lineId,
+          discord: privateCardData.discordId,
+          x: privateCardData.twitterHandle,
+        }),
         visibility: {
           bio: "public",
-          backgroundImage: "public",
+          backgroundImageUrl: "public",
           badges: "public",
         },
         updatedAt: publicCardData.updatedAt || new Date(),

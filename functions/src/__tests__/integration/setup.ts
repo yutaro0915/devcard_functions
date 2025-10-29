@@ -189,28 +189,21 @@ export async function createTestUser(
   });
 
   // Create unified card in /cards collection using Admin SDK
+  // New flat schema: private contact fields are at top level
   const cardData: any = {
     userId,
     displayName: "Test User",
     photoURL: "https://example.com/photo.jpg",
     bio: "Test bio",
-    connectedServices: {},
     theme: "default",
     customCss: null,
-    visibility: {
-      bio: "public",
-      backgroundImage: "public",
-      badges: "public",
-    },
     updatedAt: now,
   };
 
-  // Optionally include privateContacts
+  // Optionally include private contact fields (flat structure, not nested)
   if (includePrivateContacts) {
-    cardData.privateContacts = {
-      email: email, // Use the provided email
-      phoneNumber: "+81-90-1234-5678",
-    };
+    cardData.email = email; // Use the provided email
+    cardData.phoneNumber = "+81-90-1234-5678";
   }
 
   await adminFirestore.collection("cards").doc(userId).set(cardData);

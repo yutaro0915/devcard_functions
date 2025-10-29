@@ -48,9 +48,22 @@ export class SavePrivateCardUseCase {
       throw new Error("Token has expired");
     }
 
-    // 5. Get the Card and verify it has privateContacts
+    // 5. Get the Card and verify it has private contact information
     const card = await this.cardRepository.findById(token.ownerId);
-    if (!card || !card.privateContacts) {
+    if (!card) {
+      throw new Error("Card not found");
+    }
+
+    // Check if card has at least one private contact field
+    const hasPrivateInfo =
+      card.email ||
+      card.phoneNumber ||
+      card.line ||
+      card.discord ||
+      card.telegram ||
+      card.slack;
+
+    if (!hasPrivateInfo) {
       throw new Error("Private card not found");
     }
 

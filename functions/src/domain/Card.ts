@@ -4,32 +4,7 @@
 export type VisibilityLevel = "public" | "private" | "hidden";
 
 /**
- * Visibility settings for card fields
- */
-export interface CardVisibility {
-  bio: VisibilityLevel;
-  backgroundImage: VisibilityLevel;
-  badges: VisibilityLevel;
-}
-
-/**
- * Private contact information (nested structure)
- */
-export interface PrivateContacts {
-  email?: string;
-  phoneNumber?: string;
-  lineId?: string;
-  discordId?: string;
-  twitterHandle?: string;
-  otherContacts?: string;
-}
-
-// Re-export ConnectedService from existing file
-export type {ConnectedService} from "./PublicCard";
-
-/**
- * Unified Card entity - replaces PublicCard and PrivateCard
- * Stored in /cards/{userId} collection
+ * Unified Card - シンプルでフラットな構造
  */
 export interface Card {
   userId: string;
@@ -40,17 +15,62 @@ export interface Card {
   bio?: string;
   backgroundImageUrl?: string;
 
-  // Public information
-  connectedServices: Record<string, import("./PublicCard").ConnectedService>;
+  // Contact information
+  email?: string;
+  phoneNumber?: string;
+
+  // Social Media
+  github?: string;
+  x?: string;
+  linkedin?: string;
+  instagram?: string;
+  facebook?: string;
+
+  // Tech Communities
+  zenn?: string;
+  qiita?: string;
+
+  // Messaging
+  line?: string;
+  discord?: string;
+  telegram?: string;
+  slack?: string;
+
+  // Other
+  website?: string;
+  blog?: string;
+  youtube?: string;
+  twitch?: string;
+  otherContacts?: string;
+
+  // Display settings
   theme: string;
   customCss?: string;
   badges?: string[];
 
-  // Private contact information
-  privateContacts?: PrivateContacts;
-
-  // Visibility settings
-  visibility: CardVisibility;
+  // Visibility control (optional, has defaults)
+  visibility?: Partial<{
+    bio: VisibilityLevel;
+    backgroundImageUrl: VisibilityLevel;
+    email: VisibilityLevel;
+    phoneNumber: VisibilityLevel;
+    github: VisibilityLevel;
+    x: VisibilityLevel;
+    linkedin: VisibilityLevel;
+    instagram: VisibilityLevel;
+    facebook: VisibilityLevel;
+    zenn: VisibilityLevel;
+    qiita: VisibilityLevel;
+    line: VisibilityLevel;
+    discord: VisibilityLevel;
+    telegram: VisibilityLevel;
+    slack: VisibilityLevel;
+    website: VisibilityLevel;
+    blog: VisibilityLevel;
+    youtube: VisibilityLevel;
+    twitch: VisibilityLevel;
+    badges: VisibilityLevel;
+  }>;
 
   // Metadata
   updatedAt: Date;
@@ -76,10 +96,26 @@ export interface UpdateCardData {
   photoURL?: string;
   bio?: string;
   backgroundImageUrl?: string;
-  connectedServices?: Record<string, import("./PublicCard").ConnectedService>;
+  email?: string;
+  phoneNumber?: string;
+  github?: string;
+  x?: string;
+  linkedin?: string;
+  instagram?: string;
+  facebook?: string;
+  zenn?: string;
+  qiita?: string;
+  line?: string;
+  discord?: string;
+  telegram?: string;
+  slack?: string;
+  website?: string;
+  blog?: string;
+  youtube?: string;
+  twitch?: string;
+  otherContacts?: string;
   theme?: string;
   customCss?: string;
   badges?: string[];
-  privateContacts?: PrivateContacts;
-  visibility?: Partial<CardVisibility>;
+  visibility?: Partial<Card["visibility"]>;
 }
